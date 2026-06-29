@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerRuntimeIpc } from './runtime/ipc'
+import { registerPersistenceIpc } from './persistence/ipc'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   registerRuntimeIpc(() => mainWindow)
+  registerPersistenceIpc()
   createWindow()
 
   app.on('activate', () => {

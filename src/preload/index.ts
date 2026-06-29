@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { RUN_CHANNELS, type RunRequest, type AgentEvent } from '../shared/runtime'
+import { RUN_CHANNELS, STATE_CHANNELS, type RunRequest, type AgentEvent } from '../shared/runtime'
 
 // The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
 // allowlisted IPC channels — never raw Node access in the renderer.
@@ -15,6 +15,10 @@ const api = {
       ipcRenderer.on(RUN_CHANNELS.event, listener)
       return () => ipcRenderer.removeListener(RUN_CHANNELS.event, listener)
     }
+  },
+  state: {
+    load: (): Promise<unknown> => ipcRenderer.invoke(STATE_CHANNELS.load),
+    save: (data: unknown): Promise<void> => ipcRenderer.invoke(STATE_CHANNELS.save, data)
   }
 }
 

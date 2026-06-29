@@ -17,3 +17,8 @@ export const RUN_CHANNELS = {
   cancel: 'run:cancel',
   event: 'run:event'
 } as const
+
+export const STATE_CHANNELS = {
+  load: 'state:load',
+  save: 'state:save'
+} as const
