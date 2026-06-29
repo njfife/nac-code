@@ -4,9 +4,9 @@
 
 ## Current phase
 
-**Building.** Master plan + core specs (M0-1, M0-8) complete; cross-provider context portability spike-validated. **M0-7 done** — hardened Electron + React + TS scaffold (`c44869e`) plus the tracer: a harness subprocess streams `AgentEvent`s to the renderer over the typed preload bridge (`d9274a4`); typecheck / build / stub-stream all pass. The GUI render path is user-verifiable via `npm run dev`.
+**Building.** Master plan + core specs complete; cross-provider portability spike-validated. **M0-7 done** (scaffold + tracer). **Test harness** in (vitest, 6 tests, `6f6e570`). **M1 shell skeleton** in (`0275ea9`) — three-pane IDE chrome (top/status bar, left rail, chat view, inspector) + design tokens as CSS variables; the tracer stream is wired into the chat view (user/assistant turns + blinking cursor). All typecheck/build/test green; GUI is `npm run dev`-verifiable.
 
-**Next step:** **test harness** (vitest) + first unit tests for the pure runtime logic (`parseHarnessLine`), then **M1** — the three-pane IDE shell (top/status bar, left rail, chat view, inspector) per the design reference.
+**Next step (M1, in progress):** flesh out the panes — left rail (real workspace groups, chat rows, new-chat), inspector panels (CLI connections, token & cost, session, attached context), chat-header actions, and the composer's model/agent/config pickers — then layout modes (Studio/Cockpit/Focus) and the Context Library / Changes routes. State management for the per-chat spine (FR-4.1) comes as panes need it.
 
 ## Locked decisions (newest first)
 
