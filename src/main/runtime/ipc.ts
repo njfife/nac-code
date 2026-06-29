@@ -3,6 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { RUN_CHANNELS, type RunRequest, type AgentEvent } from '../../shared/runtime'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
+import { startClaudeRun } from './claudeAdapter'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -23,19 +24,24 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   ipcMain.handle(RUN_CHANNELS.start, (_e, req: RunRequest): { runId: string } => {
     const runId = `run_${++counter}`
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
-    const run = startHarnessRun(
-      runId,
-      {
-        prompt: req.prompt,
-        command: process.execPath,
-        args: [stubHarnessPath(), req.prompt],
-        env: { ELECTRON_RUN_AS_NODE: '1' } // run the .mjs with Electron's bundled Node
-      },
-      (event) => {
-        send(event)
-        if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
-      }
-    )
+    const handler = (event: AgentEvent): void => {
+      send(event)
+      if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
+    }
+    // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
+    const run =
+      req.provider === 'claude'
+        ? startClaudeRun(runId, { prompt: req.prompt }, handler)
+        : startHarnessRun(
+            runId,
+            {
+              prompt: req.prompt,
+              command: process.execPath,
+              args: [stubHarnessPath(), req.prompt],
+              env: { ELECTRON_RUN_AS_NODE: '1' } // run the .mjs with Electron's bundled Node
+            },
+            handler
+          )
     runs.set(runId, run)
     return { runId }
   })

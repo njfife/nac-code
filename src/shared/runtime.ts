@@ -3,6 +3,7 @@
 
 export interface RunRequest {
   prompt: string
+  provider?: string // harness driver id; selects the adapter (e.g. 'claude' → real, else stub)
 }
 
 export type AgentEvent =

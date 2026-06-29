@@ -44,7 +44,7 @@ export default function ChatView() {
     setOutput('')
     setStatus('running')
     setPrompt('')
-    const { runId } = await window.nac.runs.start({ prompt })
+    const { runId } = await window.nac.runs.start({ prompt, provider: active.provider })
     runIdRef.current = runId
   }
 
