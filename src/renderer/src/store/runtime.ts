@@ -50,5 +50,7 @@ export async function sendMessage(text: string): Promise<void> {
 }
 
 export function isStreaming(chat: Chat): boolean {
-  return Boolean(chat.messages[chat.messages.length - 1]?.streaming)
+  const msgs = chat?.messages
+  if (!msgs || msgs.length === 0) return false
+  return Boolean(msgs[msgs.length - 1]?.streaming)
 }

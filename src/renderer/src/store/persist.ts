@@ -1,12 +1,38 @@
-import { useApp, type Chat, type Workspace, type Layout } from './store'
+import { useApp, type Chat, type Workspace, type Layout, type ThinkingLevel } from './store'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
-  chats: Record<string, Chat>
+  chats: Record<string, Partial<Chat>>
   workspaces: Workspace[]
   activeChatId: string
   layout: Layout
   expanded: Record<string, boolean>
+}
+
+// Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
+// nac-state.json can never crash the app. Add new Chat fields here with a default when introduced.
+function normalizeChat(c: Partial<Chat>, id: string): Chat {
+  return {
+    id,
+    workspaceId: c.workspaceId ?? 'ws_nac',
+    title: c.title ?? 'Chat',
+    time: c.time ?? 'now',
+    provider: c.provider ?? 'claude',
+    model: c.model ?? 'Opus 4.8',
+    agent: c.agent ?? null,
+    yolo: c.yolo ?? false,
+    thinking: (c.thinking as ThinkingLevel) ?? 'medium',
+    activeConfig: c.activeConfig ?? null,
+    attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
+    dirty: c.dirty ?? false,
+    compacting: false, // never restore a stuck in-progress state
+    compacted: c.compacted ?? false,
+    contextK: c.contextK ?? 0,
+    windowK: c.windowK ?? 200,
+    branchedFrom: c.branchedFrom ?? null,
+    messages: Array.isArray(c.messages) ? c.messages : [],
+    claudeSessionId: c.claudeSessionId ?? null
+  }
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -17,9 +43,11 @@ export async function initPersistence(): Promise<void> {
   try {
     const loaded = (await window.nac.state.load()) as PersistedState | null
     if (loaded?.chats && Object.keys(loaded.chats).length > 0) {
-      const activeChatId = loaded.activeChatId in loaded.chats ? loaded.activeChatId : Object.keys(loaded.chats)[0]
+      const chats: Record<string, Chat> = {}
+      for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id)
+      const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : Object.keys(chats)[0]
       useApp.setState({
-        chats: loaded.chats,
+        chats,
         workspaces: loaded.workspaces ?? useApp.getState().workspaces,
         activeChatId,
         layout: loaded.layout ?? useApp.getState().layout,

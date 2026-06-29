@@ -21,6 +21,7 @@ export default function ChatView() {
   const [configOpen, setConfigOpen] = useState(false)
   const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
   const streaming = isStreaming(active)
+  const messages = active.messages ?? [] // defensive: tolerate stale data missing the field
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -91,12 +92,12 @@ export default function ChatView() {
       {/* Thread */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ maxWidth: 'var(--thread-max-w)', margin: '0 auto', padding: '24px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {active.messages.length === 0 && (
+          {messages.length === 0 && (
             <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>
               Start the conversation — your message and the agent's streamed reply appear here.
             </p>
           )}
-          {active.messages.map((m) => (
+          {messages.map((m) => (
             <Message key={m.id} role={m.role} text={m.text} streaming={m.streaming} error={m.error} />
           ))}
           <div ref={bottomRef} />
