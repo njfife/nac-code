@@ -28,9 +28,12 @@
 
 **Local-model coupling — DECIDED: thin** (2026-06-29). NAC relies on the carrier (OpenCode) for the local-model list and does **not** sync OpenCode config, query LM Studio directly, or manage model loading. Each LM Studio instance's own JIT + Auto-Evict (server settings, local *and* remote) handle auto-load + one-at-a-time; Nathan owns the OpenCode + LM Studio config. The `LocalModelManager`, OpenCode auto-config, and the read-only-picker are **declined for v1** to avoid coupling NAC to OpenCode's config schema + LM Studio's API. Research retained for reference: `docs/research/lm-studio-model-management.md`. Accepted tradeoff: OpenCode's local model list can go stale (fixed in *Nathan's* OpenCode setup, e.g. a discovery plugin), not by NAC.
 
+**✅ Native resume — all providers** (`bdc8b00`): same-provider turns reuse the harness session (claude `--resume`, codex `exec <flags> resume <id>`, copilot `--resume=<id>`, opencode `-s <id>`) and send only the new message; cross-provider switches still replay. `useNative` generalized to `sessionProvider === provider && sessionId`. Verified vs each real binary (2-turn recall).
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) — cheaper same-provider turns.
-- **PRD multi-repo** workspace model; **packaging** (electron-builder) for a distributable app.
+- **Real file-changes view** — replace the mock Changes view with the actual git diff in the workspace (pairs with YOLO/workspace-write; the "see the agent's work" pillar).
+- **Wire the context library** — attached skills/files/agents actually injected into the run (the "managed static context" pillar; per-harness mapping work).
+- **PRD multi-repo** workspace model; **packaging** (electron-builder) — *deferred (Nathan: not worrying about real builds yet)*.
 
 **▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for Nathan to steer next priorities.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
