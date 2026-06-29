@@ -9,6 +9,7 @@ const TYPE_ORDER: ItemType[] = ['skill', 'agent', 'instruction', 'file']
 export default function Inspector() {
   const active = useApp(selectActiveChat)
   const setView = useApp((s) => s.setView)
+  const openModal = useApp((s) => s.openModal)
   const [reauthed, setReauthed] = useState<Record<string, boolean>>({})
   const pct = Math.min(100, Math.round((active.contextK / active.windowK) * 100))
 
@@ -31,7 +32,7 @@ export default function Inspector() {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
         <span style={eyebrow}>Inspector</span>
-        <button style={ghostBtn}>Stats</button>
+        <button style={ghostBtn} onClick={() => openModal('stats')}>Stats</button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>

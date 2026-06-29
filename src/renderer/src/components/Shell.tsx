@@ -5,6 +5,7 @@ import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
 import AgentModal from './AgentModal'
+import StatsModal from './StatsModal'
 import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
@@ -59,6 +60,7 @@ export default function Shell() {
       <StatusBar />
       {modal === 'model' && <ModelModal />}
       {modal === 'agent' && <AgentModal />}
+      {modal === 'stats' && <StatsModal />}
       {palette && <CommandPalette />}
     </div>
   )
