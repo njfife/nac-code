@@ -4,6 +4,7 @@ import LeftRail from './LeftRail'
 import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
+import AgentModal from './AgentModal'
 import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
@@ -48,6 +49,7 @@ export default function Shell() {
           <Changes />
         ) : (
           <>
+            {layout === 'cockpit' && <ActivityRail />}
             <LeftRail />
             <ChatView />
             {layout !== 'focus' && <Inspector />}
@@ -56,6 +58,7 @@ export default function Shell() {
       </div>
       <StatusBar />
       {modal === 'model' && <ModelModal />}
+      {modal === 'agent' && <AgentModal />}
       {palette && <CommandPalette />}
     </div>
   )
@@ -66,6 +69,27 @@ const MODES: { label: string; value: Layout }[] = [
   { label: 'Cockpit', value: 'cockpit' },
   { label: 'Focus', value: 'focus' }
 ]
+
+// Cockpit activity rail (FR-1.3): slim icon rail with quick jumps.
+function ActivityRail() {
+  const setView = useApp((s) => s.setView)
+  const togglePalette = useApp((s) => s.togglePalette)
+  return (
+    <div style={{ width: 'var(--activity-w)', flexShrink: 0, background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6 }}>
+      <RailBtn glyph="◧" title="Context Library" onClick={() => setView('context')} />
+      <RailBtn glyph="▤" title="Changes" onClick={() => setView('changes')} />
+      <RailBtn glyph="⌘K" title="Command palette" onClick={() => togglePalette()} />
+    </div>
+  )
+}
+
+function RailBtn(props: { glyph: string; title: string; onClick: () => void }) {
+  return (
+    <button title={props.title} onClick={props.onClick} style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: 14, cursor: 'pointer' }}>
+      {props.glyph}
+    </button>
+  )
+}
 
 function TopBar() {
   const workspaces = useApp((s) => s.workspaces)

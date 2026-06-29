@@ -43,6 +43,7 @@ interface AppState {
   setLayout: (l: Layout) => void
   setView: (v: View) => void
   setModel: (provider: string, model: string) => void
+  setAgent: (agent: string | null) => void
   openModal: (m: ModalKind) => void
   closeModal: () => void
   toggleAttach: (itemId: string) => void
@@ -78,6 +79,8 @@ export const useApp = create<AppState>()((set) => ({
   // Per-chat mutations — affect ONLY the active chat (FR-4.1 invariant).
   setModel: (provider, model) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } })),
+  setAgent: (agent) =>
+    set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
   openModal: (m) => set({ modal: m }),
   closeModal: () => set({ modal: null }),
   toggleAttach: (itemId) =>
