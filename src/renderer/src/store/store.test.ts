@@ -79,4 +79,27 @@ describe('app store — per-chat spine', () => {
     expect(useApp.getState().workspaces.length).toBe(before)
     expect(useApp.getState().workspaces.find((w) => w.id === 'ws_nac')).toBeDefined()
   })
+
+  it('newChat(workspaceId) inherits that workspace’s defaults over the active chat (M0-4)', () => {
+    useApp.getState().addWorkspace('proj', '/p')
+    const proj = useApp.getState().workspaces.find((w) => w.name === 'proj')!
+    useApp.getState().setWorkspaceDefaults(proj.id, { provider: 'codex', model: 'gpt-5-codex', agent: 'infra' })
+    useApp.getState().selectChat('c1') // active chat is in ws_nac, not proj
+    useApp.getState().newChat(proj.id)
+    const active = useApp.getState().chats[useApp.getState().activeChatId]
+    expect(active.workspaceId).toBe(proj.id)
+    expect(active.provider).toBe('codex')
+    expect(active.model).toBe('gpt-5-codex')
+    expect(active.agent).toBe('infra')
+  })
+
+  it('setWorkspaceDefaults merges partials and clears with null', () => {
+    useApp.getState().addWorkspace('p2', '/p2')
+    const p2 = useApp.getState().workspaces.find((w) => w.name === 'p2')!
+    useApp.getState().setWorkspaceDefaults(p2.id, { provider: 'claude', model: 'Opus 4.8' })
+    useApp.getState().setWorkspaceDefaults(p2.id, { agent: 'nac-code' })
+    expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toEqual({ provider: 'claude', model: 'Opus 4.8', agent: 'nac-code' })
+    useApp.getState().setWorkspaceDefaults(p2.id, null)
+    expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toBeUndefined()
+  })
 })

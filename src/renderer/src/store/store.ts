@@ -4,10 +4,17 @@ import { CONFIGS_BY_ID } from '../data/configs'
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
 
+export interface WorkspaceDefaults {
+  provider?: string
+  model?: string
+  agent?: string | null
+}
+
 export interface Workspace {
   id: string
   name: string
   path: string // project directory; harness runs for this workspace's chats execute here (~ allowed). '' = unbound
+  defaults?: WorkspaceDefaults // new chats here inherit these (else fall back to active-chat inheritance — M0-4)
 }
 
 // A turn in the provider-neutral transcript (M0-8 source of truth — renders the UI and, later, powers replay).
@@ -46,7 +53,7 @@ export interface Chat {
 
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
-export type ModalKind = 'model' | 'agent' | 'stats' | null
+export type ModalKind = 'model' | 'agent' | 'stats' | 'workspace' | null
 export type ThinkingLevel = 'none' | 'low' | 'medium' | 'high'
 
 interface AppState {
@@ -57,6 +64,7 @@ interface AppState {
   layout: Layout
   expanded: Record<string, boolean>
   modal: ModalKind
+  wsModalId: string | null // workspace targeted by the 'workspace' defaults modal
   palette: boolean
 
   selectChat: (id: string) => void
@@ -64,6 +72,8 @@ interface AppState {
   addWorkspace: (name: string, path: string) => void
   renameWorkspace: (id: string, name: string) => void
   removeWorkspace: (id: string) => void
+  openWorkspaceModal: (id: string) => void
+  setWorkspaceDefaults: (id: string, defaults: WorkspaceDefaults | null) => void
   setLayout: (l: Layout) => void
   setView: (v: View) => void
   setModel: (provider: string, model: string) => void
@@ -76,7 +86,7 @@ interface AppState {
   togglePalette: () => void
   compactChat: () => void
   newFromCompacted: () => void
-  newChat: () => void
+  newChat: (workspaceId?: string) => void
   toggleYolo: () => void
   setThinking: (t: ThinkingLevel) => void
   // transcript / run lifecycle (driven by AgentEvents) — by chatId so background runs route correctly
@@ -117,6 +127,7 @@ export const useApp = create<AppState>()((set, get) => ({
   layout: 'studio',
   expanded: { ws_nac: true, ws_infra: false },
   modal: null,
+  wsModalId: null,
   palette: false,
 
   selectChat: (id) => set({ activeChatId: id }),
@@ -143,7 +154,14 @@ export const useApp = create<AppState>()((set, get) => ({
   setAgent: (agent) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
   openModal: (m) => set({ modal: m }),
-  closeModal: () => set({ modal: null }),
+  closeModal: () => set({ modal: null, wsModalId: null }),
+  openWorkspaceModal: (id) => set({ modal: 'workspace', wsModalId: id }),
+  setWorkspaceDefaults: (id, defaults) =>
+    set((s) => ({
+      workspaces: s.workspaces.map((w) =>
+        w.id === id ? { ...w, defaults: defaults === null ? undefined : { ...w.defaults, ...defaults } } : w
+      )
+    })),
   toggleAttach: (itemId) =>
     set((s) => {
       const chat = s.chats[s.activeChatId]
@@ -201,10 +219,11 @@ export const useApp = create<AppState>()((set, get) => ({
     const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
-  newChat: () => {
+  newChat: (workspaceId) => {
     const s = get()
     const src = s.chats[s.activeChatId]
-    const wsId = src?.workspaceId ?? s.workspaces[0].id
+    const wsId = workspaceId ?? src?.workspaceId ?? s.workspaces[0].id
+    const wsDefaults = s.workspaces.find((w) => w.id === wsId)?.defaults
     const id = nextChatId()
     const cfg = CONFIGS_BY_ID.standard
     const chat: Chat = {
@@ -212,9 +231,9 @@ export const useApp = create<AppState>()((set, get) => ({
       workspaceId: wsId,
       title: 'New chat',
       time: 'now',
-      provider: src?.provider ?? 'claude',
-      model: src?.model ?? 'Opus 4.8',
-      agent: src?.agent ?? null,
+      provider: wsDefaults?.provider ?? src?.provider ?? 'claude',
+      model: wsDefaults?.model ?? src?.model ?? 'Opus 4.8',
+      agent: wsDefaults?.agent !== undefined ? wsDefaults.agent : src?.agent ?? null,
       yolo: false,
       thinking: 'medium',
       activeConfig: 'standard',

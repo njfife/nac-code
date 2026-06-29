@@ -13,6 +13,7 @@ export default function LeftRail() {
   const newChat = useApp((s) => s.newChat)
   const addWorkspace = useApp((s) => s.addWorkspace)
   const removeWorkspace = useApp((s) => s.removeWorkspace)
+  const openWorkspaceModal = useApp((s) => s.openWorkspaceModal)
 
   const onAddWorkspace = async (): Promise<void> => {
     const picked = await window.nac?.dialog?.pickDirectory()
@@ -60,8 +61,18 @@ export default function LeftRail() {
                   </span>
                   <span style={countPill}>{list.length}</span>
                 </button>
+                <button title="New chat in this workspace" onClick={() => newChat(ws.id)} style={iconBtn}>
+                  +
+                </button>
+                <button
+                  title={ws.defaults ? 'Workspace defaults (set)' : 'Workspace defaults'}
+                  onClick={() => openWorkspaceModal(ws.id)}
+                  style={{ ...iconBtn, color: ws.defaults ? 'var(--accent-light)' : 'var(--faint)' }}
+                >
+                  ⚙
+                </button>
                 {list.length === 0 && (
-                  <button title="Remove empty workspace" onClick={() => removeWorkspace(ws.id)} style={removeBtn}>
+                  <button title="Remove empty workspace" onClick={() => removeWorkspace(ws.id)} style={iconBtn}>
                     ✕
                   </button>
                 )}
@@ -149,12 +160,12 @@ const wsHeader: CSSProperties = {
   fontSize: 12.5,
   cursor: 'pointer'
 }
-const removeBtn: CSSProperties = {
+const iconBtn: CSSProperties = {
   background: 'transparent',
   border: 'none',
   color: 'var(--faint)',
   fontSize: 11,
-  padding: '0 8px',
+  padding: '0 6px',
   cursor: 'pointer',
   flexShrink: 0
 }

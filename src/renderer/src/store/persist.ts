@@ -49,7 +49,7 @@ export async function initPersistence(): Promise<void> {
       const chats: Record<string, Chat> = {}
       for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id)
       const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : Object.keys(chats)[0]
-      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({ id: w.id, name: w.name, path: w.path ?? '' }))
+      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({ id: w.id, name: w.name, path: w.path ?? '', defaults: w.defaults }))
       useApp.setState({
         chats,
         workspaces,
