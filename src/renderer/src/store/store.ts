@@ -36,8 +36,9 @@ export interface Chat {
   contextK: number
   windowK: number
   branchedFrom: string | null
-  messages: Turn[] // conversation transcript
-  claudeSessionId: string | null // native session id for Claude --resume (FR-4.2 fast-path)
+  messages: Turn[] // conversation transcript (provider-neutral source of truth — M0-8)
+  sessionId: string | null // native session id (provider-specific)
+  sessionProvider: string | null // which provider owns sessionId (native resume valid only if it matches provider)
 }
 
 export type View = 'chat' | 'context' | 'changes'
@@ -76,7 +77,7 @@ interface AppState {
   pushTurn: (chatId: string, turn: Turn) => void
   appendDelta: (chatId: string, text: string) => void
   endTurn: (chatId: string, error?: string) => void
-  setSession: (chatId: string, sessionId: string) => void
+  setSession: (chatId: string, sessionId: string, provider: string) => void
 }
 
 const workspaces: Workspace[] = [
@@ -84,7 +85,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra' }
 ]
 
-const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, claudeSessionId: null }
+const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -149,7 +150,7 @@ export const useApp = create<AppState>()((set, get) => ({
     const s = get()
     const src = s.chats[s.activeChatId]
     const id = `c_${Date.now()}`
-    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], claudeSessionId: null }
+    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
   newChat: () => {
@@ -177,7 +178,8 @@ export const useApp = create<AppState>()((set, get) => ({
       windowK: src?.windowK ?? 200,
       branchedFrom: null,
       messages: [],
-      claudeSessionId: null
+      sessionId: null,
+      sessionProvider: null
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
@@ -203,11 +205,11 @@ export const useApp = create<AppState>()((set, get) => ({
       const messages = updateLast(c.messages, (t) => ({ ...t, streaming: false, error: Boolean(error), text: error ? `${t.text}\n[error] ${error}` : t.text }))
       return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
     }),
-  setSession: (chatId, sessionId) =>
+  setSession: (chatId, sessionId, provider) =>
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      return { chats: { ...s.chats, [chatId]: { ...c, claudeSessionId: sessionId } } }
+      return { chats: { ...s.chats, [chatId]: { ...c, sessionId, sessionProvider: provider } } }
     })
 }))
 
