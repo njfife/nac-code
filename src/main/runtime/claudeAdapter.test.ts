@@ -3,8 +3,8 @@ import { parseClaudeLine } from './claudeAdapter'
 
 // Exercised against the real `claude --output-format stream-json` event shapes.
 describe('parseClaudeLine', () => {
-  it('maps system/init to run.started', () => {
-    expect(parseClaudeLine('r', '{"type":"system","subtype":"init","session_id":"abc"}')).toEqual([{ type: 'run.started', runId: 'r' }])
+  it('maps system/init to run.started with the session id', () => {
+    expect(parseClaudeLine('r', '{"type":"system","subtype":"init","session_id":"abc"}')).toEqual([{ type: 'run.started', runId: 'r', sessionId: 'abc' }])
   })
 
   it('ignores hook, rate-limit, and summary system events', () => {

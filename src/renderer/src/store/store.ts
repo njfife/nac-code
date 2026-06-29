@@ -1,33 +1,43 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
 
-// The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config.
-// Mutations target the ACTIVE chat only — nothing is global. Switching chats is lossless (FR-4.2),
-// since each chat object already carries its full configuration.
+// The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
+// Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
 
 export interface Workspace {
   id: string
   name: string
 }
 
+// A turn in the provider-neutral transcript (M0-8 source of truth — renders the UI and, later, powers replay).
+export interface Turn {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  streaming?: boolean
+  error?: boolean
+}
+
 export interface Chat {
   id: string
   workspaceId: string
   title: string
-  time: string // relative label for now; real timestamps with durable persistence
+  time: string
   provider: string // harness driver id (claude | codex | cursor | opencode)
-  model: string // model label
+  model: string
   agent: string | null
-  yolo: boolean // autonomy toggle, per-chat (M0-2)
-  thinking: ThinkingLevel // reasoning level, per-chat (M0-3)
-  activeConfig: string | null // applied configuration id (FR-6.2)
-  attachedIds: string[] // attached context item ids (FR-5.5)
-  dirty: boolean // attachments diverge from the applied configuration (FR-6.4)
-  compacting: boolean // compaction in progress (FR-9.1)
-  compacted: boolean // context has been compacted
-  contextK: number // context-window tokens used
-  windowK: number // model context window
-  branchedFrom: string | null // parent chat id for compaction branches (FR-9.3)
+  yolo: boolean
+  thinking: ThinkingLevel
+  activeConfig: string | null
+  attachedIds: string[]
+  dirty: boolean
+  compacting: boolean
+  compacted: boolean
+  contextK: number
+  windowK: number
+  branchedFrom: string | null
+  messages: Turn[] // conversation transcript
+  claudeSessionId: string | null // native session id for Claude --resume (FR-4.2 fast-path)
 }
 
 export type View = 'chat' | 'context' | 'changes'
@@ -62,6 +72,11 @@ interface AppState {
   newChat: () => void
   toggleYolo: () => void
   setThinking: (t: ThinkingLevel) => void
+  // transcript / run lifecycle (driven by AgentEvents) — by chatId so background runs route correctly
+  pushTurn: (chatId: string, turn: Turn) => void
+  appendDelta: (chatId: string, text: string) => void
+  endTurn: (chatId: string, error?: string) => void
+  setSession: (chatId: string, sessionId: string) => void
 }
 
 const workspaces: Workspace[] = [
@@ -69,12 +84,19 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra' }
 ]
 
-const base = { compacting: false, compacted: false, yolo: false, thinking: 'medium' as ThinkingLevel }
+const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, claudeSessionId: null }
 const seedChats: Chat[] = [
-  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null },
-  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null },
-  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', activeConfig: 'infra', attachedIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null }
+  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
+  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
+  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', activeConfig: 'infra', attachedIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null, messages: [] }
 ]
+
+const updateLast = (msgs: Turn[], patch: (t: Turn) => Turn): Turn[] => {
+  if (msgs.length === 0) return msgs
+  const copy = msgs.slice()
+  copy[copy.length - 1] = patch(copy[copy.length - 1])
+  return copy
+}
 
 export const useApp = create<AppState>()((set, get) => ({
   workspaces,
@@ -90,7 +112,6 @@ export const useApp = create<AppState>()((set, get) => ({
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
   setLayout: (l) => set({ layout: l }),
   setView: (v) => set({ view: v }),
-  // Per-chat mutations — affect ONLY the active chat (FR-4.1 invariant).
   setModel: (provider, model) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } })),
   setAgent: (agent) =>
@@ -102,10 +123,8 @@ export const useApp = create<AppState>()((set, get) => ({
       const chat = s.chats[s.activeChatId]
       const has = chat.attachedIds.includes(itemId)
       const attachedIds = has ? chat.attachedIds.filter((id) => id !== itemId) : [...chat.attachedIds, itemId]
-      // Diverging from the applied configuration marks the chat dirty (FR-6.4).
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds, dirty: true } } }
     }),
-  // Apply a configuration: set the chat's attachments to exactly that bundle, clear dirty (FR-6.2/6.3).
   applyConfig: (configId) =>
     set((s) => {
       const cfg = CONFIGS_BY_ID[configId]
@@ -115,7 +134,6 @@ export const useApp = create<AppState>()((set, get) => ({
     }),
   setPalette: (b) => set({ palette: b }),
   togglePalette: () => set((s) => ({ palette: !s.palette })),
-  // Manual compaction (FR-9.1/9.2): in-progress → done; reduces context-window usage (~x0.4 in the mock).
   compactChat: () => {
     const id = get().activeChatId
     set((s) => ({ chats: { ...s.chats, [id]: { ...s.chats[id], compacting: true } } }))
@@ -127,15 +145,13 @@ export const useApp = create<AppState>()((set, get) => ({
       })
     }, 900)
   },
-  // Branch a new chat from the compacted one (FR-9.3): inherits context/config/model/agent; original untouched.
   newFromCompacted: () => {
     const s = get()
     const src = s.chats[s.activeChatId]
     const id = `c_${Date.now()}`
-    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id }
+    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], claudeSessionId: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
-  // New chat (FR-2.3) — seed contract M0-4: inherit provider/model/agent from the active chat; apply Standard.
   newChat: () => {
     const s = get()
     const src = s.chats[s.activeChatId]
@@ -159,12 +175,40 @@ export const useApp = create<AppState>()((set, get) => ({
       compacted: false,
       contextK: 0,
       windowK: src?.windowK ?? 200,
-      branchedFrom: null
+      branchedFrom: null,
+      messages: [],
+      claudeSessionId: null
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
   toggleYolo: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], yolo: !s.chats[s.activeChatId].yolo } } })),
-  setThinking: (t) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], thinking: t } } }))
+  setThinking: (t) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], thinking: t } } })),
+
+  pushTurn: (chatId, turn) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      return { chats: { ...s.chats, [chatId]: { ...c, messages: [...c.messages, turn] } } }
+    }),
+  appendDelta: (chatId, text) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      return { chats: { ...s.chats, [chatId]: { ...c, messages: updateLast(c.messages, (t) => ({ ...t, text: t.text + text })) } } }
+    }),
+  endTurn: (chatId, error) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      const messages = updateLast(c.messages, (t) => ({ ...t, streaming: false, error: Boolean(error), text: error ? `${t.text}\n[error] ${error}` : t.text }))
+      return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
+    }),
+  setSession: (chatId, sessionId) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      return { chats: { ...s.chats, [chatId]: { ...c, claudeSessionId: sessionId } } }
+    })
 }))
 
 // --- selectors / helpers ---
@@ -172,7 +216,6 @@ export const selectActiveChat = (s: AppState): Chat => s.chats[s.activeChatId]
 export const chatsForWorkspace = (chats: Record<string, Chat>, wsId: string): Chat[] =>
   Object.values(chats)
     .filter((c) => c.workspaceId === wsId)
-    // Branched chats sit at the top of their workspace group (FR-2.4).
     .sort((a, b) => Number(Boolean(b.branchedFrom)) - Number(Boolean(a.branchedFrom)))
 export const workspaceName = (workspaces: Workspace[], id: string): string =>
   workspaces.find((w) => w.id === id)?.name ?? id

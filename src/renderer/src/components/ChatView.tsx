@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
+import { sendMessage, isStreaming } from '../store/runtime'
 import { changesSummary } from '../data/changes'
 import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
 
-type Status = 'idle' | 'running' | 'done' | 'error'
-
-// Center pane: chat header · thread · composer. The composer's Send drives the M0-7 tracer
-// (a harness subprocess streamed over the preload bridge) — the real per-chat run loop lands in M5.
+// Center pane: chat header · thread · composer. Send drives a real run (Claude adapter) or the stub;
+// streamed AgentEvents land in the chat's transcript via the run controller.
 export default function ChatView() {
   const active = useApp(selectActiveChat)
   const openModal = useApp((s) => s.openModal)
@@ -17,58 +16,29 @@ export default function ChatView() {
   const applyConfig = useApp((s) => s.applyConfig)
   const toggleYolo = useApp((s) => s.toggleYolo)
   const setThinking = useApp((s) => s.setThinking)
+
+  const [prompt, setPrompt] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
   const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
-  const [prompt, setPrompt] = useState('')
-  const [sent, setSent] = useState('')
-  const [output, setOutput] = useState('')
-  const [status, setStatus] = useState<Status>('idle')
-  const runIdRef = useRef<string | null>(null)
+  const streaming = isStreaming(active)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!window.nac?.runs) return // preload bridge unavailable — degrade gracefully
-    const off = window.nac.runs.onEvent((event) => {
-      if (event.runId !== runIdRef.current) return
-      if (event.type === 'content.delta') setOutput((o) => o + event.text)
-      else if (event.type === 'run.completed') setStatus(event.stopReason === 'canceled' ? 'idle' : 'done')
-      else if (event.type === 'run.errored') {
-        setStatus('error')
-        setOutput((o) => o + `\n[error] ${event.message}`)
-      }
-    })
-    return off
-  }, [])
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [active.messages])
 
-  async function run(): Promise<void> {
-    if (!prompt.trim() || status === 'running' || !window.nac?.runs) return
-    setSent(prompt)
-    setOutput('')
-    setStatus('running')
+  function send(): void {
+    if (!prompt.trim() || streaming) return
+    void sendMessage(prompt)
     setPrompt('')
-    const { runId } = await window.nac.runs.start({ prompt, provider: active.provider })
-    runIdRef.current = runId
   }
 
   return (
     <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: 'var(--app-bg)' }}>
       {/* Chat header bar */}
-      <div
-        style={{
-          height: 'var(--topbar-h)',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '0 18px',
-          borderBottom: '1px solid var(--line)'
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {active.title}
-        </span>
-        <span className="mono" style={pill}>
-          {active.model}
-        </span>
+      <div style={{ height: 'var(--topbar-h)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px', borderBottom: '1px solid var(--line)' }}>
+        <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{active.title}</span>
+        <span className="mono" style={pill}>{active.model}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <span style={headerAction} onClick={() => setView('changes')}>
             Files {changed > 0 && <span style={badge}>{changed}</span>}
@@ -121,13 +91,15 @@ export default function ChatView() {
       {/* Thread */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ maxWidth: 'var(--thread-max-w)', margin: '0 auto', padding: '24px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {!sent && (
+          {active.messages.length === 0 && (
             <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>
-              Type a prompt and hit Send to stream a turn through the harness bridge (M0-7 tracer).
+              Start the conversation — your message and the agent's streamed reply appear here.
             </p>
           )}
-          {sent && <Message who="you" body={sent} />}
-          {sent && <Message who="nc" body={output} streaming={status === 'running'} />}
+          {active.messages.map((m) => (
+            <Message key={m.id} role={m.role} text={m.text} streaming={m.streaming} error={m.error} />
+          ))}
+          <div ref={bottomRef} />
         </div>
       </div>
 
@@ -147,22 +119,12 @@ export default function ChatView() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  run()
+                  send()
                 }
               }}
               placeholder="Message the agent…"
               rows={2}
-              style={{
-                width: '100%',
-                resize: 'none',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text)',
-                fontSize: 14.5,
-                fontFamily: 'inherit',
-                lineHeight: 1.5
-              }}
+              style={{ width: '100%', resize: 'none', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 14.5, fontFamily: 'inherit', lineHeight: 1.5 }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
               <span style={toolbarItem}>Attach</span>
@@ -182,28 +144,25 @@ export default function ChatView() {
               >
                 Thinking: {active.thinking[0].toUpperCase() + active.thinking.slice(1)}
               </span>
-              <span
-                onClick={() => toggleYolo()}
-                style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}
-              >
+              <span onClick={() => toggleYolo()} style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}>
                 YOLO{active.yolo ? ' ●' : ''}
               </span>
               <button
-                onClick={run}
-                disabled={status === 'running' || !prompt.trim()}
+                onClick={send}
+                disabled={streaming || !prompt.trim()}
                 style={{
                   marginLeft: 'auto',
-                  background: status === 'running' || !prompt.trim() ? '#3a3a44' : 'var(--accent)',
+                  background: streaming || !prompt.trim() ? '#3a3a44' : 'var(--accent)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 8,
                   padding: '7px 16px',
                   fontWeight: 600,
                   fontSize: 13,
-                  cursor: status === 'running' || !prompt.trim() ? 'default' : 'pointer'
+                  cursor: streaming || !prompt.trim() ? 'default' : 'pointer'
                 }}
               >
-                {status === 'running' ? 'Running…' : 'Send'}
+                {streaming ? 'Running…' : 'Send'}
               </button>
             </div>
           </div>
@@ -213,8 +172,8 @@ export default function ChatView() {
   )
 }
 
-function Message(props: { who: 'you' | 'nc'; body: string; streaming?: boolean }) {
-  const isNc = props.who === 'nc'
+function Message(props: { role: 'user' | 'assistant'; text: string; streaming?: boolean; error?: boolean }) {
+  const isNc = props.role === 'assistant'
   return (
     <div style={{ display: 'flex', gap: 12 }}>
       <div
@@ -235,23 +194,11 @@ function Message(props: { who: 'you' | 'nc'; body: string; streaming?: boolean }
         {isNc ? 'NC' : 'YOU'}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="mono" style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>
-          {isNc ? 'NAC Code' : 'You'}
-        </div>
-        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
-          {props.body}
+        <div className="mono" style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{isNc ? 'NAC Code' : 'You'}</div>
+        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: props.error ? 'var(--error)' : 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
+          {props.text}
           {props.streaming && (
-            <span
-              style={{
-                display: 'inline-block',
-                width: 7,
-                height: 15,
-                marginLeft: 2,
-                background: 'var(--accent)',
-                verticalAlign: 'text-bottom',
-                animation: 'nac-blink 1.1s step-end infinite'
-              }}
-            />
+            <span style={{ display: 'inline-block', width: 7, height: 15, marginLeft: 2, background: 'var(--accent)', verticalAlign: 'text-bottom', animation: 'nac-blink 1.1s step-end infinite' }} />
           )}
         </div>
       </div>
@@ -259,29 +206,9 @@ function Message(props: { who: 'you' | 'nc'; body: string; streaming?: boolean }
   )
 }
 
-const pill: CSSProperties = {
-  fontSize: 11,
-  padding: '2px 8px',
-  borderRadius: 5,
-  background: 'var(--accent-tint)',
-  color: 'var(--accent-light)'
-}
-const headerAction: CSSProperties = {
-  fontSize: 12,
-  padding: '4px 10px',
-  borderRadius: 6,
-  background: 'var(--card)',
-  border: '1px solid var(--line)',
-  color: 'var(--text-2)',
-  cursor: 'pointer'
-}
-const toolbarItem: CSSProperties = {
-  fontSize: 12.5,
-  color: 'var(--muted)',
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center'
-}
+const pill: CSSProperties = { fontSize: 11, padding: '2px 8px', borderRadius: 5, background: 'var(--accent-tint)', color: 'var(--accent-light)' }
+const headerAction: CSSProperties = { fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--text-2)', cursor: 'pointer' }
+const toolbarItem: CSSProperties = { fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }
 const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }
 const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }
 const configPopover: CSSProperties = { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 250, background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.55)', padding: 6, zIndex: 50 }

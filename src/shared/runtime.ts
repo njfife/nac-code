@@ -4,10 +4,11 @@
 export interface RunRequest {
   prompt: string
   provider?: string // harness driver id; selects the adapter (e.g. 'claude' → real, else stub)
+  sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)
 }
 
 export type AgentEvent =
-  | { type: 'run.started'; runId: string }
+  | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
   | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled' }
   | { type: 'run.errored'; runId: string; message: string }

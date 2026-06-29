@@ -17,6 +17,7 @@ interface ClaudeEvent {
   subtype?: string
   is_error?: boolean
   stop_reason?: string
+  session_id?: string
   message?: { content?: ClaudeBlock[] }
 }
 
@@ -32,7 +33,8 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
   }
   switch (m.type) {
     case 'system':
-      return m.subtype === 'init' ? [{ type: 'run.started', runId }] : [] // ignore hooks etc.
+      // init carries the session_id we use to --resume later (native fast-path).
+      return m.subtype === 'init' ? [{ type: 'run.started', runId, sessionId: m.session_id }] : [] // ignore hooks etc.
     case 'assistant': {
       const out: AgentEvent[] = []
       for (const b of m.message?.content ?? []) {
@@ -51,7 +53,7 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
 
 export function startClaudeRun(
   runId: string,
-  req: { prompt: string; binPath?: string },
+  req: { prompt: string; binPath?: string; sessionId?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -61,9 +63,12 @@ export function startClaudeRun(
     onEvent(e)
   }
 
+  const args = ['-p', req.prompt, '--output-format', 'stream-json', '--verbose']
+  if (req.sessionId) args.push('--resume', req.sessionId) // continue the prior turn's session (FR-4.2)
+
   let child: ChildProcess
   try {
-    child = spawn(req.binPath ?? 'claude', ['-p', req.prompt, '--output-format', 'stream-json', '--verbose'], {
+    child = spawn(req.binPath ?? 'claude', args, {
       stdio: ['ignore', 'pipe', 'pipe']
     })
   } catch (err) {
