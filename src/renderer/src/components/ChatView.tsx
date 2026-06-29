@@ -11,6 +11,8 @@ export default function ChatView() {
   const openModal = useApp((s) => s.openModal)
   const setView = useApp((s) => s.setView)
   const changed = changesSummary().files
+  const compactChat = useApp((s) => s.compactChat)
+  const newFromCompacted = useApp((s) => s.newFromCompacted)
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -64,7 +66,22 @@ export default function ChatView() {
           <span style={headerAction} onClick={() => setView('changes')}>
             Files {changed > 0 && <span style={badge}>{changed}</span>}
           </span>
-          <span style={headerAction}>Compact</span>
+          <span style={headerAction} onClick={() => !active.compacting && compactChat()}>
+            {active.compacting ? (
+              <>
+                <span style={spinner} /> Compacting…
+              </>
+            ) : active.compacted ? (
+              'Compacted ✓'
+            ) : (
+              'Compact'
+            )}
+          </span>
+          {active.compacted && (
+            <span style={headerAction} onClick={() => newFromCompacted()}>
+              New from compacted
+            </span>
+          )}
           <span style={headerAction}>Context: Standard ▾</span>
         </div>
       </div>
@@ -221,3 +238,4 @@ const toolbarItem: CSSProperties = {
   alignItems: 'center'
 }
 const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }
+const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }

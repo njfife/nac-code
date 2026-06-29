@@ -29,6 +29,13 @@ body {
   }
 }
 
+/* Spinners (compaction, tool-call running). */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Thin dark scrollbars to match the IDE aesthetic. */
 ::-webkit-scrollbar {
   width: 10px;
