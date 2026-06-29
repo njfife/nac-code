@@ -14,8 +14,10 @@
 
 **✅ All three providers real** (`b7fb68d`): Claude + Codex + Copilot each run via their CLIs and normalize into the one `AgentEvent` model; cross-provider replay + compaction work across all three (each verified vs the real binary — a planted fact survives every switch). Copilot token-streams (message_delta); it's selectable in the model modal. **Nathan's headline goal — switch Claude/Codex/Copilot mid-conversation without losing context — is complete and verified.**
 
+**✅ Workspace setup** (`392744d`): workspaces now bind to a project folder and **harness runs execute in that `cwd`** (`paths.resolveCwd` expands `~`; empty = process cwd). Add/remove workspaces from the left rail via a native folder picker (`dialog.pickDirectory`); bound path shown per workspace; remove guarded (never an in-use or last workspace). Decision: v1 = one folder per workspace (per-workspace defaults + the PRD multi-repo model deferred).
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Visible UI gaps** Nathan flagged — workspace setup/config, etc. (most product-design work).
+- **Per-workspace defaults** (default provider/model/agent new chats inherit) and/or the **PRD multi-repo model** — the deferred halves of workspace config.
 - **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; wiring by-id resume saves re-sending the tail same-provider.
 - **M0-2 autonomy/security** — map the YOLO/autonomy level to each harness's sandbox/permissions (codex `-s`, copilot tool grants) instead of fixed defaults.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
