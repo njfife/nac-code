@@ -26,6 +26,7 @@ export default function ChatView() {
   const runIdRef = useRef<string | null>(null)
 
   useEffect(() => {
+    if (!window.nac?.runs) return // preload bridge unavailable — degrade gracefully
     const off = window.nac.runs.onEvent((event) => {
       if (event.runId !== runIdRef.current) return
       if (event.type === 'content.delta') setOutput((o) => o + event.text)
@@ -39,7 +40,7 @@ export default function ChatView() {
   }, [])
 
   async function run(): Promise<void> {
-    if (!prompt.trim() || status === 'running') return
+    if (!prompt.trim() || status === 'running' || !window.nac?.runs) return
     setSent(prompt)
     setOutput('')
     setStatus('running')

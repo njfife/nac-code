@@ -8,7 +8,9 @@ export default defineConfig({
     build: { rollupOptions: { input: { index: resolve(__dirname, 'src/main/index.ts') } } }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    // A sandbox:true preload cannot require node_modules at runtime, so @electron-toolkit/preload
+    // must be bundled into the preload (not externalized). `electron` stays external (always available).
+    plugins: [externalizeDepsPlugin({ exclude: ['@electron-toolkit/preload'] })],
     build: { rollupOptions: { input: { index: resolve(__dirname, 'src/preload/index.ts') } } }
   },
   renderer: {

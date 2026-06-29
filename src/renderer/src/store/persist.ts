@@ -13,6 +13,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 // Hydrate the store from disk on launch, then persist (debounced) on every change (FR-4.3).
 export async function initPersistence(): Promise<void> {
+  if (!window.nac?.state) return // preload bridge unavailable — run in-memory
   try {
     const loaded = (await window.nac.state.load()) as PersistedState | null
     if (loaded?.chats && Object.keys(loaded.chats).length > 0) {
