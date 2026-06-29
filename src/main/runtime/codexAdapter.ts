@@ -10,12 +10,21 @@ interface CodexItem {
   id?: string
   type?: string
   text?: string
+  command?: string
+  exit_code?: number
+  status?: string
 }
 interface CodexEvent {
   type?: string
   thread_id?: string
   message?: string
   item?: CodexItem
+}
+
+// Codex wraps shell commands as `/bin/zsh -lc '<cmd>'` — unwrap to the readable inner command.
+function readableCommand(raw: string): string {
+  const m = raw.match(/^\/bin\/(?:zsh|bash|sh)\s+-l?c\s+'([\s\S]*)'$/)
+  return m ? m[1] : raw
 }
 
 /** Pure + exported for testing: one codex JSONL line → 0..n AgentEvents. */
@@ -34,7 +43,11 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
     case 'item.completed': {
       const it = m.item
       if (it?.type === 'agent_message' && it.text) return [{ type: 'content.delta', runId, streamKind: 'assistant_text', text: it.text }]
-      if (it?.type && it.type !== 'reasoning') return [{ type: 'content.delta', runId, streamKind: 'assistant_text', text: `\n[${it.type}]\n` }] // flatten tool items
+      if (it?.type === 'command_execution' && it.command) {
+        const exit = typeof it.exit_code === 'number' && it.exit_code !== 0 ? ` (exit ${it.exit_code})` : ''
+        return [{ type: 'content.delta', runId, streamKind: 'assistant_text', text: `\n$ ${readableCommand(it.command)}${exit}\n` }]
+      }
+      if (it?.type && it.type !== 'reasoning') return [{ type: 'content.delta', runId, streamKind: 'assistant_text', text: `\n[${it.type}]\n` }] // generic tool-item fallback
       return []
     }
     case 'turn.completed':

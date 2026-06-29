@@ -13,9 +13,20 @@ describe('parseCodexLine', () => {
     ])
   })
 
-  it('flattens non-message tool items and skips reasoning', () => {
-    expect(parseCodexLine('r', '{"type":"item.completed","item":{"type":"command_execution"}}')).toEqual([{ type: 'content.delta', runId: 'r', streamKind: 'assistant_text', text: '\n[command_execution]\n' }])
+  it('renders a command_execution as a shell line (unwrapping the zsh wrapper) and skips reasoning', () => {
+    expect(parseCodexLine('r', "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'echo hi'\",\"exit_code\":0}}")).toEqual([
+      { type: 'content.delta', runId: 'r', streamKind: 'assistant_text', text: '\n$ echo hi\n' }
+    ])
     expect(parseCodexLine('r', '{"type":"item.completed","item":{"type":"reasoning","text":"hmm"}}')).toEqual([])
+  })
+
+  it('surfaces a non-zero exit code and falls back generically for other tool items', () => {
+    expect(parseCodexLine('r', "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'false'\",\"exit_code\":1}}")).toEqual([
+      { type: 'content.delta', runId: 'r', streamKind: 'assistant_text', text: '\n$ false (exit 1)\n' }
+    ])
+    expect(parseCodexLine('r', '{"type":"item.completed","item":{"type":"file_change"}}')).toEqual([
+      { type: 'content.delta', runId: 'r', streamKind: 'assistant_text', text: '\n[file_change]\n' }
+    ])
   })
 
   it('maps turn.completed to run.completed', () => {
