@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Desktop GUI that wraps agentic coding-harness CLIs (a wrapper, never a harness)",
-  "author": "Nathan Font-Fife <nathan.fontfife@proton.me>",
+  "author": "NAC Code",
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {

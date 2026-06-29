@@ -25,7 +25,7 @@ The app is one desktop window: persistent **top bar** + **status bar**, with a b
 ### 1. Application shell
 - **Purpose**: Persistent frame around all content.
 - **Layout**: Vertical flex — top bar (46px) / body (flex:1) / status bar (28px). Body is a horizontal flex of: [activity rail, Cockpit only] · left rail (300px) · center (flex) · inspector (344px). Whole shell has `min-width: 1180px` and scrolls horizontally below that (panes never collapse/overlap).
-- **Top bar**: traffic-light dots (left), centered product identity `NAC Code / <workspace>`, right side has the layout switcher (segmented Studio/Cockpit/Focus) and account handle `@nfife_fontfife`.
+- **Top bar**: traffic-light dots (left), centered product identity `NAC Code / <workspace>`, right side has the layout switcher (segmented Studio/Cockpit/Focus) and account handle `@you`.
 - **Status bar**: left = green dot + git glyph + account; MCP status ("MCP not checked"); right = live context summary (`5 ctx · ~12k / 128K tokens`) + `Version 0.10.0`.
 
 ### 2. Layout modes (top-bar switcher)

@@ -11,7 +11,7 @@ import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
 
-const ACCOUNT = '@nfife_fontfife'
+const ACCOUNT = '@you'
 
 // The persistent application frame: top bar (46) / body (left rail · center · inspector) / status bar (28).
 // 1180px min-width with horizontal scroll — panes never collapse (FR-1.5 / NFR-4). Focus layout hides the inspector.

@@ -2,15 +2,15 @@
 
 > **Outcome (2026-06-29): thin coupling chosen.** NAC will NOT implement the `LocalModelManager`, OpenCode auto-config, or a direct LM Studio picker — these would couple NAC to OpenCode's config schema + LM Studio's API. NAC relies on the carrier (OpenCode) for the model list; each LM Studio instance's own JIT + Auto-Evict (local *and* remote) handle loading. This doc is retained as reference if the convenience layer is ever revisited. See `docs/DECISIONS.md`.
 
-**Question (Nathan):** Can NAC select an LM Studio model that isn't loaded and have it auto-load on query? Can we enforce "only one model loaded at a time"? Can we configure the context length? (Slow first token is acceptable; the convenience is the point.)
+**Question (the owner):** Can NAC select an LM Studio model that isn't loaded and have it auto-load on query? Can we enforce "only one model loaded at a time"? Can we configure the context length? (Slow first token is acceptable; the convenience is the point.)
 
 **Short answer:** Yes / Yes / Yes — but #1 and #2 are LM Studio *server settings* (already on by default and work today via OpenCode), while #3 (context length) is a **load-time** parameter that NAC must set via the `lms` CLI or the LM Studio SDK, not via the OpenAI `/v1` request.
 
-## What was verified on Nathan's machine (2026-06-29)
+## What was verified on the owner's machine (2026-06-29)
 
 - `lms` CLI installed (`~/.cache/lm-studio/bin/lms`); LM Studio server **running on `localhost:1234`**.
 - `/v1/models` lists *downloaded-but-unloaded* models → JIT is active. `lms ps` showed **no models loaded**; `lms ls` shows 5 local models.
-- OpenCode connects via plain OpenAI-compatible transport (`@ai-sdk/openai-compatible`). Two instances configured: **local** `localhost:1234` and **remote** `lmstudio-remote → http://100.117.200.8:1234/v1`.
+- OpenCode connects via plain OpenAI-compatible transport (`@ai-sdk/openai-compatible`). Two instances configured: **local** `localhost:1234` and **remote** `lmstudio-remote → http://<remote-host>:1234/v1`.
 
 ## 1. Auto-load on query — JIT loading
 
@@ -38,7 +38,7 @@
 - Expose NAC knobs: **context length**, **keep-only-one-loaded** (maps to Auto-Evict, or `unload` before `load`), **idle TTL**. Natural home: per-workspace defaults or a model-settings popover.
 - Inference still runs through **OpenCode** (the carrier). The SDK is only the *management plane* — NAC stays a wrapper, never a harness (LM Studio is a model server, not an agentic harness, so we don't drive inference directly).
 
-**Caveat — two instances:** `lms`/SDK manage the **local** instance by default. The **remote** box (`100.117.200.8`) needs **LM Link** (`lms link`) or pointing the SDK at that host. v1 can orchestrate the local instance and let the remote rely on its own JIT/Auto-Evict.
+**Caveat — two instances:** `lms`/SDK manage the **local** instance by default. The **remote** box (`<remote-host>`) needs **LM Link** (`lms link`) or pointing the SDK at that host. v1 can orchestrate the local instance and let the remote rely on its own JIT/Auto-Evict.
 
 ## Recommendation
 

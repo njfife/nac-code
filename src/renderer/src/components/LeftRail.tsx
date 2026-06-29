@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useApp, chatsForWorkspace, type Chat } from '../store/store'
 
-const ACCOUNT = '@nfife_fontfife'
+const ACCOUNT = '@you'
 
 export default function LeftRail() {
   const workspaces = useApp((s) => s.workspaces)
