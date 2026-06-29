@@ -175,6 +175,9 @@ export default function ChatView() {
 
 function Message(props: { role: 'user' | 'assistant'; text: string; streaming?: boolean; error?: boolean }) {
   const isNc = props.role === 'assistant'
+  // Strip leading whitespace (some models — e.g. reasoning models via OpenCode — emit leading newlines
+  // that render as a gap under the header); fully trim once the turn is done.
+  const text = props.streaming ? props.text.replace(/^\s+/, '') : props.text.trim()
   return (
     <div style={{ display: 'flex', gap: 12 }}>
       <div
@@ -197,7 +200,7 @@ function Message(props: { role: 'user' | 'assistant'; text: string; streaming?: 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="mono" style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{isNc ? 'NAC Code' : 'You'}</div>
         <div style={{ fontSize: 14.5, lineHeight: 1.65, color: props.error ? 'var(--error)' : 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
-          {props.text}
+          {text}
           {props.streaming && (
             <span style={{ display: 'inline-block', width: 7, height: 15, marginLeft: 2, background: 'var(--accent)', verticalAlign: 'text-bottom', animation: 'nac-blink 1.1s step-end infinite' }} />
           )}
