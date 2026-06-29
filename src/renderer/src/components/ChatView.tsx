@@ -8,6 +8,7 @@ type Status = 'idle' | 'running' | 'done' | 'error'
 export default function ChatView() {
   const active = useApp(selectActiveChat)
   const openModal = useApp((s) => s.openModal)
+  const setView = useApp((s) => s.setView)
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -84,8 +85,10 @@ export default function ChatView() {
         <div style={{ maxWidth: 'var(--thread-max-w)', margin: '0 auto' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px', fontSize: 12, color: 'var(--muted)' }}>
-              <span style={pill}>Context · {active.attached}</span>
-              <span style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>Manage</span>
+              <span style={pill}>Context · {active.attachedIds.length}</span>
+              <span onClick={() => setView('context')} style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>
+                Manage
+              </span>
             </div>
             <textarea
               value={prompt}

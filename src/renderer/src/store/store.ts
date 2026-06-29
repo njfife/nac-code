@@ -17,7 +17,7 @@ export interface Chat {
   provider: string // harness driver id (claude | codex | cursor | opencode)
   model: string // model label
   agent: string | null
-  attached: number // attached context item count (the detailed set arrives with the Context Library)
+  attachedIds: string[] // attached context item ids (FR-5.5)
   dirty: boolean // attachments diverge from the applied configuration (FR-6.4)
   contextK: number // context-window tokens used
   windowK: number // model context window
@@ -44,6 +44,7 @@ interface AppState {
   setModel: (provider: string, model: string) => void
   openModal: (m: ModalKind) => void
   closeModal: () => void
+  toggleAttach: (itemId: string) => void
 }
 
 const workspaces: Workspace[] = [
@@ -52,9 +53,9 @@ const workspaces: Workspace[] = [
 ]
 
 const seedChats: Chat[] = [
-  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', attached: 5, dirty: false, contextK: 12, windowK: 200, branchedFrom: null },
-  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, attached: 2, dirty: true, contextK: 8, windowK: 32, branchedFrom: null },
-  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', attached: 7, dirty: false, contextK: 41, windowK: 128, branchedFrom: null }
+  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, contextK: 12, windowK: 200, branchedFrom: null },
+  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, contextK: 8, windowK: 32, branchedFrom: null },
+  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', attachedIds: ['sk-tdd', 'sk-debug', 'ag-infra', 'ag-reviewer', 'in-style', 'in-security', 'fl-deploy'], dirty: false, contextK: 41, windowK: 128, branchedFrom: null }
 ]
 
 export const useApp = create<AppState>()((set) => ({
@@ -70,11 +71,19 @@ export const useApp = create<AppState>()((set) => ({
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
   setLayout: (l) => set({ layout: l }),
   setView: (v) => set({ view: v }),
-  // Per-chat mutation — affects ONLY the active chat (FR-4.1 invariant).
+  // Per-chat mutations — affect ONLY the active chat (FR-4.1 invariant).
   setModel: (provider, model) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } })),
   openModal: (m) => set({ modal: m }),
-  closeModal: () => set({ modal: null })
+  closeModal: () => set({ modal: null }),
+  toggleAttach: (itemId) =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      const has = chat.attachedIds.includes(itemId)
+      const attachedIds = has ? chat.attachedIds.filter((id) => id !== itemId) : [...chat.attachedIds, itemId]
+      // Diverging from the applied configuration marks the chat dirty (FR-6.4).
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds, dirty: true } } }
+    })
 }))
 
 // --- selectors / helpers ---

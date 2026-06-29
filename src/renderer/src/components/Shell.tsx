@@ -3,6 +3,7 @@ import LeftRail from './LeftRail'
 import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
+import ContextLibrary from './ContextLibrary'
 
 const ACCOUNT = '@nfife_fontfife'
 
@@ -11,6 +12,7 @@ const ACCOUNT = '@nfife_fontfife'
 export default function Shell() {
   const layout = useApp((s) => s.layout)
   const modal = useApp((s) => s.modal)
+  const view = useApp((s) => s.view)
   return (
     <div
       style={{
@@ -23,9 +25,15 @@ export default function Shell() {
     >
       <TopBar />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <LeftRail />
-        <ChatView />
-        {layout !== 'focus' && <Inspector />}
+        {view === 'context' ? (
+          <ContextLibrary />
+        ) : (
+          <>
+            <LeftRail />
+            <ChatView />
+            {layout !== 'focus' && <Inspector />}
+          </>
+        )}
       </div>
       <StatusBar />
       {modal === 'model' && <ModelModal />}
@@ -116,7 +124,7 @@ function StatusBar() {
       </span>
       <span>MCP not checked</span>
       <span style={{ marginLeft: 'auto' }}>
-        {active.attached} attached · ~{active.contextK}k / {active.windowK}K tokens
+        {active.attachedIds.length} attached · ~{active.contextK}k / {active.windowK}K tokens
       </span>
       <span>Version 0.10.0</span>
     </footer>

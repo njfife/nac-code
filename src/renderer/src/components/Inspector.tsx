@@ -1,12 +1,22 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
 import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
+import { ITEMS_BY_ID, TYPE_META, type ItemType } from '../data/context'
+
+const TYPE_ORDER: ItemType[] = ['skill', 'agent', 'instruction', 'file']
 
 // Live, present-tense session state (FR-10.x). Panels are independently collapsible.
 export default function Inspector() {
   const active = useApp(selectActiveChat)
+  const setView = useApp((s) => s.setView)
   const [reauthed, setReauthed] = useState<Record<string, boolean>>({})
   const pct = Math.min(100, Math.round((active.contextK / active.windowK) * 100))
+
+  const counts: Record<ItemType, number> = { skill: 0, agent: 0, instruction: 0, file: 0 }
+  for (const id of active.attachedIds) {
+    const it = ITEMS_BY_ID[id]
+    if (it) counts[it.type]++
+  }
 
   return (
     <aside
@@ -88,15 +98,13 @@ export default function Inspector() {
         </Panel>
 
         <Panel title="Attached Context" defaultOpen>
-          {attachedSplit(active.attached).map(([type, n, color]) => (
-            <Row key={type}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 14, height: 14, borderRadius: 4, background: color, color: '#0c0c0f', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {type[0]}
-                </span>
-                <span style={lbl}>{type}</span>
-              </span>
-              <span className="mono" style={val}>{n}</span>
+          {TYPE_ORDER.map((t) => (
+            <Row key={t}>
+              <button onClick={() => setView('context')} style={attachRow}>
+                <span style={{ ...tile, background: TYPE_META[t].color }}>{TYPE_META[t].letter}</span>
+                <span style={lbl}>{TYPE_META[t].label}s</span>
+              </button>
+              <span className="mono" style={val}>{counts[t]}</span>
             </Row>
           ))}
         </Panel>
@@ -130,23 +138,12 @@ function costLabel(provider: string): string {
   return provider === 'opencode' ? 'free · local' : '$0.42'
 }
 
-function attachedSplit(total: number): [string, number, string][] {
-  const skills = Math.min(total, 2)
-  const agents = total > 2 ? 1 : 0
-  const instructions = total > 3 ? 1 : 0
-  const files = Math.max(0, total - skills - agents - instructions)
-  return [
-    ['Skills', skills, 'var(--type-skill)'],
-    ['Agents', agents, 'var(--type-agent)'],
-    ['Instructions', instructions, 'var(--type-instruction)'],
-    ['Files', files, 'var(--type-file)']
-  ]
-}
-
 const eyebrow: CSSProperties = { fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
 const eyebrowSm: CSSProperties = { fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
 const ghostBtn: CSSProperties = { background: 'var(--card)', color: 'var(--text-2)', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }
 const panelHeader: CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer' }
 const miniBtn: CSSProperties = { background: 'var(--accent-tint-3)', color: 'var(--accent-light)', border: 'none', borderRadius: 5, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }
+const attachRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }
+const tile: CSSProperties = { width: 14, height: 14, borderRadius: 4, color: '#0c0c0f', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const lbl: CSSProperties = { color: 'var(--muted)' }
 const val: CSSProperties = { color: 'var(--text-2)' }
