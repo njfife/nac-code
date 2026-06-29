@@ -52,9 +52,10 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
   }
 }
 
-/** Pure + exported for testing: build the claude argv. yolo → skip permission prompts (full access). */
-export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean): string[] {
+/** Pure + exported for testing: build the claude argv. model = alias (opus/sonnet/haiku); yolo → skip prompts. */
+export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean, model?: string): string[] {
   const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose']
+  if (model) args.push('--model', model)
   if (yolo) args.push('--dangerously-skip-permissions')
   if (sessionId) args.push('--resume', sessionId) // continue the prior turn's session (FR-4.2)
   return args
@@ -62,7 +63,7 @@ export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean): 
 
 export function startClaudeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean },
+  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean; model?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -72,7 +73,7 @@ export function startClaudeRun(
     onEvent(e)
   }
 
-  const args = claudeArgs(req.prompt, req.sessionId, req.yolo)
+  const args = claudeArgs(req.prompt, req.sessionId, req.yolo, req.model)
 
   let child: ChildProcess
   try {

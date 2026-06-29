@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { parseClaudeLine, claudeArgs } from './claudeAdapter'
 
 describe('claudeArgs (autonomy)', () => {
-  it('skips permissions only under yolo, and resumes a session when given one', () => {
+  it('skips permissions only under yolo, resumes a session, and passes the model alias', () => {
     expect(claudeArgs('hi')).not.toContain('--dangerously-skip-permissions')
     expect(claudeArgs('hi', undefined, true)).toContain('--dangerously-skip-permissions')
     expect(claudeArgs('hi', 's1')).toEqual(expect.arrayContaining(['--resume', 's1']))
+    expect(claudeArgs('hi')).not.toContain('--model')
+    expect(claudeArgs('hi', undefined, false, 'sonnet')).toEqual(expect.arrayContaining(['--model', 'sonnet']))
   })
 })
 

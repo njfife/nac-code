@@ -26,9 +26,9 @@ export const PROVIDERS: ProviderDef[] = [
     dot: '#d97757',
     status: 'authenticated',
     models: [
-      { id: 'opus-4.8', label: 'Opus 4.8' },
-      { id: 'sonnet-4.6', label: 'Sonnet 4.6' },
-      { id: 'haiku-4.5', label: 'Haiku 4.5' }
+      { id: 'opus', label: 'Opus 4.8' },
+      { id: 'sonnet', label: 'Sonnet 4.6' },
+      { id: 'haiku', label: 'Haiku 4.5' }
     ]
   },
   {
