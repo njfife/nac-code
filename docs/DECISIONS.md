@@ -24,10 +24,12 @@
 
 **✅ Claude `--model` wired** (`43dfbb8`): opus/sonnet/haiku aliases (account-independent, verified). **Finding that changes the plan:** hardcoding model ids is unsafe for the other clouds — codex `-m gpt-5-codex` **400s** on a ChatGPT-account ("not supported"), copilot `--model gpt-5.4` returns empty (plan-gated). So codex/copilot are left on their working account defaults; exposing their model selection needs **real per-account model discovery** (promotes M4).
 
+**✅ Model discovery + spacing fix** (`3f0a521`, `c9bbff1`): assistant messages strip leading whitespace (reasoning-model gap). Live model discovery wired — the picker queries `opencode models` and shows the account's real 17 configured models (verified). **Finding:** only OpenCode exposes a model-list command — codex has none (`codex models` errors), copilot/claude only have `--model`. So cloud model discovery isn't possible via CLI; claude uses its aliases, codex/copilot stay on account default.
+
 **Next (follow-on options, Nathan to prioritize):**
-- **M4 — real model discovery** — query each CLI for the account's actually-available models (codex/copilot/opencode each differ) so the picker is real, not a static guess. Now the gating item for cloud model selection.
 - **OpenCode auto-config** (`configureLocalBackend`) — write opencode's LM Studio provider config for users who haven't set it up (Nathan already has).
-- **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) and the **PRD multi-repo** model.
+- **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) — cheaper same-provider turns.
+- **PRD multi-repo** workspace model; **packaging** (electron-builder) for a distributable app.
 
 **▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for Nathan to steer next priorities.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
