@@ -6,6 +6,7 @@ import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
+import { startOpenCodeRun } from './openCodeAdapter'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -16,7 +17,7 @@ const SUMMARIZE_INSTRUCTION =
   'Output only the summary, with no preamble.'
 
 // Run a harness once and resolve with its full assistant text (no chat wiring) — powers compaction.
-function runOnce(provider: string | undefined, prompt: string): Promise<string> {
+function runOnce(provider: string | undefined, prompt: string, model?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let text = ''
     const runId = `sum_${++counter}`
@@ -28,6 +29,7 @@ function runOnce(provider: string | undefined, prompt: string): Promise<string> 
     if (provider === 'claude') startClaudeRun(runId, { prompt }, onEvent)
     else if (provider === 'codex') startCodexRun(runId, { prompt }, onEvent)
     else if (provider === 'copilot') startCopilotRun(runId, { prompt }, onEvent)
+    else if (provider === 'opencode') startOpenCodeRun(runId, { prompt, model }, onEvent)
     else reject(new Error(`summarize unsupported for provider ${provider ?? 'unknown'}`))
   })
 }
@@ -60,7 +62,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
           ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo }, handler)
           : req.provider === 'copilot'
             ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo }, handler)
-            : startHarnessRun(
+            : req.provider === 'opencode'
+              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId }, handler)
+              : startHarnessRun(
             runId,
             {
               prompt: req.prompt,
@@ -81,7 +85,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   })
 
   ipcMain.handle(RUN_CHANNELS.summarize, async (_e, req: SummarizeRequest): Promise<{ summary: string }> => {
-    const summary = await runOnce(req.provider, `${SUMMARIZE_INSTRUCTION}\n\n${req.text}`)
+    const summary = await runOnce(req.provider, `${SUMMARIZE_INSTRUCTION}\n\n${req.text}`, req.model)
     return { summary }
   })
 

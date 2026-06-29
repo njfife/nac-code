@@ -1,4 +1,5 @@
 import { useApp, type Chat, type Turn } from './store'
+import { modelIdFor } from '../data/providers'
 
 // Renderer-side run controller: maps each run's AgentEvent stream onto the owning chat's transcript,
 // and decides native-resume vs transcript-replay per send.
@@ -64,7 +65,8 @@ export async function sendMessage(text: string): Promise<void> {
       provider: chat.provider,
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
       cwd,
-      yolo: chat.yolo
+      yolo: chat.yolo,
+      model: modelIdFor(chat.provider, chat.model)
     })
     runToChat[runId] = chatId
   } catch (e) {

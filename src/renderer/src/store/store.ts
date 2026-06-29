@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
+import { modelIdFor } from '../data/providers'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
@@ -104,7 +105,7 @@ const workspaces: Workspace[] = [
 const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0 }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
-  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
+  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
   { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', activeConfig: 'infra', attachedIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null, messages: [] }
 ]
 
@@ -208,7 +209,7 @@ export const useApp = create<AppState>()((set, get) => ({
       return
     }
     void window.nac.runs
-      .summarize({ text: context, provider: chat.provider })
+      .summarize({ text: context, provider: chat.provider, model: modelIdFor(chat.provider, chat.model) })
       .then((r) => finish(r?.summary?.trim() ? r.summary.trim() : null))
       .catch(() => finish(null))
   },

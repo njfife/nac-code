@@ -66,11 +66,17 @@ export const PROVIDERS: ProviderDef[] = [
     dot: '#46cf8b',
     status: 'authenticated',
     models: [
-      { id: 'qwen3.6-27b', label: 'qwen3.6-27b' },
-      { id: 'gemma-4-e4b', label: 'gemma-4-e4b' }
+      { id: 'opencode/deepseek-v4-flash-free', label: 'DeepSeek V4 Flash (free)' },
+      { id: 'lmstudio/qwen/qwen3-coder-30b', label: 'Qwen3 Coder 30B (local)' },
+      { id: 'lmstudio-remote/qwen/qwen3.6-27b', label: 'qwen3.6-27b (remote)' }
     ]
   }
 ]
+
+// Map a provider + a model's display label back to the harness model id (for --model).
+export function modelIdFor(provider: string, label: string): string | undefined {
+  return PROVIDERS.find((p) => p.id === provider)?.models.find((m) => m.label === label)?.id
+}
 
 export const STATUS_LABEL: Record<ConnStatus, string> = {
   authenticated: 'Authenticated',

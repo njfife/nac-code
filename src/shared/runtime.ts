@@ -7,12 +7,14 @@ export interface RunRequest {
   sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)
   cwd?: string // working directory for the harness = the chat's workspace folder (agents act on real code)
   yolo?: boolean // autonomy: on = full file/command access; off (default) = restricted per harness (M0-2)
+  model?: string // harness model id (e.g. opencode 'lmstudio/qwen/…'); passed as --model where supported
 }
 
 // One-shot text summarization through a harness — provider-neutral compaction (FR-9 / M0-8).
 export interface SummarizeRequest {
   text: string
   provider?: string
+  model?: string
 }
 
 export type AgentEvent =
