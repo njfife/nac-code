@@ -4,9 +4,9 @@
 
 ## Current phase
 
-Pre-implementation → **starting to build.** The master plan and the two core specs (M0-1 agent runtime, M0-8 cross-provider context) are complete; the cross-provider context portability principle is spike-validated.
+**Building.** Master plan + core specs (M0-1, M0-8) complete; cross-provider context portability spike-validated. **M0-7 scaffold done** — hardened Electron + React + TS app installs / typechecks / builds (commit `c44869e`).
 
-**Next step:** **M0-7 — scaffold the Electron app** (electron-vite + React + TS, hardened) and a tracer that spawns a harness subprocess and streams a turn to the renderer over the preload bridge; then **M1** (the shell/layouts).
+**Next step:** the **M0-7 tracer** — spawn a harness subprocess from the main process and stream a turn to the renderer over the typed preload bridge (proves the real `AgentRuntime` path); then **M1** (three-pane shell/layouts).
 
 ## Locked decisions (newest first)
 

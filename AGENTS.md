@@ -25,4 +25,10 @@ NAC Code ("Not-A-CLI Code") is a desktop (Electron) GUI that **wraps** agentic c
 
 ## Build / run
 
-_TBD — populated when the app is scaffolded (M0-7): dev, build, test, and package commands._
+- `npm install` — install deps (Electron + React + TS via electron-vite).
+- `npm run dev` — launch the app with HMR.
+- `npm run build` — production build to `out/`.
+- `npm run typecheck` — `tsc --noEmit` (run before committing).
+- Packaging (electron-builder) — TBD.
+
+App layout: `src/main` (Node main process — privileged seams), `src/preload` (typed IPC bridge = the only renderer→main surface), `src/renderer` (React UI).
