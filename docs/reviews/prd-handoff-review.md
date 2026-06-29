@@ -1,6 +1,8 @@
 # NAC Code PRD and Handoff Review
 
-Date: June 28, 2026
+Date: June 28, 2026 · **Resolutions added 2026-06-29**
+
+> **Resolution status (2026-06-29).** This review was written against the *original* PRD/handoff, before the v1 build. The engineering plan adopted most of its recommendations, and the v1 implementation has since **resolved the majority of findings** — durable persistence, real read-only git change review, real per-provider cost metering, four real harness adapters, permission wiring, and context-file semantics are all in. Each finding and open question below now carries a **Status** line. Canonical current state lives in [`docs/DECISIONS.md`](../DECISIONS.md). The reviewed `design_handoff_nac_code/*` files now live under [`docs/design/`](../design/).
 
 Scope reviewed:
 - `design_handoff_nac_code/NAC Code PRD.dc.html`
@@ -22,6 +24,8 @@ The highest-value cleanup is to split each requirement into two statuses:
 
 ### P0 - Durable Resume Is Promised, But Not In v1
 
+**Status: ✅ Resolved.** Durable persistence was promoted to v1/P0 — the per-chat transcript, config, workspaces, and saved context persist across launches (JSON `userData/nac-state.json`, atomic write; tolerant hydration on schema drift). Resume across restarts is a v1 guarantee, not roadmap.
+
 The product problem and representative use cases center on resuming yesterday's task with model, agent, context, and setup restored exactly. The PRD also states that "sessions bleed together" because prior work is not bound to a durable conversation.
 
 However, the non-functional persistence requirement only promises persistence "within a session", while durable persistence across launches is listed as a roadmap requirement.
@@ -36,6 +40,8 @@ Recommendation:
 Promote durable chat/config persistence to v1/P0, or narrow the v1 promise so it is explicit that resume is only guaranteed during the current app session. If the product is meant to replace CLI harnesses for real daily work, durable persistence should probably be in v1.
 
 ### P0 - "Implemented" Conflates Prototype UI With Production Behavior
+
+**Status: ✅ Largely resolved.** v1 ships real behavior rather than prototype stubs: four real harness adapters (Claude/Codex/Copilot/OpenCode), a real git-backed Changes view, and real per-provider cost/token metering. The status-taxonomy concern is largely moot for shipped surfaces. Still stubs: IDE/Finder launch (toast) and the provider-connection UI (credentials are delegated to the harness CLIs, not stored by NAC).
 
 The PRD marks many requirements as implemented, but the prototype often implements only a visual state or toast. The handoff explicitly says the `.dc.html` files are reference prototypes and that OS actions are stubs.
 
@@ -66,6 +72,8 @@ This will keep the design reference useful without overstating product readiness
 
 ### P1 - The Data Model Is Too Thin For The Promised Surfaces
 
+**Status: 🟡 Partially resolved.** Added since the review: `Turn`/`messages` (the provider-neutral transcript), `ProviderUsage` (per-provider token/cost metering = TokenUsage + CostEvent), compaction checkpoints (`summary`/`summarizedThrough`), and `seededAttachments`. Not yet modeled as first-class entities: structured `ToolCall`/`ToolResult` (tool actions are currently flattened into transcript text) and `ChangeSet` (changes are read live from git rather than stored).
+
 The conceptual data model lists top-level entities such as Workspace, Chat, ContextItem, Configuration, Provider, Agent, Repository, ChangedFile, and Connection. That is a good start, but it does not model the data needed for the session stats, token chart, cost breakdown, tool timeline, or reliable change review.
 
 Missing model concepts:
@@ -91,6 +99,8 @@ Extend section 10 before implementation starts. The missing entities are not imp
 
 ### P1 - Security And Trust Requirements Are Missing
 
+**Status: 🟡 Partially resolved.** In place: Electron hardening (contextIsolation + sandbox on, nodeIntegration off; the renderer reaches main only through a typed, allowlisted preload bridge); the YOLO toggle maps to each harness's real permission flags (codex sandbox, copilot tool grants, claude permission mode); credentials are **delegated to the harness CLIs**, so NAC stores no provider keys. Still open and tracked for M0-2: secrets redaction in logs/prompts/tool output, an audit trail for re-auth/provider/destructive-git actions, and secret-bearing context-file handling.
+
 The recommended app stack needs local filesystem, git, process, IDE launch, and provider credential access. The PRD also includes CLI auth and provider API-key flows. The NFR section does not yet cover credential storage, secrets redaction, command permissions, local process boundaries, or auditability.
 
 Evidence:
@@ -110,6 +120,8 @@ Add a security and trust NFR group covering:
 
 ### P1 - Live VCS Integration Is Roadmap, But Change Review Is A Core Promise
 
+**Status: ✅ Resolved (read-only, as recommended).** The Changes view now reads the real git working tree of the active workspace — branch, `status --porcelain`, `diff --numstat`, and per-file unified diff + source. Staging/commit/push are intentionally left to roadmap, exactly as the recommendation suggested.
+
 The PRD's goals and handoff position full change review as one of the product's central differentiators. Yet live VCS integration, staging, committing, and pushing are roadmap requirements. The v1 PRD marks the Changes view as implemented, but the prototype is driven by fixed demo data.
 
 Evidence:
@@ -123,6 +135,8 @@ Recommendation:
 Decide whether v1 includes live read-only VCS integration. It is reasonable to leave staging/commit/push for later, but the v1 product should probably read real git status, diffs, branches, and repo roots if "visibility into work" is a core launch promise.
 
 ### P2 - Context File Lifecycle Is Underspecified
+
+**Status: 🟡 Mostly resolved (decided + implemented).** Attached files are **live path references**, read at send time (not attach-time snapshots); content is size-capped (~200 KB, truncated) and read best-effort as UTF-8; a missing/unreadable file injects nothing. Authored **notes** are stored inline. Workspace scope is displayed, not enforced in v1. Remaining: explicit binary detection and re-tokenization of counts.
 
 Files are treated as first-class static context items, but the PRD does not define whether attached files are snapshots or live references, what happens when files change or disappear, how large/binary files are handled, or whether token counts are recalculated.
 
@@ -143,6 +157,8 @@ Specify file context semantics:
 
 ### P2 - Screenshots Are Below The Declared Minimum Width
 
+**Status: ⬜ Open (design artifact, low impact).** Not relevant to the implemented app (the real UI enforces `minWidth` 1180); the reference screenshots were not regenerated.
+
 The handoff says the app has a minimum width of 1180px, but all provided screenshots are 924px wide. The README also notes that some right-anchored popovers clip at that capture width.
 
 Evidence:
@@ -162,7 +178,17 @@ Regenerate the reference screenshots at 1180px or wider, and optionally keep the
 5. Should workspace/global context scope be enforced in v1 or only displayed?
 6. Does "New Chat" inherit anything from the active chat, workspace defaults, or no configuration at all?
 
+**Answers (2026-06-29):**
+1. **Useful across restarts** — yes; durable persistence is in v1.
+2. **Changes view on real git** — yes (read-only: status/diff/branches/roots); commit/push remain roadmap.
+3. **Provider credentials** — delegated to the existing harness CLIs; NAC stores none.
+4. **Attached files** — live path references, read at send time (not snapshots).
+5. **Workspace/global scope** — displayed, not enforced in v1.
+6. **New Chat inheritance** — workspace defaults first (provider/model/agent), then the active chat, then the `Standard` configuration (M0-4).
+
 ## Suggested PRD Edits
+
+> Addressed via the engineering plan, `docs/DECISIONS.md`, and the M0 specs rather than by editing the original (reference-only) PRD. Items 1–5 below are substantially done — see the **Status** lines above.
 
 1. Add a status taxonomy:
    - `Prototype implemented`
@@ -202,3 +228,5 @@ Regenerate the reference screenshots at 1180px or wider, and optionally keep the
 ## Bottom Line
 
 The design is directionally strong and internally consistent around the per-chat state model. The documents need one cleanup pass before they are implementation-ready: separate visual prototype completion from product delivery, promote or narrow durable resume, and specify the integration/security model for the desktop app.
+
+**Update (2026-06-29):** the v1 build acted on this review. Durable resume was promoted; change review and cost metering are real; the integration model (four real harness adapters + cross-provider context portability) and the security baseline (Electron hardening, delegated credentials, YOLO→permission mapping) are in. The remaining open items are secrets redaction/audit (M0-2), structured tool-call modeling, and design-artifact cleanup — none blocking.
