@@ -7,6 +7,12 @@ export interface RunRequest {
   sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)
 }
 
+// One-shot text summarization through a harness — provider-neutral compaction (FR-9 / M0-8).
+export interface SummarizeRequest {
+  text: string
+  provider?: string
+}
+
 export type AgentEvent =
   | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
@@ -17,7 +23,8 @@ export type AgentEvent =
 export const RUN_CHANNELS = {
   start: 'run:start',
   cancel: 'run:cancel',
-  event: 'run:event'
+  event: 'run:event',
+  summarize: 'run:summarize'
 } as const
 
 export const STATE_CHANNELS = {

@@ -1,13 +1,34 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, type RunRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
+
+const SUMMARIZE_INSTRUCTION =
+  'Summarize the following conversation so it can be used as context to continue it later. ' +
+  'Preserve key facts, decisions, names, code, file paths, and open questions. Be concise but complete. ' +
+  'Output only the summary, with no preamble.'
+
+// Run a harness once and resolve with its full assistant text (no chat wiring) — powers compaction.
+function runOnce(provider: string | undefined, prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let text = ''
+    const runId = `sum_${++counter}`
+    const onEvent = (e: AgentEvent): void => {
+      if (e.type === 'content.delta' && e.streamKind === 'assistant_text') text += e.text
+      else if (e.type === 'run.completed') resolve(text.trim())
+      else if (e.type === 'run.errored') reject(new Error(e.message))
+    }
+    if (provider === 'claude') startClaudeRun(runId, { prompt }, onEvent)
+    else if (provider === 'codex') startCodexRun(runId, { prompt }, onEvent)
+    else reject(new Error(`summarize unsupported for provider ${provider ?? 'unknown'}`))
+  })
+}
 
 // Resolve the stub harness script (dev: project scripts/; packaged: resources/scripts/ — wired when we add electron-builder extraResources).
 function stubHarnessPath(): string {
@@ -52,5 +73,10 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   ipcMain.handle(RUN_CHANNELS.cancel, (_e, runId: string): void => {
     runs.get(runId)?.cancel()
     runs.delete(runId)
+  })
+
+  ipcMain.handle(RUN_CHANNELS.summarize, async (_e, req: SummarizeRequest): Promise<{ summary: string }> => {
+    const summary = await runOnce(req.provider, `${SUMMARIZE_INSTRUCTION}\n\n${req.text}`)
+    return { summary }
   })
 }

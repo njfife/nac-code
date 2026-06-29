@@ -39,6 +39,8 @@ export interface Chat {
   messages: Turn[] // conversation transcript (provider-neutral source of truth — M0-8)
   sessionId: string | null // native session id (provider-specific)
   sessionProvider: string | null // which provider owns sessionId (native resume valid only if it matches provider)
+  summary: string | null // provider-neutral compaction checkpoint (covers messages[0..summarizedThrough))
+  summarizedThrough: number // # of messages folded into summary; replay = summary + messages.slice(this)
 }
 
 export type View = 'chat' | 'context' | 'changes'
@@ -85,7 +87,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra' }
 ]
 
-const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null }
+const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0 }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -98,6 +100,10 @@ const updateLast = (msgs: Turn[], patch: (t: Turn) => Turn): Turn[] => {
   copy[copy.length - 1] = patch(copy[copy.length - 1])
   return copy
 }
+
+// Collision-proof chat id (Date.now() alone collides on rapid creates within the same ms).
+let chatSeq = 0
+const nextChatId = (): string => `c_${Date.now()}_${++chatSeq}`
 
 export const useApp = create<AppState>()((set, get) => ({
   workspaces,
@@ -135,21 +141,44 @@ export const useApp = create<AppState>()((set, get) => ({
     }),
   setPalette: (b) => set({ palette: b }),
   togglePalette: () => set((s) => ({ palette: !s.palette })),
+  // Real compaction (FR-9): summarize the conversation into a provider-neutral checkpoint, then invalidate
+  // the native session so the next send replays `summary + tail` into a fresh one — true compaction on any
+  // provider, and bounded cross-provider switches.
   compactChat: () => {
     const id = get().activeChatId
+    const chat = get().chats[id]
+    if (!chat || chat.compacting) return
+    const through = chat.messages.length
+    const tail = chat.messages.slice(chat.summarizedThrough).filter((t) => t.text.trim())
+    const context = [chat.summary ? `Summary so far:\n${chat.summary}` : '', ...tail.map((t) => `${t.role === 'user' ? 'User' : 'Assistant'}: ${t.text}`)]
+      .filter(Boolean)
+      .join('\n\n')
     set((s) => ({ chats: { ...s.chats, [id]: { ...s.chats[id], compacting: true } } }))
-    setTimeout(() => {
+    const finish = (summary: string | null): void =>
       set((s) => {
         const c = s.chats[id]
         if (!c) return {}
-        return { chats: { ...s.chats, [id]: { ...c, compacting: false, compacted: true, contextK: Math.round(c.contextK * 0.4) } } }
+        if (!summary) return { chats: { ...s.chats, [id]: { ...c, compacting: false } } } // abort, leave transcript intact
+        return {
+          chats: {
+            ...s.chats,
+            [id]: { ...c, compacting: false, compacted: true, summary, summarizedThrough: through, sessionId: null, sessionProvider: null, contextK: Math.max(1, Math.round(summary.length / 4000)) }
+          }
+        }
       })
-    }, 900)
+    if (!context || !window.nac?.runs?.summarize) {
+      finish(null)
+      return
+    }
+    void window.nac.runs
+      .summarize({ text: context, provider: chat.provider })
+      .then((r) => finish(r?.summary?.trim() ? r.summary.trim() : null))
+      .catch(() => finish(null))
   },
   newFromCompacted: () => {
     const s = get()
     const src = s.chats[s.activeChatId]
-    const id = `c_${Date.now()}`
+    const id = nextChatId()
     const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
@@ -157,7 +186,7 @@ export const useApp = create<AppState>()((set, get) => ({
     const s = get()
     const src = s.chats[s.activeChatId]
     const wsId = src?.workspaceId ?? s.workspaces[0].id
-    const id = `c_${Date.now()}`
+    const id = nextChatId()
     const cfg = CONFIGS_BY_ID.standard
     const chat: Chat = {
       id,
@@ -179,7 +208,9 @@ export const useApp = create<AppState>()((set, get) => ({
       branchedFrom: null,
       messages: [],
       sessionId: null,
-      sessionProvider: null
+      sessionProvider: null,
+      summary: null,
+      summarizedThrough: 0
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
