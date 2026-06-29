@@ -1,9 +1,11 @@
+import { useEffect } from 'react'
 import { useApp, selectActiveChat, workspaceName, type Layout } from '../store/store'
 import LeftRail from './LeftRail'
 import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
 import ContextLibrary from './ContextLibrary'
+import CommandPalette from './CommandPalette'
 
 const ACCOUNT = '@nfife_fontfife'
 
@@ -13,6 +15,20 @@ export default function Shell() {
   const layout = useApp((s) => s.layout)
   const modal = useApp((s) => s.modal)
   const view = useApp((s) => s.view)
+  const palette = useApp((s) => s.palette)
+  const togglePalette = useApp((s) => s.togglePalette)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        togglePalette()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [togglePalette])
+
   return (
     <div
       style={{
@@ -37,6 +53,7 @@ export default function Shell() {
       </div>
       <StatusBar />
       {modal === 'model' && <ModelModal />}
+      {palette && <CommandPalette />}
     </div>
   )
 }

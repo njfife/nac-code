@@ -36,6 +36,7 @@ interface AppState {
   layout: Layout
   expanded: Record<string, boolean>
   modal: ModalKind
+  palette: boolean
 
   selectChat: (id: string) => void
   toggleWorkspace: (wsId: string) => void
@@ -45,6 +46,8 @@ interface AppState {
   openModal: (m: ModalKind) => void
   closeModal: () => void
   toggleAttach: (itemId: string) => void
+  setPalette: (b: boolean) => void
+  togglePalette: () => void
 }
 
 const workspaces: Workspace[] = [
@@ -66,6 +69,7 @@ export const useApp = create<AppState>()((set) => ({
   layout: 'studio',
   expanded: { ws_nac: true, ws_infra: false },
   modal: null,
+  palette: false,
 
   selectChat: (id) => set({ activeChatId: id }),
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
@@ -83,7 +87,9 @@ export const useApp = create<AppState>()((set) => ({
       const attachedIds = has ? chat.attachedIds.filter((id) => id !== itemId) : [...chat.attachedIds, itemId]
       // Diverging from the applied configuration marks the chat dirty (FR-6.4).
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds, dirty: true } } }
-    })
+    }),
+  setPalette: (b) => set({ palette: b }),
+  togglePalette: () => set((s) => ({ palette: !s.palette }))
 }))
 
 // --- selectors / helpers ---
