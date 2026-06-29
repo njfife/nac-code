@@ -136,7 +136,7 @@ export default function ChatView() {
         <div style={{ maxWidth: 'var(--thread-max-w)', margin: '0 auto' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px', fontSize: 12, color: 'var(--muted)' }}>
-              <span style={pill}>Context · {active.attachedIds.length}</span>
+              <span style={pill}>Context: {configLabel}</span>
               <span onClick={() => setView('context')} style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>
                 Manage
               </span>
