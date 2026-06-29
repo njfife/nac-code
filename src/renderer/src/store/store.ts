@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { CONFIGS_BY_ID } from '../data/configs'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config.
 // Mutations target the ACTIVE chat only — nothing is global. Switching chats is lossless (FR-4.2),
@@ -17,6 +18,7 @@ export interface Chat {
   provider: string // harness driver id (claude | codex | cursor | opencode)
   model: string // model label
   agent: string | null
+  activeConfig: string | null // applied configuration id (FR-6.2)
   attachedIds: string[] // attached context item ids (FR-5.5)
   dirty: boolean // attachments diverge from the applied configuration (FR-6.4)
   compacting: boolean // compaction in progress (FR-9.1)
@@ -28,7 +30,7 @@ export interface Chat {
 
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
-export type ModalKind = 'model' | 'agent' | null
+export type ModalKind = 'model' | 'agent' | 'stats' | null
 
 interface AppState {
   workspaces: Workspace[]
@@ -49,6 +51,7 @@ interface AppState {
   openModal: (m: ModalKind) => void
   closeModal: () => void
   toggleAttach: (itemId: string) => void
+  applyConfig: (configId: string) => void
   setPalette: (b: boolean) => void
   togglePalette: () => void
   compactChat: () => void
@@ -62,9 +65,9 @@ const workspaces: Workspace[] = [
 
 const base = { compacting: false, compacted: false }
 const seedChats: Chat[] = [
-  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null },
-  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null },
-  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', attachedIds: ['sk-tdd', 'sk-debug', 'ag-infra', 'ag-reviewer', 'in-style', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null }
+  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null },
+  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null },
+  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', activeConfig: 'infra', attachedIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null }
 ]
 
 export const useApp = create<AppState>()((set, get) => ({
@@ -95,6 +98,14 @@ export const useApp = create<AppState>()((set, get) => ({
       const attachedIds = has ? chat.attachedIds.filter((id) => id !== itemId) : [...chat.attachedIds, itemId]
       // Diverging from the applied configuration marks the chat dirty (FR-6.4).
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds, dirty: true } } }
+    }),
+  // Apply a configuration: set the chat's attachments to exactly that bundle, clear dirty (FR-6.2/6.3).
+  applyConfig: (configId) =>
+    set((s) => {
+      const cfg = CONFIGS_BY_ID[configId]
+      if (!cfg) return {}
+      const chat = s.chats[s.activeChatId]
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds: [...cfg.itemIds], activeConfig: configId, dirty: false } } }
     }),
   setPalette: (b) => set({ palette: b }),
   togglePalette: () => set((s) => ({ palette: !s.palette })),

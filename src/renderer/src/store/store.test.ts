@@ -34,4 +34,13 @@ describe('app store — per-chat spine', () => {
     // branched chats sort to the top of their workspace group (FR-2.4)
     expect(chatsForWorkspace(s.chats, 'ws_nac')[0].branchedFrom).not.toBeNull()
   })
+
+  it('applyConfig replaces the attached set and clears dirty (FR-6.3)', () => {
+    useApp.getState().selectChat('c2') // seeded dirty
+    useApp.getState().applyConfig('minimal')
+    const c2 = useApp.getState().chats.c2
+    expect(c2.attachedIds).toEqual(['in-style'])
+    expect(c2.activeConfig).toBe('minimal')
+    expect(c2.dirty).toBe(false)
+  })
 })

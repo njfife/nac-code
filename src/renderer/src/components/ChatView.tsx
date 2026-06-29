@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
 import { changesSummary } from '../data/changes'
+import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
@@ -13,6 +14,9 @@ export default function ChatView() {
   const changed = changesSummary().files
   const compactChat = useApp((s) => s.compactChat)
   const newFromCompacted = useApp((s) => s.newFromCompacted)
+  const applyConfig = useApp((s) => s.applyConfig)
+  const [configOpen, setConfigOpen] = useState(false)
+  const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -82,7 +86,32 @@ export default function ChatView() {
               New from compacted
             </span>
           )}
-          <span style={headerAction}>Context: Standard ▾</span>
+          <div style={{ position: 'relative' }}>
+            <span style={headerAction} onClick={() => setConfigOpen((o) => !o)}>
+              Context: {configLabel}
+              {active.dirty && <span style={{ color: 'var(--warning)', marginLeft: 4 }}>· modified</span>} ▾
+            </span>
+            {configOpen && (
+              <div style={configPopover}>
+                {CONFIGURATIONS.map((cfg) => (
+                  <div
+                    key={cfg.id}
+                    onClick={() => {
+                      applyConfig(cfg.id)
+                      setConfigOpen(false)
+                    }}
+                    style={{ ...configRow, background: active.activeConfig === cfg.id ? 'var(--accent-tint)' : 'transparent' }}
+                  >
+                    <span style={{ color: 'var(--text)' }}>{cfg.name}</span>
+                    <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>
+                      {cfg.itemIds.length} · ~{(configTokens(cfg) / 1000).toFixed(1)}k
+                    </span>
+                  </div>
+                ))}
+                <div style={configSaveRow}>Save current as configuration…</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -239,3 +268,6 @@ const toolbarItem: CSSProperties = {
 }
 const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }
 const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }
+const configPopover: CSSProperties = { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 250, background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.55)', padding: 6, zIndex: 50 }
+const configRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
+const configSaveRow: CSSProperties = { padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--accent-light)', cursor: 'pointer' }
