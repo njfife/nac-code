@@ -22,10 +22,14 @@
 
 **✅ OpenCode adapter — 4th provider + the local-model carrier** (`80f634c`): `opencode run --format json`; cross-provider replay verified to reach it (and LM Studio models via the same path). Model threading landed via `modelIdFor` (opencode requires real `provider/model` ids). Nathan's OpenCode is already configured with LM Studio (local + remote) + free opencode models. Local-models-with-context-intact requirement is now satisfied end-to-end.
 
+**✅ Claude `--model` wired** (`43dfbb8`): opus/sonnet/haiku aliases (account-independent, verified). **Finding that changes the plan:** hardcoding model ids is unsafe for the other clouds — codex `-m gpt-5-codex` **400s** on a ChatGPT-account ("not supported"), copilot `--model gpt-5.4` returns empty (plan-gated). So codex/copilot are left on their working account defaults; exposing their model selection needs **real per-account model discovery** (promotes M4).
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Finish `--model` wiring for cloud providers** — opencode passes `--model` now; claude/codex/copilot adapters still ignore it (their model ids are cosmetic/maybe-invalid). Verify each CLI's real `--model` values and pass them. *(loop is taking this next.)*
+- **M4 — real model discovery** — query each CLI for the account's actually-available models (codex/copilot/opencode each differ) so the picker is real, not a static guess. Now the gating item for cloud model selection.
 - **OpenCode auto-config** (`configureLocalBackend`) — write opencode's LM Studio provider config for users who haven't set it up (Nathan already has).
 - **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) and the **PRD multi-repo** model.
+
+**▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for Nathan to steer next priorities.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
 
 **▶ Loop paused** at the headline-goal milestone — awaiting Nathan's GUI test (all 3 providers + compaction) and direction on the above.
