@@ -1,9 +1,12 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { registerRuntimeIpc } from './runtime/ipc'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 832,
     minWidth: 1180, // FR-1.5 / NFR-4: panes never collapse; scroll below the minimum
@@ -19,7 +22,10 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow.show())
+  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
 
   // External links open in the OS browser, never in-app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -45,7 +51,10 @@ function createWindow(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.naccode.app')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+
+  registerRuntimeIpc(() => mainWindow)
   createWindow()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

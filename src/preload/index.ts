@@ -1,11 +1,21 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { RUN_CHANNELS, type RunRequest, type AgentEvent } from '../shared/runtime'
 
-// The ONLY surface the renderer can reach. Privileged capabilities (AgentRuntime, CliRegistry,
-// PlatformServices, persistence, ...) get added here as typed, allowlisted IPC channels — never
-// raw Node access in the renderer.
+// The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
+// allowlisted IPC channels — never raw Node access in the renderer.
 const api = {
-  version: (): string => process.versions.electron
+  version: (): string => process.versions.electron,
+  runs: {
+    start: (req: RunRequest): Promise<{ runId: string }> => ipcRenderer.invoke(RUN_CHANNELS.start, req),
+    cancel: (runId: string): Promise<void> => ipcRenderer.invoke(RUN_CHANNELS.cancel, runId),
+    // Subscribe to streamed AgentEvents; returns an unsubscribe function.
+    onEvent: (cb: (event: AgentEvent) => void): (() => void) => {
+      const listener = (_e: unknown, event: AgentEvent): void => cb(event)
+      ipcRenderer.on(RUN_CHANNELS.event, listener)
+      return () => ipcRenderer.removeListener(RUN_CHANNELS.event, listener)
+    }
+  }
 }
 
 if (process.contextIsolated) {
