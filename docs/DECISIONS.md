@@ -28,4 +28,4 @@ Pre-implementation → **starting to build.** The master plan and the two core s
 - Remaining M0 specs to close (write alongside the surfaces they govern): **M0-2** autonomy/security, **M0-3** thinking-levels, **M0-4** new-chat seeding, **M0-5** error/empty states, **M0-6** file-context lifecycle.
 - **Provider-switch UX:** in-place on the same chat (recommended) vs branch into a new chat — confirm before M5.
 - **OpenCode adapter transport:** `opencode acp` (uniform, recommended) vs `opencode serve` + SDK (t3code's proven path) — validate during build.
-- **Git remote** for cross-device sync — add an `origin` and push (not yet set up).
+- ~~Git remote for cross-device sync~~ — ✅ done (2026-06-28): private `origin` at github.com/njfife/nac-code; `main` pushed & tracking.
