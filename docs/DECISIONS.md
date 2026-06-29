@@ -30,9 +30,11 @@
 
 **✅ Native resume — all providers** (`bdc8b00`): same-provider turns reuse the harness session (claude `--resume`, codex `exec <flags> resume <id>`, copilot `--resume=<id>`, opencode `-s <id>`) and send only the new message; cross-provider switches still replay. `useNative` generalized to `sessionProvider === provider && sessionId`. Verified vs each real binary (2-turn recall).
 
+**✅ Real file-changes view** (`489ba42`): the Changes view reads the active workspace's git working tree (status + numstat + per-file diff/source); ChatView "Files" badge is a live count refreshed after each run. Pure git parsers verified vs real output. Multi-repo (OUTSIDE-WS) deferred.
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Real file-changes view** — replace the mock Changes view with the actual git diff in the workspace (pairs with YOLO/workspace-write; the "see the agent's work" pillar).
-- **Wire the context library** — attached skills/files/agents actually injected into the run (the "managed static context" pillar; per-harness mapping work).
+- **Wire the context library** — attached skills/files/agents actually injected into the run (the "managed static context" pillar; per-harness mapping work). The biggest remaining mock pillar.
+- **Live cost/stats** — real per-provider usage/cost from adapter result events (Claude cost, codex/copilot/opencode usage) instead of the mock StatsModal.
 - **PRD multi-repo** workspace model; **packaging** (electron-builder) — *deferred (Nathan: not worrying about real builds yet)*.
 
 **▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for Nathan to steer next priorities.
