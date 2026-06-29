@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useApp, selectActiveChat } from '../store/store'
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
 // Center pane: chat header · thread · composer. The composer's Send drives the M0-7 tracer
 // (a harness subprocess streamed over the preload bridge) — the real per-chat run loop lands in M5.
 export default function ChatView() {
+  const active = useApp(selectActiveChat)
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -48,8 +50,12 @@ export default function ChatView() {
           borderBottom: '1px solid var(--line)'
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 600 }}>New chat</span>
-        <span className="mono" style={pill}>claude</span>
+        <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {active.title}
+        </span>
+        <span className="mono" style={pill}>
+          {active.model}
+        </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {['Files', 'Compact', 'Context: Standard ▾'].map((a) => (
             <span key={a} style={headerAction}>
@@ -68,9 +74,7 @@ export default function ChatView() {
             </p>
           )}
           {sent && <Message who="you" body={sent} />}
-          {sent && (
-            <Message who="nc" body={output} streaming={status === 'running'} />
-          )}
+          {sent && <Message who="nc" body={output} streaming={status === 'running'} />}
         </div>
       </div>
 
@@ -79,7 +83,7 @@ export default function ChatView() {
         <div style={{ maxWidth: 'var(--thread-max-w)', margin: '0 auto' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px', fontSize: 12, color: 'var(--muted)' }}>
-              <span style={pill}>Context · 5</span>
+              <span style={pill}>Context · {active.attached}</span>
               <span style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>Manage</span>
             </div>
             <textarea
@@ -109,7 +113,7 @@ export default function ChatView() {
               <span style={toolbarItem}>Attach</span>
               <span style={toolbarItem}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', marginRight: 6 }} />
-                claude
+                {active.model}
               </span>
               <span style={toolbarItem}>Thinking: Medium</span>
               <span style={{ ...toolbarItem, color: 'var(--warning)' }}>YOLO</span>
@@ -191,7 +195,6 @@ const pill: CSSProperties = {
   background: 'var(--accent-tint)',
   color: 'var(--accent-light)'
 }
-
 const headerAction: CSSProperties = {
   fontSize: 12,
   padding: '4px 10px',
@@ -201,7 +204,6 @@ const headerAction: CSSProperties = {
   color: 'var(--text-2)',
   cursor: 'pointer'
 }
-
 const toolbarItem: CSSProperties = {
   fontSize: 12.5,
   color: 'var(--muted)',
