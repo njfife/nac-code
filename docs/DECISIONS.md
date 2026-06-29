@@ -8,9 +8,9 @@
 
 **Next step:** M1's core surfaces are in — all 3 views (chat/context/changes), inspector, model + **agent pickers** (`917c0aa`), ⌘K palette, Studio/Cockpit/Focus layouts incl. the **Cockpit rail**. M5: **real Claude + Codex adapters both run** (`5762809`); Claude has multi-turn memory via `--resume` (verified vs the real binary). All three cloud CLIs are installed (claude / codex / copilot) — Nathan has subs for each. 22 tests; typecheck/build green. Persisted-state hydration is now tolerant of schema drift (`3a085ad`).
 
-**🎯 Goal (Nathan):** switch a chat between Claude ↔ Codex (↔ Copilot later) mid-conversation **without losing context.** That's M0-8 Part B with real cloud harnesses.
+**🎯 GOAL ACHIEVED — cross-provider context replay works** (`f043a43`): switching a chat between Claude and Codex preserves context. Native `--resume` is the same-provider Claude fast-path; any switch (or non-Claude provider) replays the stored transcript as priming context (the universal `buildContext` path, M0-8 Part B). **Verified end-to-end vs the real binaries** — a codeword planted in a Claude turn was recalled by Codex after the switch.
 
-**Next (in progress):** **cross-provider transcript replay** — on a provider switch (or any non-resumable case), replay our stored transcript into the new harness as priming context (the universal `buildContext` path) instead of the non-portable native resume. Then a chat moved from Claude to Codex keeps its context. Verify: plant a fact in a Claude turn, switch the chat to Codex, confirm Codex recalls it. Then a **Copilot adapter** as the third. Deferred: OpenCode/local, the visible UI gaps.
+**Next (follow-on, lower priority):** a **Copilot adapter** (3rd provider, CLI installed); **Codex native resume** (same-provider fast-path — currently Codex always replays, which works but re-sends the transcript each turn); token-streaming for Codex; large-transcript handling (compaction before replay); the visible UI gaps (workspace setup). **▶ Loop paused** at the core-goal milestone, awaiting Nathan's GUI test / feedback.
 
 ## Locked decisions (newest first)
 
