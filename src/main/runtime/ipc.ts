@@ -4,6 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import { RUN_CHANNELS, type RunRequest, type AgentEvent } from '../../shared/runtime'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
+import { startCodexRun } from './codexAdapter'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -32,7 +33,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const run =
       req.provider === 'claude'
         ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId }, handler)
-        : startHarnessRun(
+        : req.provider === 'codex'
+          ? startCodexRun(runId, { prompt: req.prompt }, handler)
+          : startHarnessRun(
             runId,
             {
               prompt: req.prompt,
