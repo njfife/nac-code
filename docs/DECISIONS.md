@@ -6,7 +6,7 @@
 
 **Building.** Master plan + core specs complete; cross-provider portability spike-validated. **M0-7 done** (scaffold + tracer). **Test harness** in (vitest, 6 tests, `6f6e570`). **M1 shell skeleton** in (`0275ea9`) — three-pane IDE chrome (top/status bar, left rail, chat view, inspector) + design tokens as CSS variables; the tracer stream is wired into the chat view (user/assistant turns + blinking cursor). All typecheck/build/test green; GUI is `npm run dev`-verifiable.
 
-**Next step (M1, in progress):** Context Library route + **command palette** (⌘K, `bf90700`) are in. Remaining: the **Changes** route (git review over stubbed `GitReader` data), agent picker + context-configuration picker (modals), and the **Cockpit** activity rail + chat tabs. Then M1 is essentially complete and we return to closing the rest of M0 (autonomy/security, thinking-levels, etc.) before wiring real harness adapters (M5).
+**Next step (M1, in progress):** Context Library + command palette + **Changes route** (FR-12, `aaa2e28`) are in. Remaining: agent picker + context-configuration picker (modals) and the **Cockpit** activity rail + chat tabs. Then M1's surfaces are essentially complete, and we return to closing the rest of M0 (autonomy/security, thinking-levels, new-chat, errors, file lifecycle) before wiring real harness adapters (M5).
 
 ## Locked decisions (newest first)
 
