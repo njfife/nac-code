@@ -18,8 +18,10 @@
 
 **✅ Per-workspace defaults** (`07f16be`): each workspace can set a default provider/model/agent (gear → WorkspaceModal); new chats seed from the workspace's defaults first, then active-chat inheritance (M0-4). `newChat(workspaceId?)` + a per-workspace "+" make a freshly-added workspace reachable.
 
+**✅ YOLO wired to real permissions** (`01fd622`): the toggle now maps to claude `--dangerously-skip-permissions`, codex `-s read-only`↔`workspace-write`, copilot `--allow-all-tools`↔`--yolo` (safe by default). Arg-building is pure/tested (`claudeArgs`/`codexArgs`/`copilotArgs`).
+
 **Next (follow-on options, Nathan to prioritize):**
-- **M0-2 autonomy/security** — the YOLO toggle is currently a no-op for real runs; wire it to each harness's real permissions (codex `-s read-only`↔`workspace-write`/bypass, copilot tool grants, claude permission mode). Makes YOLO real + safer defaults. *(loop is taking this next.)*
+- **`--model` wiring** — the model picker is still cosmetic: the selected model isn't passed to the harness, so runs use each CLI's default. Wire it (claude/codex/copilot all take `--model`); needs mapping our model ids to the real CLI model values. *(loop is taking this next.)*
 - **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; by-id resume saves re-sending the tail same-provider.
 - **PRD multi-repo model** — the deferred richer half of workspace config.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
