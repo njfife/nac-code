@@ -1,7 +1,8 @@
-import type { CSSProperties } from 'react'
 import { useApp, selectActiveChat, workspaceName, type Layout } from '../store/store'
 import LeftRail from './LeftRail'
 import ChatView from './ChatView'
+import Inspector from './Inspector'
+import ModelModal from './ModelModal'
 
 const ACCOUNT = '@nfife_fontfife'
 
@@ -9,6 +10,7 @@ const ACCOUNT = '@nfife_fontfife'
 // 1180px min-width with horizontal scroll — panes never collapse (FR-1.5 / NFR-4). Focus layout hides the inspector.
 export default function Shell() {
   const layout = useApp((s) => s.layout)
+  const modal = useApp((s) => s.modal)
   return (
     <div
       style={{
@@ -26,6 +28,7 @@ export default function Shell() {
         {layout !== 'focus' && <Inspector />}
       </div>
       <StatusBar />
+      {modal === 'model' && <ModelModal />}
     </div>
   )
 }
@@ -118,71 +121,4 @@ function StatusBar() {
       <span>Version 0.10.0</span>
     </footer>
   )
-}
-
-// Inspector — structure + tokens now; live panels fleshed out in later M1 chunks.
-function Inspector() {
-  return (
-    <aside
-      style={{
-        width: 'var(--inspector-w)',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--panel-2)',
-        borderLeft: '1px solid var(--line)'
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 14px',
-          borderBottom: '1px solid var(--line)'
-        }}
-      >
-        <span style={eyebrow}>Inspector</span>
-        <button style={ghostBtn}>Stats</button>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
-        {['CLI Connections', 'MCP Servers', 'Token & Cost', 'Session', 'Attached Context'].map((p) => (
-          <div
-            key={p}
-            style={{
-              padding: '10px 12px',
-              margin: '4px 0',
-              borderRadius: 8,
-              background: 'var(--card)',
-              border: '1px solid var(--line)',
-              fontSize: 12.5,
-              color: 'var(--text-3)',
-              display: 'flex',
-              justifyContent: 'space-between'
-            }}
-          >
-            <span>{p}</span>
-            <span style={{ color: 'var(--faint)' }}>▾</span>
-          </div>
-        ))}
-      </div>
-    </aside>
-  )
-}
-
-const eyebrow: CSSProperties = {
-  fontSize: 10.5,
-  letterSpacing: 1.4,
-  textTransform: 'uppercase',
-  color: 'var(--muted-2)',
-  fontWeight: 600
-}
-const ghostBtn: CSSProperties = {
-  background: 'var(--card)',
-  color: 'var(--text-2)',
-  border: '1px solid var(--line)',
-  borderRadius: 6,
-  padding: '4px 10px',
-  fontSize: 12,
-  cursor: 'pointer'
 }

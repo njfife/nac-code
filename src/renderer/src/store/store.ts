@@ -26,6 +26,7 @@ export interface Chat {
 
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
+export type ModalKind = 'model' | 'agent' | null
 
 interface AppState {
   workspaces: Workspace[]
@@ -34,12 +35,15 @@ interface AppState {
   view: View
   layout: Layout
   expanded: Record<string, boolean>
+  modal: ModalKind
 
   selectChat: (id: string) => void
   toggleWorkspace: (wsId: string) => void
   setLayout: (l: Layout) => void
   setView: (v: View) => void
   setModel: (provider: string, model: string) => void
+  openModal: (m: ModalKind) => void
+  closeModal: () => void
 }
 
 const workspaces: Workspace[] = [
@@ -60,6 +64,7 @@ export const useApp = create<AppState>()((set) => ({
   view: 'chat',
   layout: 'studio',
   expanded: { ws_nac: true, ws_infra: false },
+  modal: null,
 
   selectChat: (id) => set({ activeChatId: id }),
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
@@ -67,7 +72,9 @@ export const useApp = create<AppState>()((set) => ({
   setView: (v) => set({ view: v }),
   // Per-chat mutation — affects ONLY the active chat (FR-4.1 invariant).
   setModel: (provider, model) =>
-    set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } }))
+    set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } })),
+  openModal: (m) => set({ modal: m }),
+  closeModal: () => set({ modal: null })
 }))
 
 // --- selectors / helpers ---

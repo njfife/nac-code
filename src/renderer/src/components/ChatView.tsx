@@ -7,6 +7,7 @@ type Status = 'idle' | 'running' | 'done' | 'error'
 // (a harness subprocess streamed over the preload bridge) — the real per-chat run loop lands in M5.
 export default function ChatView() {
   const active = useApp(selectActiveChat)
+  const openModal = useApp((s) => s.openModal)
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -111,7 +112,7 @@ export default function ChatView() {
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
               <span style={toolbarItem}>Attach</span>
-              <span style={toolbarItem}>
+              <span style={toolbarItem} onClick={() => openModal('model')}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', marginRight: 6 }} />
                 {active.model}
               </span>
