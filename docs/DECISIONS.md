@@ -27,6 +27,7 @@
 **✅ Model discovery + spacing fix** (`3f0a521`, `c9bbff1`): assistant messages strip leading whitespace (reasoning-model gap). Live model discovery wired — the picker queries `opencode models` and shows the account's real 17 configured models (verified). **Finding:** only OpenCode exposes a model-list command — codex has none (`codex models` errors), copilot/claude only have `--model`. So cloud model discovery isn't possible via CLI; claude uses its aliases, codex/copilot stay on account default.
 
 **Next (follow-on options, Nathan to prioritize):**
+- **LocalModelManager (LM Studio lifecycle)** — research done (`docs/research/lm-studio-model-management.md`): JIT auto-load + Auto-Evict (one-at-a-time) are LM Studio defaults that already work via OpenCode; context length is load-time, so NAC should drive `@lmstudio/sdk`/`lms` to discover + load-with-progress + set context/TTL/single-model. Inference stays on OpenCode (wrapper, not harness). Local instance first; remote via LM Link later.
 - **OpenCode auto-config** (`configureLocalBackend`) — write opencode's LM Studio provider config for users who haven't set it up (Nathan already has).
 - **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) — cheaper same-provider turns.
 - **PRD multi-repo** workspace model; **packaging** (electron-builder) for a distributable app.
