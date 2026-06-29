@@ -1,8 +1,9 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { discoverModels } from './discovery'
+import { getChanges, getFileDiff } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
@@ -101,4 +102,8 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Live model discovery (OpenCode only — reflects the account's real configured models).
   ipcMain.handle(DISCOVERY_CHANNELS.models, (_e, provider: string): Promise<string[]> => discoverModels(provider))
+
+  // Real working-tree changes (git) for a workspace.
+  ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))
+  ipcMain.handle(CHANGES_CHANNELS.diff, (_e, cwd: string, file: string) => getFileDiff(cwd, file))
 }

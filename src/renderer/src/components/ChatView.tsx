@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
 import { sendMessage, isStreaming } from '../store/runtime'
-import { changesSummary } from '../data/changes'
 import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
 
 // Center pane: chat header · thread · composer. Send drives a real run (Claude adapter) or the stub;
@@ -10,7 +9,6 @@ export default function ChatView() {
   const active = useApp(selectActiveChat)
   const openModal = useApp((s) => s.openModal)
   const setView = useApp((s) => s.setView)
-  const changed = changesSummary().files
   const compactChat = useApp((s) => s.compactChat)
   const newFromCompacted = useApp((s) => s.newFromCompacted)
   const applyConfig = useApp((s) => s.applyConfig)
@@ -23,6 +21,12 @@ export default function ChatView() {
   const streaming = isStreaming(active)
   const messages = active.messages ?? [] // defensive: tolerate stale data missing the field
   const bottomRef = useRef<HTMLDivElement>(null)
+  const cwd = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.path) ?? ''
+  const [changed, setChanged] = useState(0)
+  useEffect(() => {
+    if (streaming || !cwd) return // refresh the change count when a run finishes
+    window.nac?.changes?.get(cwd).then((c) => setChanged(c?.files.length ?? 0)).catch(() => {})
+  }, [streaming, cwd])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -43,3 +43,30 @@ export const DIALOG_CHANNELS = {
 export const DISCOVERY_CHANNELS = {
   models: 'discovery:models'
 } as const
+
+export const CHANGES_CHANNELS = {
+  get: 'changes:get',
+  diff: 'changes:diff'
+} as const
+
+// Real working-tree changes for a workspace (FR-12), read from git.
+export type FileStatus = 'added' | 'modified' | 'deleted'
+export interface ChangedFileInfo {
+  path: string
+  status: FileStatus
+  additions: number
+  deletions: number
+}
+export interface ChangesResult {
+  branch: string
+  root: string
+  files: ChangedFileInfo[]
+}
+export interface DiffSpan {
+  type: 'ctx' | 'add' | 'del'
+  text: string
+}
+export interface FileDiffResult {
+  diff: DiffSpan[]
+  source: string
+}
