@@ -34,7 +34,7 @@
 
 **✅ Live cost/stats** (`70bc7e6`): real per-provider metering (turns/tokens/$ split by provider) captured from each harness's completion event; StatsModal is real. Claude $+tokens, Codex/OpenCode tokens (OpenCode $), Copilot turns-only (no token/$ via CLI).
 
-**✅ Context library v1** (`27e7e93`): pillar 1 is real — authored **notes** (in-app form) + **file** attach (picker) become items with real content/path; attaching injects them as a leading context block on the non-native send path (seeds the session; resume turns inherit, re-seeded on switch/compaction). Persisted. Verified vs a real harness (an attached note's rule was followed). v1 limit: mid-conversation attachment changes take effect on the next session seed (switch/compaction/new chat), not on an immediate resume turn.
+**✅ Context library v1** (`27e7e93`, `8c4d63f`): pillar 1 is real — authored **notes** (in-app form) + **file** attach (picker) become items with real content/path; attaching injects them as a leading context block on the non-native send path (seeds the session; resume turns inherit, re-seeded on switch/compaction). Persisted. Verified vs a real harness (an attached note's rule was followed). The "seeds once per session" behavior is **surfaced in the UI**: a "context changed · apply now" pill (composer) + banner (library) appear when attachments differ from what was seeded (`contextPending`); **Apply now** (`reseedContext`) drops the session so the next send re-seeds.
 
 **Next (follow-on options, Nathan to prioritize):**
 - **Context library polish** — edit notes; mid-conversation re-seed on attachment change; per-harness-native injection (vs the universal prompt block).
