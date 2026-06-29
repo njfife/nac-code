@@ -16,10 +16,12 @@
 
 **✅ Workspace setup** (`392744d`): workspaces now bind to a project folder and **harness runs execute in that `cwd`** (`paths.resolveCwd` expands `~`; empty = process cwd). Add/remove workspaces from the left rail via a native folder picker (`dialog.pickDirectory`); bound path shown per workspace; remove guarded (never an in-use or last workspace). Decision: v1 = one folder per workspace (per-workspace defaults + the PRD multi-repo model deferred).
 
+**✅ Per-workspace defaults** (`07f16be`): each workspace can set a default provider/model/agent (gear → WorkspaceModal); new chats seed from the workspace's defaults first, then active-chat inheritance (M0-4). `newChat(workspaceId?)` + a per-workspace "+" make a freshly-added workspace reachable.
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Per-workspace defaults** (default provider/model/agent new chats inherit) and/or the **PRD multi-repo model** — the deferred halves of workspace config.
-- **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; wiring by-id resume saves re-sending the tail same-provider.
-- **M0-2 autonomy/security** — map the YOLO/autonomy level to each harness's sandbox/permissions (codex `-s`, copilot tool grants) instead of fixed defaults.
+- **M0-2 autonomy/security** — the YOLO toggle is currently a no-op for real runs; wire it to each harness's real permissions (codex `-s read-only`↔`workspace-write`/bypass, copilot tool grants, claude permission mode). Makes YOLO real + safer defaults. *(loop is taking this next.)*
+- **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; by-id resume saves re-sending the tail same-provider.
+- **PRD multi-repo model** — the deferred richer half of workspace config.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
 
 **▶ Loop paused** at the headline-goal milestone — awaiting Nathan's GUI test (all 3 providers + compaction) and direction on the above.
