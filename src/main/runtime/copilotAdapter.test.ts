@@ -7,6 +7,11 @@ describe('copilotArgs (autonomy)', () => {
     expect(copilotArgs('hi', true)).toContain('--yolo')
     expect(copilotArgs('hi', true)).not.toContain('--allow-all-tools')
   })
+
+  it('appends --resume= when given a session', () => {
+    expect(copilotArgs('hi', false, 'sid')).toContain('--resume=sid')
+    expect(copilotArgs('hi')).not.toContain('--resume=undefined')
+  })
 })
 
 // Exercised against the real `copilot -p --output-format json` event shapes.

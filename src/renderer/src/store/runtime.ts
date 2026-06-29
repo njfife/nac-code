@@ -53,9 +53,10 @@ export async function sendMessage(text: string): Promise<void> {
   const cwd = s.workspaces.find((w) => w.id === chat.workspaceId)?.path || undefined // run in the workspace folder
   // Replay = compaction summary + the turns since that checkpoint (the tail).
   const tail = chat.messages.slice(chat.summarizedThrough)
-  // Native resume only when continuing the SAME provider's live session (Claude today). Otherwise replay
-  // the bounded context into the (possibly different) harness — that's the cross-provider context carry-over.
-  const useNative = chat.provider === 'claude' && chat.sessionProvider === 'claude' && Boolean(chat.sessionId)
+  // Native resume when continuing the SAME provider's live session (all harnesses: claude --resume,
+  // codex exec resume, copilot --resume, opencode -s). Otherwise replay the bounded context into the
+  // (possibly different) harness — that's the cross-provider context carry-over.
+  const useNative = chat.sessionProvider === chat.provider && Boolean(chat.sessionId)
   const now = Date.now()
   s.pushTurn(chatId, { id: `u_${now}`, role: 'user', text: message })
   s.pushTurn(chatId, { id: `a_${now}`, role: 'assistant', text: '', streaming: true })

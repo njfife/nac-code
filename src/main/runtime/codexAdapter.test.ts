@@ -7,6 +7,10 @@ describe('codexArgs (autonomy)', () => {
     expect(codexArgs('hi', true)).toContain('workspace-write')
     expect(codexArgs('hi', true)).not.toContain('read-only')
   })
+
+  it('resumes a thread with exec flags before the subcommand', () => {
+    expect(codexArgs('hi', false, 'tid')).toEqual(['exec', '--json', '--skip-git-repo-check', '-s', 'read-only', 'resume', 'tid', 'hi'])
+  })
 })
 
 // Exercised against the real `codex exec --json` event shapes.
