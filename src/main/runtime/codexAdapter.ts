@@ -60,9 +60,14 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
   }
 }
 
+/** Pure + exported for testing: build the codex argv. yolo → workspace-write sandbox; else read-only. */
+export function codexArgs(prompt: string, yolo?: boolean): string[] {
+  return ['exec', '--json', '--skip-git-repo-check', '-s', yolo ? 'workspace-write' : 'read-only', prompt]
+}
+
 export function startCodexRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -72,8 +77,7 @@ export function startCodexRun(
     onEvent(e)
   }
 
-  // read-only sandbox keeps autonomous runs safe; the YOLO/autonomy policy (M0-2) will drive this later.
-  const args = ['exec', '--json', '--skip-git-repo-check', '-s', 'read-only', req.prompt]
+  const args = codexArgs(req.prompt, req.yolo)
 
   let child: ChildProcess
   try {

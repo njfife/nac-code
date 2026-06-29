@@ -55,11 +55,11 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
     const run =
       req.provider === 'claude'
-        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd }, handler)
+        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo }, handler)
         : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd }, handler)
+          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo }, handler)
           : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd }, handler)
+            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo }, handler)
             : startHarnessRun(
             runId,
             {

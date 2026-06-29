@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { parseClaudeLine } from './claudeAdapter'
+import { parseClaudeLine, claudeArgs } from './claudeAdapter'
+
+describe('claudeArgs (autonomy)', () => {
+  it('skips permissions only under yolo, and resumes a session when given one', () => {
+    expect(claudeArgs('hi')).not.toContain('--dangerously-skip-permissions')
+    expect(claudeArgs('hi', undefined, true)).toContain('--dangerously-skip-permissions')
+    expect(claudeArgs('hi', 's1')).toEqual(expect.arrayContaining(['--resume', 's1']))
+  })
+})
 
 // Exercised against the real `claude --output-format stream-json` event shapes.
 describe('parseClaudeLine', () => {

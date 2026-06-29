@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { parseCodexLine } from './codexAdapter'
+import { parseCodexLine, codexArgs } from './codexAdapter'
+
+describe('codexArgs (autonomy)', () => {
+  it('is read-only by default and workspace-write under yolo', () => {
+    expect(codexArgs('hi')).toContain('read-only')
+    expect(codexArgs('hi', true)).toContain('workspace-write')
+    expect(codexArgs('hi', true)).not.toContain('read-only')
+  })
+})
 
 // Exercised against the real `codex exec --json` event shapes.
 describe('parseCodexLine', () => {

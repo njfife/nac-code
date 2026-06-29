@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { parseCopilotLine } from './copilotAdapter'
+import { parseCopilotLine, copilotArgs } from './copilotAdapter'
+
+describe('copilotArgs (autonomy)', () => {
+  it('uses --allow-all-tools by default and --yolo under yolo', () => {
+    expect(copilotArgs('hi')).toContain('--allow-all-tools')
+    expect(copilotArgs('hi', true)).toContain('--yolo')
+    expect(copilotArgs('hi', true)).not.toContain('--allow-all-tools')
+  })
+})
 
 // Exercised against the real `copilot -p --output-format json` event shapes.
 describe('parseCopilotLine', () => {

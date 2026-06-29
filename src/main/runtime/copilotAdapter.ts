@@ -39,9 +39,14 @@ export function parseCopilotLine(runId: string, line: string): AgentEvent[] {
   }
 }
 
+/** Pure + exported for testing: build the copilot argv. yolo → --yolo (all paths/URLs); else tools-only. */
+export function copilotArgs(prompt: string, yolo?: boolean): string[] {
+  return ['-p', prompt, '--output-format', 'json', yolo ? '--yolo' : '--allow-all-tools', '--no-ask-user', '--no-color', '--log-level', 'none']
+}
+
 export function startCopilotRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -51,9 +56,9 @@ export function startCopilotRun(
     onEvent(e)
   }
 
-  // --allow-all-tools is required for non-interactive mode; the autonomy/YOLO policy (M0-2) will scope this.
+  // off = --allow-all-tools (tools auto-run, paths/URLs still verified); yolo = --yolo (all paths/URLs too).
   // --no-ask-user keeps it from blocking on questions; no --share so it never writes a session .md to the cwd.
-  const args = ['-p', req.prompt, '--output-format', 'json', '--allow-all-tools', '--no-ask-user', '--no-color', '--log-level', 'none']
+  const args = copilotArgs(req.prompt, req.yolo)
 
   let child: ChildProcess
   try {

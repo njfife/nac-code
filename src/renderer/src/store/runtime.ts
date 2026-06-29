@@ -63,7 +63,8 @@ export async function sendMessage(text: string): Promise<void> {
       prompt: useNative ? message : buildReplayPrompt(chat.summary, tail, message),
       provider: chat.provider,
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
-      cwd
+      cwd,
+      yolo: chat.yolo
     })
     runToChat[runId] = chatId
   } catch (e) {
