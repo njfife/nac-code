@@ -39,3 +39,7 @@ export const STATE_CHANNELS = {
 export const DIALOG_CHANNELS = {
   pickDirectory: 'dialog:pickDirectory'
 } as const
+
+export const DISCOVERY_CHANNELS = {
+  models: 'discovery:models'
+} as const

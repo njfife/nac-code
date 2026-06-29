@@ -75,7 +75,11 @@ export const PROVIDERS: ProviderDef[] = [
 
 // Map a provider + a model's display label back to the harness model id (for --model).
 export function modelIdFor(provider: string, label: string): string | undefined {
-  return PROVIDERS.find((p) => p.id === provider)?.models.find((m) => m.label === label)?.id
+  const byLabel = PROVIDERS.find((p) => p.id === provider)?.models.find((m) => m.label === label)?.id
+  if (byLabel) return byLabel
+  // Discovered models (OpenCode) use the raw `provider/model` id as their display label.
+  if (provider === 'opencode' && label.includes('/')) return label
+  return undefined
 }
 
 export const STATUS_LABEL: Record<ConnStatus, string> = {

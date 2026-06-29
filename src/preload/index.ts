@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../shared/runtime'
+import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../shared/runtime'
 
 // The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
 // allowlisted IPC channels — never raw Node access in the renderer.
@@ -23,6 +23,9 @@ const api = {
   },
   dialog: {
     pickDirectory: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke(DIALOG_CHANNELS.pickDirectory)
+  },
+  models: {
+    discover: (provider: string): Promise<string[]> => ipcRenderer.invoke(DISCOVERY_CHANNELS.models, provider)
   }
 }
 

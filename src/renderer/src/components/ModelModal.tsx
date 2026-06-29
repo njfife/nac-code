@@ -1,12 +1,13 @@
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
-import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
+import { PROVIDERS, STATUS_LABEL, STATUS_COLOR, type ModelDef } from '../data/providers'
 
 // Model & provider modal (FR-7.1). Selecting a model applies to the ACTIVE chat only (FR-7.4).
 export default function ModelModal() {
   const active = useApp(selectActiveChat)
   const setModel = useApp((s) => s.setModel)
   const close = useApp((s) => s.closeModal)
+  const [discovered, setDiscovered] = useState<Record<string, ModelDef[]>>({})
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -15,6 +16,20 @@ export default function ModelModal() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
+
+  // Live model discovery (OpenCode reflects the account's real configured models); falls back to static.
+  useEffect(() => {
+    let live = true
+    window.nac?.models
+      ?.discover('opencode')
+      .then((ids) => {
+        if (live && ids.length) setDiscovered({ opencode: ids.map((id) => ({ id, label: id })) })
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
 
   function pick(provider: string, model: string): void {
     setModel(provider, model)
@@ -42,7 +57,7 @@ export default function ModelModal() {
                 <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>{p.detail}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {p.models.map((m) => {
+                {(discovered[p.id] ?? p.models).map((m) => {
                   const isActive = active.provider === p.id && active.model === m.label
                   return (
                     <button
