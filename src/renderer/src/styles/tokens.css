@@ -1,0 +1,55 @@
+/* Design tokens — exact values from docs/design/README.md "Design Tokens". Single source for theming. */
+:root {
+  /* Surfaces */
+  --app-bg: #0c0c0f;
+  --panel: #101013;
+  --panel-2: #0e0e11;
+  --card: #121216;
+  --card-2: #16161a;
+  --card-3: #1a1a1f;
+  --rail: #0a0a0d;
+  --code-bg: #0a0a0d;
+
+  /* Hairlines / borders */
+  --line: rgba(255, 255, 255, 0.06);
+  --line-2: rgba(255, 255, 255, 0.1);
+
+  /* Text */
+  --text: #e9e9ee;
+  --text-2: #c8c8d0;
+  --text-3: #b8b8c2;
+  --muted: #9a9aa4;
+  --muted-2: #8a8a92;
+  --faint: #777781;
+  --on-dim: #70707a;
+
+  /* Accent (indigo) */
+  --accent: #7c7cf0;
+  --accent-hover: #8b8bf2;
+  --accent-light: #a6a6f5;
+  --accent-light-2: #cfcff7;
+  --accent-tint: rgba(124, 124, 240, 0.1);
+  --accent-tint-2: rgba(124, 124, 240, 0.12);
+  --accent-tint-3: rgba(124, 124, 240, 0.22);
+
+  /* Status */
+  --success: #46cf8b;
+  --error: #f0726a;
+  --warning: #e3b25f;
+  --info: #5fb3e3;
+
+  /* Context-type accents */
+  --type-skill: #8b8bf2;
+  --type-agent: #5fb3e3;
+  --type-instruction: #e3b25f;
+  --type-file: #46cf8b;
+
+  /* Dimensions */
+  --topbar-h: 46px;
+  --statusbar-h: 28px;
+  --rail-w: 300px;
+  --inspector-w: 344px;
+  --activity-w: 54px;
+  --min-app-w: 1180px;
+  --thread-max-w: 840px;
+}

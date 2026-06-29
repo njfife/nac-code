@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  /* TODO(M1): bundle IBM Plex Sans/Mono for offline fidelity (system-ui fallback for now). */
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+/* Streaming cursor (composer / assistant turn). */
+@keyframes nac-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Thin dark scrollbars to match the IDE aesthetic. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
