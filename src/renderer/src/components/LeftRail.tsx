@@ -10,6 +10,7 @@ export default function LeftRail() {
   const activeChatId = useApp((s) => s.activeChatId)
   const selectChat = useApp((s) => s.selectChat)
   const toggleWorkspace = useApp((s) => s.toggleWorkspace)
+  const newChat = useApp((s) => s.newChat)
 
   return (
     <aside
@@ -32,7 +33,7 @@ export default function LeftRail() {
         }}
       >
         <span style={eyebrow}>Chat History</span>
-        <button style={ghostBtn}>+ New Chat</button>
+        <button style={ghostBtn} onClick={() => newChat()}>+ New Chat</button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>

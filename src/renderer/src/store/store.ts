@@ -18,6 +18,8 @@ export interface Chat {
   provider: string // harness driver id (claude | codex | cursor | opencode)
   model: string // model label
   agent: string | null
+  yolo: boolean // autonomy toggle, per-chat (M0-2)
+  thinking: ThinkingLevel // reasoning level, per-chat (M0-3)
   activeConfig: string | null // applied configuration id (FR-6.2)
   attachedIds: string[] // attached context item ids (FR-5.5)
   dirty: boolean // attachments diverge from the applied configuration (FR-6.4)
@@ -31,6 +33,7 @@ export interface Chat {
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
 export type ModalKind = 'model' | 'agent' | 'stats' | null
+export type ThinkingLevel = 'none' | 'low' | 'medium' | 'high'
 
 interface AppState {
   workspaces: Workspace[]
@@ -56,6 +59,9 @@ interface AppState {
   togglePalette: () => void
   compactChat: () => void
   newFromCompacted: () => void
+  newChat: () => void
+  toggleYolo: () => void
+  setThinking: (t: ThinkingLevel) => void
 }
 
 const workspaces: Workspace[] = [
@@ -63,7 +69,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra' }
 ]
 
-const base = { compacting: false, compacted: false }
+const base = { compacting: false, compacted: false, yolo: false, thinking: 'medium' as ThinkingLevel }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null },
@@ -128,7 +134,37 @@ export const useApp = create<AppState>()((set, get) => ({
     const id = `c_${Date.now()}`
     const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
-  }
+  },
+  // New chat (FR-2.3) — seed contract M0-4: inherit provider/model/agent from the active chat; apply Standard.
+  newChat: () => {
+    const s = get()
+    const src = s.chats[s.activeChatId]
+    const wsId = src?.workspaceId ?? s.workspaces[0].id
+    const id = `c_${Date.now()}`
+    const cfg = CONFIGS_BY_ID.standard
+    const chat: Chat = {
+      id,
+      workspaceId: wsId,
+      title: 'New chat',
+      time: 'now',
+      provider: src?.provider ?? 'claude',
+      model: src?.model ?? 'Opus 4.8',
+      agent: src?.agent ?? null,
+      yolo: false,
+      thinking: 'medium',
+      activeConfig: 'standard',
+      attachedIds: [...(cfg?.itemIds ?? [])],
+      dirty: false,
+      compacting: false,
+      compacted: false,
+      contextK: 0,
+      windowK: src?.windowK ?? 200,
+      branchedFrom: null
+    }
+    set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
+  },
+  toggleYolo: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], yolo: !s.chats[s.activeChatId].yolo } } })),
+  setThinking: (t) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], thinking: t } } }))
 }))
 
 // --- selectors / helpers ---

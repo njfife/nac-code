@@ -15,6 +15,8 @@ export default function ChatView() {
   const compactChat = useApp((s) => s.compactChat)
   const newFromCompacted = useApp((s) => s.newFromCompacted)
   const applyConfig = useApp((s) => s.applyConfig)
+  const toggleYolo = useApp((s) => s.toggleYolo)
+  const setThinking = useApp((s) => s.setThinking)
   const [configOpen, setConfigOpen] = useState(false)
   const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
   const [prompt, setPrompt] = useState('')
@@ -170,8 +172,21 @@ export default function ChatView() {
               <span style={toolbarItem} onClick={() => openModal('agent')}>
                 {active.agent ?? 'No agent'}
               </span>
-              <span style={toolbarItem}>Thinking: Medium</span>
-              <span style={{ ...toolbarItem, color: 'var(--warning)' }}>YOLO</span>
+              <span
+                style={toolbarItem}
+                onClick={() => {
+                  const order = ['none', 'low', 'medium', 'high'] as const
+                  setThinking(order[(order.indexOf(active.thinking) + 1) % order.length])
+                }}
+              >
+                Thinking: {active.thinking[0].toUpperCase() + active.thinking.slice(1)}
+              </span>
+              <span
+                onClick={() => toggleYolo()}
+                style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}
+              >
+                YOLO{active.yolo ? ' ●' : ''}
+              </span>
               <button
                 onClick={run}
                 disabled={status === 'running' || !prompt.trim()}

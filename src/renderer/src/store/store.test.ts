@@ -43,4 +43,18 @@ describe('app store — per-chat spine', () => {
     expect(c2.activeConfig).toBe('minimal')
     expect(c2.dirty).toBe(false)
   })
+
+  it('newChat seeds from the active chat and applies Standard (FR-2.3 / M0-4)', () => {
+    useApp.getState().selectChat('c3') // codex / infra workspace
+    const n0 = Object.keys(useApp.getState().chats).length
+    useApp.getState().newChat()
+    const s = useApp.getState()
+    expect(Object.keys(s.chats).length).toBe(n0 + 1)
+    const active = s.chats[s.activeChatId]
+    expect(active.title).toBe('New chat')
+    expect(active.provider).toBe('codex') // inherited from the active chat
+    expect(active.workspaceId).toBe('ws_infra')
+    expect(active.activeConfig).toBe('standard')
+    expect(active.contextK).toBe(0)
+  })
 })
