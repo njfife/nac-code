@@ -4,9 +4,9 @@
 
 ## Current phase
 
-**Building.** Master plan + core specs (M0-1, M0-8) complete; cross-provider context portability spike-validated. **M0-7 scaffold done** — hardened Electron + React + TS app installs / typechecks / builds (commit `c44869e`).
+**Building.** Master plan + core specs (M0-1, M0-8) complete; cross-provider context portability spike-validated. **M0-7 done** — hardened Electron + React + TS scaffold (`c44869e`) plus the tracer: a harness subprocess streams `AgentEvent`s to the renderer over the typed preload bridge (`d9274a4`); typecheck / build / stub-stream all pass. The GUI render path is user-verifiable via `npm run dev`.
 
-**Next step:** the **M0-7 tracer** — spawn a harness subprocess from the main process and stream a turn to the renderer over the typed preload bridge (proves the real `AgentRuntime` path); then **M1** (three-pane shell/layouts).
+**Next step:** **test harness** (vitest) + first unit tests for the pure runtime logic (`parseHarnessLine`), then **M1** — the three-pane IDE shell (top/status bar, left rail, chat view, inspector) per the design reference.
 
 ## Locked decisions (newest first)
 
