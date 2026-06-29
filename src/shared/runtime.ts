@@ -17,10 +17,18 @@ export interface SummarizeRequest {
   model?: string
 }
 
+// Per-turn metering carried on completion (FR-11/13). Providers report different units; we capture what
+// each gives (Claude: tokens + $; Codex: tokens; OpenCode: tokens + $; Copilot: neither → turns only).
+export interface TurnUsage {
+  inputTokens?: number
+  outputTokens?: number
+  costUsd?: number
+}
+
 export type AgentEvent =
   | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
-  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled' }
+  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage }
   | { type: 'run.errored'; runId: string; message: string }
 
 // IPC channel names shared by main and preload.

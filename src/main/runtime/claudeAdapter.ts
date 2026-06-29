@@ -13,12 +13,20 @@ interface ClaudeBlock {
   thinking?: string
   name?: string
 }
+interface ClaudeUsage {
+  input_tokens?: number
+  output_tokens?: number
+  cache_read_input_tokens?: number
+  cache_creation_input_tokens?: number
+}
 interface ClaudeEvent {
   type?: string
   subtype?: string
   is_error?: boolean
   stop_reason?: string
   session_id?: string
+  total_cost_usd?: number
+  usage?: ClaudeUsage
   message?: { content?: ClaudeBlock[] }
 }
 
@@ -45,8 +53,13 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
       }
       return out
     }
-    case 'result':
-      return [{ type: 'run.completed', runId, stopReason: m.is_error ? 'error' : 'end_turn' }]
+    case 'result': {
+      const u = m.usage
+      const usage = u
+        ? { inputTokens: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), outputTokens: u.output_tokens ?? 0, costUsd: m.total_cost_usd }
+        : undefined
+      return [{ type: 'run.completed', runId, stopReason: m.is_error ? 'error' : 'end_turn', usage }]
+    }
     default:
       return [] // rate_limit_event, post_turn_summary, …
   }

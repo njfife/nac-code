@@ -102,4 +102,16 @@ describe('app store — per-chat spine', () => {
     useApp.getState().setWorkspaceDefaults(p2.id, null)
     expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toBeUndefined()
   })
+
+  it('recordUsage accumulates per provider (FR-11)', () => {
+    useApp.getState().recordUsage('c1', 'claude', { inputTokens: 100, outputTokens: 20, costUsd: 0.05 })
+    useApp.getState().recordUsage('c1', 'claude', { inputTokens: 50, outputTokens: 10, costUsd: 0.02 })
+    useApp.getState().recordUsage('c1', 'codex', { inputTokens: 200, outputTokens: 0 })
+    const u = useApp.getState().chats.c1.usage
+    expect(u.claude.turns).toBe(2)
+    expect(u.claude.inputTokens).toBe(150)
+    expect(u.claude.outputTokens).toBe(30)
+    expect(u.claude.costUsd).toBeCloseTo(0.07)
+    expect(u.codex).toEqual({ turns: 1, inputTokens: 200, outputTokens: 0, costUsd: 0 })
+  })
 })

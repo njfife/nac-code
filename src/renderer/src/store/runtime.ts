@@ -22,6 +22,7 @@ export function initRuntime(): void {
         if (event.streamKind === 'assistant_text') s.appendDelta(chatId, event.text)
         break
       case 'run.completed':
+        s.recordUsage(chatId, s.chats[chatId]?.provider ?? 'unknown', event.usage ?? {})
         s.endTurn(chatId)
         delete runToChat[event.runId]
         break

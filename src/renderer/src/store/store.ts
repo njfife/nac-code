@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
 import { modelIdFor } from '../data/providers'
+import type { TurnUsage } from '../../../shared/runtime'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
@@ -27,6 +28,14 @@ export interface Turn {
   error?: boolean
 }
 
+// Accumulated metering for a chat, keyed by provider (each provider reports in its own units).
+export interface ProviderUsage {
+  turns: number
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
 export interface Chat {
   id: string
   workspaceId: string
@@ -50,6 +59,7 @@ export interface Chat {
   sessionProvider: string | null // which provider owns sessionId (native resume valid only if it matches provider)
   summary: string | null // provider-neutral compaction checkpoint (covers messages[0..summarizedThrough))
   summarizedThrough: number // # of messages folded into summary; replay = summary + messages.slice(this)
+  usage: Record<string, ProviderUsage> // accumulated metering, split by provider
 }
 
 export type View = 'chat' | 'context' | 'changes'
@@ -95,6 +105,7 @@ interface AppState {
   appendDelta: (chatId: string, text: string) => void
   endTurn: (chatId: string, error?: string) => void
   setSession: (chatId: string, sessionId: string, provider: string) => void
+  recordUsage: (chatId: string, provider: string, usage: TurnUsage) => void
 }
 
 const workspaces: Workspace[] = [
@@ -102,7 +113,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
-const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0 }
+const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage> }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -217,7 +228,7 @@ export const useApp = create<AppState>()((set, get) => ({
     const s = get()
     const src = s.chats[s.activeChatId]
     const id = nextChatId()
-    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null }
+    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {} }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
   newChat: (workspaceId) => {
@@ -249,7 +260,8 @@ export const useApp = create<AppState>()((set, get) => ({
       sessionId: null,
       sessionProvider: null,
       summary: null,
-      summarizedThrough: 0
+      summarizedThrough: 0,
+      usage: {}
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
@@ -280,6 +292,19 @@ export const useApp = create<AppState>()((set, get) => ({
       const c = s.chats[chatId]
       if (!c) return {}
       return { chats: { ...s.chats, [chatId]: { ...c, sessionId, sessionProvider: provider } } }
+    }),
+  recordUsage: (chatId, provider, u) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      const prev = c.usage[provider] ?? { turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 }
+      const next = {
+        turns: prev.turns + 1,
+        inputTokens: prev.inputTokens + (u.inputTokens ?? 0),
+        outputTokens: prev.outputTokens + (u.outputTokens ?? 0),
+        costUsd: prev.costUsd + (u.costUsd ?? 0)
+      }
+      return { chats: { ...s.chats, [chatId]: { ...c, usage: { ...c.usage, [provider]: next } } } }
     })
 }))
 

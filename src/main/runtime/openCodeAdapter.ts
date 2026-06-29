@@ -50,6 +50,21 @@ export function parseOpenCodeLine(runId: string, line: string): AgentEvent[] {
   }
 }
 
+/** Pure + exported for testing: per-step token/cost usage from an opencode `step_finish` line. */
+export function parseOpenCodeStepUsage(line: string): { inputTokens: number; outputTokens: number; costUsd: number } | null {
+  const t = line.trim()
+  if (!t) return null
+  let m: { type?: string; part?: { tokens?: { input?: number; output?: number }; cost?: number } }
+  try {
+    m = JSON.parse(t)
+  } catch {
+    return null
+  }
+  if (m.type !== 'step_finish') return null
+  const tok = m.part?.tokens ?? {}
+  return { inputTokens: tok.input ?? 0, outputTokens: tok.output ?? 0, costUsd: m.part?.cost ?? 0 }
+}
+
 export function startOpenCodeRun(
   runId: string,
   req: { prompt: string; binPath?: string; model?: string; cwd?: string; yolo?: boolean; sessionId?: string },
@@ -72,6 +87,17 @@ export function startOpenCodeRun(
     return { cancel: () => {} }
   }
 
+  const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 }
+  let hasUsage = false
+  const accUsage = (line: string): void => {
+    const u = parseOpenCodeStepUsage(line)
+    if (!u) return
+    usage.inputTokens += u.inputTokens
+    usage.outputTokens += u.outputTokens
+    usage.costUsd += u.costUsd
+    hasUsage = true
+  }
+
   let buffer = ''
   child.stdout?.on('data', (chunk: Buffer) => {
     buffer += chunk.toString('utf8')
@@ -80,6 +106,7 @@ export function startOpenCodeRun(
       const line = buffer.slice(0, nl)
       buffer = buffer.slice(nl + 1)
       for (const ev of parseOpenCodeLine(runId, line)) emit(ev)
+      accUsage(line)
     }
   })
 
@@ -88,8 +115,11 @@ export function startOpenCodeRun(
 
   child.on('error', (err) => emit({ type: 'run.errored', runId, message: err.message }))
   child.on('close', (code) => {
-    if (buffer.trim()) for (const ev of parseOpenCodeLine(runId, buffer)) emit(ev)
-    if (code === 0) emit({ type: 'run.completed', runId, stopReason: 'end_turn' }) // opencode signals completion by exiting
+    if (buffer.trim()) {
+      for (const ev of parseOpenCodeLine(runId, buffer)) emit(ev)
+      accUsage(buffer)
+    }
+    if (code === 0) emit({ type: 'run.completed', runId, stopReason: 'end_turn', usage: hasUsage ? usage : undefined }) // opencode signals completion by exiting
     else if (code !== null) emit({ type: 'run.errored', runId, message: stderr.trim().split('\n').pop() || `opencode exited with code ${code}` })
   })
 

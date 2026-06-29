@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { parseOpenCodeLine, openCodeArgs } from './openCodeAdapter'
+import { parseOpenCodeLine, openCodeArgs, parseOpenCodeStepUsage } from './openCodeAdapter'
+
+describe('parseOpenCodeStepUsage', () => {
+  it('extracts tokens + cost from a step_finish and ignores other lines', () => {
+    expect(parseOpenCodeStepUsage('{"type":"step_finish","part":{"tokens":{"input":80,"output":12},"cost":0.5}}')).toEqual({ inputTokens: 80, outputTokens: 12, costUsd: 0.5 })
+    expect(parseOpenCodeStepUsage('{"type":"text","part":{"text":"hi"}}')).toBeNull()
+    expect(parseOpenCodeStepUsage('not json')).toBeNull()
+  })
+})
 
 // Exercised against the real `opencode run --format json` event shapes.
 describe('parseOpenCodeLine', () => {

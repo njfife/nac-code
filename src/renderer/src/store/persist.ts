@@ -34,7 +34,8 @@ function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, i
     sessionId: c.sessionId ?? c.claudeSessionId ?? null, // migrate legacy claudeSessionId
     sessionProvider: c.sessionProvider ?? (c.claudeSessionId ? 'claude' : null),
     summary: c.summary ?? null,
-    summarizedThrough: typeof c.summarizedThrough === 'number' ? c.summarizedThrough : 0
+    summarizedThrough: typeof c.summarizedThrough === 'number' ? c.summarizedThrough : 0,
+    usage: c.usage ?? {}
   }
 }
 

@@ -20,6 +20,7 @@ interface CodexEvent {
   thread_id?: string
   message?: string
   item?: CodexItem
+  usage?: { input_tokens?: number; output_tokens?: number }
 }
 
 // Codex wraps shell commands as `/bin/zsh -lc '<cmd>'` — unwrap to the readable inner command.
@@ -51,8 +52,11 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
       if (it?.type && it.type !== 'reasoning') return [{ type: 'content.delta', runId, streamKind: 'assistant_text', text: `\n[${it.type}]\n` }] // generic tool-item fallback
       return []
     }
-    case 'turn.completed':
-      return [{ type: 'run.completed', runId, stopReason: 'end_turn' }]
+    case 'turn.completed': {
+      const u = m.usage
+      const usage = u && (u.input_tokens != null || u.output_tokens != null) ? { inputTokens: u.input_tokens, outputTokens: u.output_tokens } : undefined
+      return [{ type: 'run.completed', runId, stopReason: 'end_turn', usage }]
+    }
     case 'error':
       return [{ type: 'run.errored', runId, message: m.message ?? 'codex error' }]
     default:
