@@ -5,6 +5,7 @@ import { RUN_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent }
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
+import { startCopilotRun } from './copilotAdapter'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -26,6 +27,7 @@ function runOnce(provider: string | undefined, prompt: string): Promise<string> 
     }
     if (provider === 'claude') startClaudeRun(runId, { prompt }, onEvent)
     else if (provider === 'codex') startCodexRun(runId, { prompt }, onEvent)
+    else if (provider === 'copilot') startCopilotRun(runId, { prompt }, onEvent)
     else reject(new Error(`summarize unsupported for provider ${provider ?? 'unknown'}`))
   })
 }
@@ -56,7 +58,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
         ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId }, handler)
         : req.provider === 'codex'
           ? startCodexRun(runId, { prompt: req.prompt }, handler)
-          : startHarnessRun(
+          : req.provider === 'copilot'
+            ? startCopilotRun(runId, { prompt: req.prompt }, handler)
+            : startHarnessRun(
             runId,
             {
               prompt: req.prompt,

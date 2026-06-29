@@ -34,10 +34,22 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'codex',
     name: 'Codex',
-    detail: 'codex app-server',
+    detail: 'codex exec · subscription',
     dot: '#10a37f',
     status: 'authenticated',
     models: [{ id: 'gpt-5-codex', label: 'gpt-5-codex' }]
+  },
+  {
+    id: 'copilot',
+    name: 'GitHub Copilot',
+    detail: 'copilot · subscription',
+    dot: '#8957e5',
+    status: 'authenticated',
+    models: [
+      { id: 'auto', label: 'Auto' },
+      { id: 'gpt-5.4', label: 'GPT-5.4' },
+      { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' }
+    ]
   },
   {
     id: 'cursor',
