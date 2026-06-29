@@ -12,7 +12,15 @@
 
 **✅ Compaction-aware replay** (`287ae7b`): real compaction (was a mock) summarizes into a provider-neutral checkpoint (`summary` + `summarizedThrough`) and invalidates the native session, so replay = `summary + tail` (never the whole raw transcript) — bounded context no matter how many compactions, on any provider. One-shot `runs.summarize` runs the harness with no chat wiring. **Verified vs real binaries**: Claude summarized a planted codeword; Codex recalled it from the summary alone. Also fixed collision-prone `c_${Date.now()}` chat ids.
 
-**Next (follow-on, lower priority):** a **Copilot adapter** (3rd provider, CLI installed — completes Nathan's Claude/Codex/Copilot set); **Codex native resume** (same-provider fast-path — Codex currently always replays); token-streaming for Codex; the visible UI gaps (workspace setup). **▶ Loop running** — building the Copilot adapter next.
+**✅ All three providers real** (`b7fb68d`): Claude + Codex + Copilot each run via their CLIs and normalize into the one `AgentEvent` model; cross-provider replay + compaction work across all three (each verified vs the real binary — a planted fact survives every switch). Copilot token-streams (message_delta); it's selectable in the model modal. **Nathan's headline goal — switch Claude/Codex/Copilot mid-conversation without losing context — is complete and verified.**
+
+**Next (follow-on options, Nathan to prioritize):**
+- **Visible UI gaps** Nathan flagged — workspace setup/config, etc. (most product-design work).
+- **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; wiring by-id resume saves re-sending the tail same-provider.
+- **M0-2 autonomy/security** — map the YOLO/autonomy level to each harness's sandbox/permissions (codex `-s`, copilot tool grants) instead of fixed defaults.
+- **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
+
+**▶ Loop paused** at the headline-goal milestone — awaiting Nathan's GUI test (all 3 providers + compaction) and direction on the above.
 
 ## Locked decisions (newest first)
 
