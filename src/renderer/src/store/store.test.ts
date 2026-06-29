@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useApp, chatsForWorkspace } from './store'
+import { useApp, chatsForWorkspace, contextPending } from './store'
 
 // Guards the FR-4.1 invariant (mutations affect only the active chat) and FR-9.3 branching.
 describe('app store — per-chat spine', () => {
@@ -125,5 +125,17 @@ describe('app store — per-chat spine', () => {
     expect(note.content).toBe('Always validate input.')
     expect(note.user).toBe(true)
     expect(note.type).toBe('instruction')
+  })
+
+  it('contextPending flags attachment changes after a session is seeded (FR-5)', () => {
+    useApp.getState().selectChat('c1')
+    const prov = useApp.getState().chats.c1.provider
+    useApp.getState().setSession('c1', 'sess1', prov)
+    useApp.getState().markSeeded('c1', useApp.getState().chats.c1.attachedIds)
+    expect(contextPending(useApp.getState().chats.c1)).toBe(false)
+    useApp.getState().toggleAttach('sk-brainstorm') // changes the attached set
+    expect(contextPending(useApp.getState().chats.c1)).toBe(true)
+    useApp.getState().reseedContext('c1') // drops the session -> applies on next send
+    expect(contextPending(useApp.getState().chats.c1)).toBe(false)
   })
 })

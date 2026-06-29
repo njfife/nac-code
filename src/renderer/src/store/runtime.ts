@@ -87,6 +87,7 @@ export async function sendMessage(text: string): Promise<void> {
         }
       }
       contextBlock = buildContextBlock(attachedItems, fileContents)
+      s.markSeeded(chatId, chat.attachedIds) // record what's now seeded into the (fresh) session
     }
     const { runId } = await window.nac.runs.start({
       prompt: useNative ? message : contextBlock + buildReplayPrompt(chat.summary, tail, message),

@@ -61,6 +61,7 @@ export interface Chat {
   summary: string | null // provider-neutral compaction checkpoint (covers messages[0..summarizedThrough))
   summarizedThrough: number // # of messages folded into summary; replay = summary + messages.slice(this)
   usage: Record<string, ProviderUsage> // accumulated metering, split by provider
+  seededAttachments: string[] | null // attachedIds present when the live session was last seeded (null = not seeded)
 }
 
 export type View = 'chat' | 'context' | 'changes'
@@ -112,6 +113,8 @@ interface AppState {
   addNote: (name: string, content: string) => void
   addFileItem: (name: string, path: string) => void
   removeUserItem: (id: string) => void
+  markSeeded: (chatId: string, attachedIds: string[]) => void
+  reseedContext: (chatId: string) => void
 }
 
 const workspaces: Workspace[] = [
@@ -119,7 +122,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
-const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage> }
+const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -235,7 +238,7 @@ export const useApp = create<AppState>()((set, get) => ({
     const s = get()
     const src = s.chats[s.activeChatId]
     const id = nextChatId()
-    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {} }
+    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {}, seededAttachments: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
   newChat: (workspaceId) => {
@@ -268,7 +271,8 @@ export const useApp = create<AppState>()((set, get) => ({
       sessionProvider: null,
       summary: null,
       summarizedThrough: 0,
-      usage: {}
+      usage: {},
+      seededAttachments: null
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
@@ -325,11 +329,30 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => ({
       userItems: s.userItems.filter((i) => i.id !== id),
       chats: Object.fromEntries(Object.entries(s.chats).map(([cid, c]) => [cid, { ...c, attachedIds: c.attachedIds.filter((a) => a !== id) }]))
-    }))
+    })),
+  markSeeded: (chatId, ids) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      return { chats: { ...s.chats, [chatId]: { ...c, seededAttachments: [...ids] } } }
+    }),
+  reseedContext: (chatId) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      // Drop the native session so the next send replays with the current attachments (re-seeds context).
+      return { chats: { ...s.chats, [chatId]: { ...c, sessionId: null, sessionProvider: null } } }
+    })
 }))
 
 // --- selectors / helpers ---
 export const selectActiveChat = (s: AppState): Chat => s.chats[s.activeChatId]
+// True when attachments changed since the live session was seeded — they apply on the next re-seed (FR-5).
+export function contextPending(chat: Chat): boolean {
+  if (!chat.sessionId || chat.sessionProvider !== chat.provider || chat.seededAttachments === null) return false
+  const seeded = new Set(chat.seededAttachments)
+  return chat.attachedIds.length !== seeded.size || chat.attachedIds.some((id) => !seeded.has(id))
+}
 export const chatsForWorkspace = (chats: Record<string, Chat>, wsId: string): Chat[] =>
   Object.values(chats)
     .filter((c) => c.workspaceId === wsId)

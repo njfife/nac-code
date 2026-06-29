@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { useApp, selectActiveChat } from '../store/store'
+import { useApp, selectActiveChat, contextPending } from '../store/store'
 import { sendMessage, isStreaming } from '../store/runtime'
 import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
 
@@ -14,12 +14,14 @@ export default function ChatView() {
   const applyConfig = useApp((s) => s.applyConfig)
   const toggleYolo = useApp((s) => s.toggleYolo)
   const setThinking = useApp((s) => s.setThinking)
+  const reseedContext = useApp((s) => s.reseedContext)
 
   const [prompt, setPrompt] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
   const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
   const streaming = isStreaming(active)
   const messages = active.messages ?? [] // defensive: tolerate stale data missing the field
+  const pending = contextPending(active)
   const bottomRef = useRef<HTMLDivElement>(null)
   const cwd = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.path) ?? ''
   const [changed, setChanged] = useState(0)
@@ -114,6 +116,12 @@ export default function ChatView() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px', fontSize: 12, color: 'var(--muted)' }}>
               <span style={pill}>Context: {configLabel}</span>
+              {pending && (
+                <span style={{ ...pill, background: 'rgba(227,178,95,.14)', color: 'var(--warning)' }} title="Attached context changed since this session started — it applies on your next message.">
+                  ⚠ context changed ·{' '}
+                  <span onClick={() => reseedContext(active.id)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>apply now</span>
+                </span>
+              )}
               <span onClick={() => setView('context')} style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>
                 Manage
               </span>
