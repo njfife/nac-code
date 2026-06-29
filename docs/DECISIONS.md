@@ -20,10 +20,12 @@
 
 **✅ YOLO wired to real permissions** (`01fd622`): the toggle now maps to claude `--dangerously-skip-permissions`, codex `-s read-only`↔`workspace-write`, copilot `--allow-all-tools`↔`--yolo` (safe by default). Arg-building is pure/tested (`claudeArgs`/`codexArgs`/`copilotArgs`).
 
+**✅ OpenCode adapter — 4th provider + the local-model carrier** (`80f634c`): `opencode run --format json`; cross-provider replay verified to reach it (and LM Studio models via the same path). Model threading landed via `modelIdFor` (opencode requires real `provider/model` ids). Nathan's OpenCode is already configured with LM Studio (local + remote) + free opencode models. Local-models-with-context-intact requirement is now satisfied end-to-end.
+
 **Next (follow-on options, Nathan to prioritize):**
-- **`--model` wiring** — the model picker is still cosmetic: the selected model isn't passed to the harness, so runs use each CLI's default. Wire it (claude/codex/copilot all take `--model`); needs mapping our model ids to the real CLI model values. *(loop is taking this next.)*
-- **Native resume fast-paths** — Codex (`exec resume`) and Copilot (`-r <id>`) currently always replay; by-id resume saves re-sending the tail same-provider.
-- **PRD multi-repo model** — the deferred richer half of workspace config.
+- **Finish `--model` wiring for cloud providers** — opencode passes `--model` now; claude/codex/copilot adapters still ignore it (their model ids are cosmetic/maybe-invalid). Verify each CLI's real `--model` values and pass them. *(loop is taking this next.)*
+- **OpenCode auto-config** (`configureLocalBackend`) — write opencode's LM Studio provider config for users who haven't set it up (Nathan already has).
+- **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) and the **PRD multi-repo** model.
 - **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
 
 **▶ Loop paused** at the headline-goal milestone — awaiting Nathan's GUI test (all 3 providers + compaction) and direction on the above.
