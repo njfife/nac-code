@@ -49,6 +49,7 @@ export async function sendMessage(text: string): Promise<void> {
   if (!message || !window.nac?.runs) return
   const chatId = s.activeChatId
   const chat = s.chats[chatId]
+  const cwd = s.workspaces.find((w) => w.id === chat.workspaceId)?.path || undefined // run in the workspace folder
   // Replay = compaction summary + the turns since that checkpoint (the tail).
   const tail = chat.messages.slice(chat.summarizedThrough)
   // Native resume only when continuing the SAME provider's live session (Claude today). Otherwise replay
@@ -61,7 +62,8 @@ export async function sendMessage(text: string): Promise<void> {
     const { runId } = await window.nac.runs.start({
       prompt: useNative ? message : buildReplayPrompt(chat.summary, tail, message),
       provider: chat.provider,
-      sessionId: useNative ? chat.sessionId ?? undefined : undefined
+      sessionId: useNative ? chat.sessionId ?? undefined : undefined,
+      cwd
     })
     runToChat[runId] = chatId
   } catch (e) {

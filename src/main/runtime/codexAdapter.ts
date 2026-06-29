@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process'
 import type { AgentEvent } from '../../shared/runtime'
 import type { HarnessRun } from './harnessRunner'
+import { resolveCwd } from './paths'
 
 // Real adapter for Codex (`codex exec --json`). Maps Codex's JSONL events to the canonical AgentEvent
 // union — second real harness, behind the same interface as Claude. Non-token-streaming for now:
@@ -61,7 +62,7 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
 
 export function startCodexRun(
   runId: string,
-  req: { prompt: string; binPath?: string },
+  req: { prompt: string; binPath?: string; cwd?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -76,7 +77,7 @@ export function startCodexRun(
 
   let child: ChildProcess
   try {
-    child = spawn(req.binPath ?? 'codex', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    child = spawn(req.binPath ?? 'codex', args, { cwd: resolveCwd(req.cwd), stdio: ['ignore', 'pipe', 'pipe'] })
   } catch (err) {
     emit({ type: 'run.errored', runId, message: (err as Error).message })
     return { cancel: () => {} }

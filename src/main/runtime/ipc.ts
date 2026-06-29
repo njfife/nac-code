@@ -55,18 +55,19 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
     const run =
       req.provider === 'claude'
-        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId }, handler)
+        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd }, handler)
         : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt }, handler)
+          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd }, handler)
           : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt }, handler)
+            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd }, handler)
             : startHarnessRun(
             runId,
             {
               prompt: req.prompt,
               command: process.execPath,
               args: [stubHarnessPath(), req.prompt],
-              env: { ELECTRON_RUN_AS_NODE: '1' } // run the .mjs with Electron's bundled Node
+              env: { ELECTRON_RUN_AS_NODE: '1' }, // run the .mjs with Electron's bundled Node
+              cwd: req.cwd
             },
             handler
           )

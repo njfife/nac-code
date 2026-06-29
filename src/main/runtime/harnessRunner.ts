@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'child_process'
 import type { AgentEvent } from '../../shared/runtime'
+import { resolveCwd } from './paths'
 
 /**
  * Parse one NDJSON line from a (stub) harness into a canonical AgentEvent.
@@ -39,6 +40,7 @@ export interface HarnessSpawnRequest {
   command: string
   args: string[]
   env?: Record<string, string>
+  cwd?: string
 }
 
 /**
@@ -64,6 +66,7 @@ export function startHarnessRun(
   let child: ChildProcess
   try {
     child = spawn(req.command, req.args, {
+      cwd: resolveCwd(req.cwd),
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, ...(req.env ?? {}) }
     })

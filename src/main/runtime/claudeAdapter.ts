@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process'
 import type { AgentEvent } from '../../shared/runtime'
 import type { HarnessRun } from './harnessRunner'
+import { resolveCwd } from './paths'
 
 // Real adapter for Claude Code (`claude -p … --output-format stream-json --verbose`).
 // Maps Claude's stream-json events to the canonical AgentEvent union — the first REAL harness (M5),
@@ -53,7 +54,7 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
 
 export function startClaudeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; sessionId?: string },
+  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -69,6 +70,7 @@ export function startClaudeRun(
   let child: ChildProcess
   try {
     child = spawn(req.binPath ?? 'claude', args, {
+      cwd: resolveCwd(req.cwd),
       stdio: ['ignore', 'pipe', 'pipe']
     })
   } catch (err) {

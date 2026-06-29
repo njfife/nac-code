@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process'
 import type { AgentEvent } from '../../shared/runtime'
 import type { HarnessRun } from './harnessRunner'
+import { resolveCwd } from './paths'
 
 // Real adapter for the GitHub Copilot CLI (`copilot -p --output-format json`). Maps its JSONL events to
 // the canonical AgentEvent union — third real harness, same interface as Claude/Codex. Token-streaming:
@@ -40,7 +41,7 @@ export function parseCopilotLine(runId: string, line: string): AgentEvent[] {
 
 export function startCopilotRun(
   runId: string,
-  req: { prompt: string; binPath?: string },
+  req: { prompt: string; binPath?: string; cwd?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -56,7 +57,7 @@ export function startCopilotRun(
 
   let child: ChildProcess
   try {
-    child = spawn(req.binPath ?? 'copilot', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    child = spawn(req.binPath ?? 'copilot', args, { cwd: resolveCwd(req.cwd), stdio: ['ignore', 'pipe', 'pipe'] })
   } catch (err) {
     emit({ type: 'run.errored', runId, message: (err as Error).message })
     return { cancel: () => {} }

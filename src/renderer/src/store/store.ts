@@ -7,6 +7,7 @@ import { CONFIGS_BY_ID } from '../data/configs'
 export interface Workspace {
   id: string
   name: string
+  path: string // project directory; harness runs for this workspace's chats execute here (~ allowed). '' = unbound
 }
 
 // A turn in the provider-neutral transcript (M0-8 source of truth — renders the UI and, later, powers replay).
@@ -83,8 +84,8 @@ interface AppState {
 }
 
 const workspaces: Workspace[] = [
-  { id: 'ws_nac', name: 'nac-code' },
-  { id: 'ws_infra', name: 'infra' }
+  { id: 'ws_nac', name: 'nac-code', path: '~/Code/nac-code' },
+  { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
 const base = { yolo: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0 }
