@@ -1,7 +1,7 @@
-import { app, ipcMain, type BrowserWindow } from 'electron'
-import { join } from 'path'
+import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
+import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
@@ -83,5 +83,14 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   ipcMain.handle(RUN_CHANNELS.summarize, async (_e, req: SummarizeRequest): Promise<{ summary: string }> => {
     const summary = await runOnce(req.provider, `${SUMMARIZE_INSTRUCTION}\n\n${req.text}`)
     return { summary }
+  })
+
+  // Native folder picker for binding a workspace to a project directory.
+  ipcMain.handle(DIALOG_CHANNELS.pickDirectory, async (): Promise<{ path: string; name: string } | null> => {
+    const win = getWindow()
+    const opts: Electron.OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (res.canceled || res.filePaths.length === 0) return null
+    return { path: res.filePaths[0], name: basename(res.filePaths[0]) }
   })
 }

@@ -11,6 +11,13 @@ export default function LeftRail() {
   const selectChat = useApp((s) => s.selectChat)
   const toggleWorkspace = useApp((s) => s.toggleWorkspace)
   const newChat = useApp((s) => s.newChat)
+  const addWorkspace = useApp((s) => s.addWorkspace)
+  const removeWorkspace = useApp((s) => s.removeWorkspace)
+
+  const onAddWorkspace = async (): Promise<void> => {
+    const picked = await window.nac?.dialog?.pickDirectory()
+    if (picked) addWorkspace(picked.name, picked.path)
+  }
 
   return (
     <aside
@@ -33,7 +40,10 @@ export default function LeftRail() {
         }}
       >
         <span style={eyebrow}>Chat History</span>
-        <button style={ghostBtn} onClick={() => newChat()}>+ New Chat</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button style={ghostBtn} onClick={onAddWorkspace} title="Add a workspace folder">+ Workspace</button>
+          <button style={ghostBtn} onClick={() => newChat()}>+ Chat</button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
@@ -42,13 +52,25 @@ export default function LeftRail() {
           const open = expanded[ws.id]
           return (
             <div key={ws.id} style={{ marginBottom: 4 }}>
-              <button onClick={() => toggleWorkspace(ws.id)} style={wsHeader}>
-                <span style={{ color: 'var(--faint)', width: 12 }}>{open ? '▾' : '▸'}</span>
-                <span className="mono" style={{ color: 'var(--text-2)', fontWeight: 600 }}>
-                  {ws.name}
-                </span>
-                <span style={countPill}>{list.length}</span>
-              </button>
+              <div style={wsRow}>
+                <button onClick={() => toggleWorkspace(ws.id)} style={wsHeader}>
+                  <span style={{ color: 'var(--faint)', width: 12 }}>{open ? '▾' : '▸'}</span>
+                  <span className="mono" style={{ color: 'var(--text-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {ws.name}
+                  </span>
+                  <span style={countPill}>{list.length}</span>
+                </button>
+                {list.length === 0 && (
+                  <button title="Remove empty workspace" onClick={() => removeWorkspace(ws.id)} style={removeBtn}>
+                    ✕
+                  </button>
+                )}
+              </div>
+              {open && ws.path && (
+                <div className="mono" style={wsPath} title={ws.path}>
+                  {ws.path}
+                </div>
+              )}
               {open &&
                 list.map((c) => (
                   <ChatRow key={c.id} chat={c} active={c.id === activeChatId} onSelect={() => selectChat(c.id)} />
@@ -111,8 +133,13 @@ const ghostBtn: CSSProperties = {
   fontSize: 12,
   cursor: 'pointer'
 }
+const wsRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center'
+}
 const wsHeader: CSSProperties = {
-  width: '100%',
+  flex: 1,
+  minWidth: 0,
   display: 'flex',
   alignItems: 'center',
   gap: 6,
@@ -121,6 +148,23 @@ const wsHeader: CSSProperties = {
   border: 'none',
   fontSize: 12.5,
   cursor: 'pointer'
+}
+const removeBtn: CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--faint)',
+  fontSize: 11,
+  padding: '0 8px',
+  cursor: 'pointer',
+  flexShrink: 0
+}
+const wsPath: CSSProperties = {
+  fontSize: 10.5,
+  color: 'var(--muted)',
+  padding: '0 8px 5px 26px',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
 }
 const countPill: CSSProperties = {
   marginLeft: 'auto',

@@ -61,6 +61,9 @@ interface AppState {
 
   selectChat: (id: string) => void
   toggleWorkspace: (wsId: string) => void
+  addWorkspace: (name: string, path: string) => void
+  renameWorkspace: (id: string, name: string) => void
+  removeWorkspace: (id: string) => void
   setLayout: (l: Layout) => void
   setView: (v: View) => void
   setModel: (provider: string, model: string) => void
@@ -118,6 +121,21 @@ export const useApp = create<AppState>()((set, get) => ({
 
   selectChat: (id) => set({ activeChatId: id }),
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
+  addWorkspace: (name, path) =>
+    set((s) => {
+      const id = `ws_${Date.now()}_${++chatSeq}`
+      return { workspaces: [...s.workspaces, { id, name: name.trim() || 'workspace', path }], expanded: { ...s.expanded, [id]: true } }
+    }),
+  renameWorkspace: (id, name) =>
+    set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === id ? { ...w, name: name.trim() || w.name } : w)) })),
+  removeWorkspace: (id) =>
+    set((s) => {
+      const hasChats = Object.values(s.chats).some((c) => c.workspaceId === id)
+      if (hasChats || s.workspaces.length <= 1) return {} // never remove a non-empty workspace or the last one
+      const expanded = { ...s.expanded }
+      delete expanded[id]
+      return { workspaces: s.workspaces.filter((w) => w.id !== id), expanded }
+    }),
   setLayout: (l) => set({ layout: l }),
   setView: (v) => set({ view: v }),
   setModel: (provider, model) =>

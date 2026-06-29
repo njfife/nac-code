@@ -57,4 +57,26 @@ describe('app store — per-chat spine', () => {
     expect(active.activeConfig).toBe('standard')
     expect(active.contextK).toBe(0)
   })
+
+  it('addWorkspace appends a folder-bound workspace and expands it', () => {
+    const n0 = useApp.getState().workspaces.length
+    useApp.getState().addWorkspace('proj', '/Users/x/proj')
+    const s = useApp.getState()
+    expect(s.workspaces.length).toBe(n0 + 1)
+    const ws = s.workspaces[s.workspaces.length - 1]
+    expect(ws.name).toBe('proj')
+    expect(ws.path).toBe('/Users/x/proj')
+    expect(s.expanded[ws.id]).toBe(true)
+  })
+
+  it('removeWorkspace drops an empty workspace but never one with chats', () => {
+    useApp.getState().addWorkspace('empty', '/tmp/empty')
+    const empty = useApp.getState().workspaces.find((w) => w.name === 'empty')!
+    useApp.getState().removeWorkspace(empty.id)
+    expect(useApp.getState().workspaces.find((w) => w.id === empty.id)).toBeUndefined()
+    const before = useApp.getState().workspaces.length
+    useApp.getState().removeWorkspace('ws_nac') // ws_nac has seeded chats -> blocked
+    expect(useApp.getState().workspaces.length).toBe(before)
+    expect(useApp.getState().workspaces.find((w) => w.id === 'ws_nac')).toBeDefined()
+  })
 })

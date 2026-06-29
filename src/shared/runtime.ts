@@ -32,3 +32,7 @@ export const STATE_CHANNELS = {
   load: 'state:load',
   save: 'state:save'
 } as const
+
+export const DIALOG_CHANNELS = {
+  pickDirectory: 'dialog:pickDirectory'
+} as const
