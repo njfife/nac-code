@@ -1,5 +1,7 @@
 # Research — LM Studio model management (JIT load, single-model, context length)
 
+> **Outcome (2026-06-29): thin coupling chosen.** NAC will NOT implement the `LocalModelManager`, OpenCode auto-config, or a direct LM Studio picker — these would couple NAC to OpenCode's config schema + LM Studio's API. NAC relies on the carrier (OpenCode) for the model list; each LM Studio instance's own JIT + Auto-Evict (local *and* remote) handle loading. This doc is retained as reference if the convenience layer is ever revisited. See `docs/DECISIONS.md`.
+
 **Question (Nathan):** Can NAC select an LM Studio model that isn't loaded and have it auto-load on query? Can we enforce "only one model loaded at a time"? Can we configure the context length? (Slow first token is acceptable; the convenience is the point.)
 
 **Short answer:** Yes / Yes / Yes — but #1 and #2 are LM Studio *server settings* (already on by default and work today via OpenCode), while #3 (context length) is a **load-time** parameter that NAC must set via the `lms` CLI or the LM Studio SDK, not via the OpenAI `/v1` request.

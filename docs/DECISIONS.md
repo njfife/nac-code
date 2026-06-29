@@ -26,9 +26,9 @@
 
 **✅ Model discovery + spacing fix** (`3f0a521`, `c9bbff1`): assistant messages strip leading whitespace (reasoning-model gap). Live model discovery wired — the picker queries `opencode models` and shows the account's real 17 configured models (verified). **Finding:** only OpenCode exposes a model-list command — codex has none (`codex models` errors), copilot/claude only have `--model`. So cloud model discovery isn't possible via CLI; claude uses its aliases, codex/copilot stay on account default.
 
+**Local-model coupling — DECIDED: thin** (2026-06-29). NAC relies on the carrier (OpenCode) for the local-model list and does **not** sync OpenCode config, query LM Studio directly, or manage model loading. Each LM Studio instance's own JIT + Auto-Evict (server settings, local *and* remote) handle auto-load + one-at-a-time; Nathan owns the OpenCode + LM Studio config. The `LocalModelManager`, OpenCode auto-config, and the read-only-picker are **declined for v1** to avoid coupling NAC to OpenCode's config schema + LM Studio's API. Research retained for reference: `docs/research/lm-studio-model-management.md`. Accepted tradeoff: OpenCode's local model list can go stale (fixed in *Nathan's* OpenCode setup, e.g. a discovery plugin), not by NAC.
+
 **Next (follow-on options, Nathan to prioritize):**
-- **LocalModelManager (LM Studio lifecycle)** — research done (`docs/research/lm-studio-model-management.md`): JIT auto-load + Auto-Evict (one-at-a-time) are LM Studio defaults that already work via OpenCode; context length is load-time, so NAC should drive `@lmstudio/sdk`/`lms` to discover + load-with-progress + set context/TTL/single-model. Inference stays on OpenCode (wrapper, not harness). Local instance first; remote via LM Link later.
-- **OpenCode auto-config** (`configureLocalBackend`) — write opencode's LM Studio provider config for users who haven't set it up (Nathan already has).
 - **Native resume fast-paths** (Codex `exec resume`, Copilot `-r`, OpenCode `-s`) — cheaper same-provider turns.
 - **PRD multi-repo** workspace model; **packaging** (electron-builder) for a distributable app.
 
