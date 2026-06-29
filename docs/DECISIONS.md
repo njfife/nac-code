@@ -32,9 +32,11 @@
 
 **✅ Real file-changes view** (`489ba42`): the Changes view reads the active workspace's git working tree (status + numstat + per-file diff/source); ChatView "Files" badge is a live count refreshed after each run. Pure git parsers verified vs real output. Multi-repo (OUTSIDE-WS) deferred.
 
+**✅ Live cost/stats** (`70bc7e6`): real per-provider metering (turns/tokens/$ split by provider) captured from each harness's completion event; StatsModal is real. Claude $+tokens, Codex/OpenCode tokens (OpenCode $), Copilot turns-only (no token/$ via CLI).
+
 **Next (follow-on options, Nathan to prioritize):**
-- **Wire the context library** — attached skills/files/agents actually injected into the run (the "managed static context" pillar; per-harness mapping work). The biggest remaining mock pillar.
-- **Live cost/stats** — real per-provider usage/cost from adapter result events (Claude cost, codex/copilot/opencode usage) instead of the mock StatsModal.
+- **Wire the context library** — attached skills/files actually injected into the run (the "managed static context" pillar). *Biggest remaining mock pillar, but design-heavy:* the mock items have no real content; needs a content model + authoring UI + per-harness injection. **Wants a product decision before building.**
+- **Thinking-level / agent wiring** — make those toggles real per harness (like YOLO/model); needs per-CLI flag verification (reasoning-effort, --agent), some account-gating risk.
 - **PRD multi-repo** workspace model; **packaging** (electron-builder) — *deferred (Nathan: not worrying about real builds yet)*.
 
 **▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for Nathan to steer next priorities.
