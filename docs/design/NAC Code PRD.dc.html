@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #fff; color: #1c1c22; font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .doc { box-sizing: border-box; max-width: 8.5in; margin: 0 auto; background: inherit; padding: 56px clamp(24px, 5vw, 0.75in) 96px; font-size: 14.5px; line-height: 1.62; }
+  .doc-frame { width: 100%; border-collapse: collapse; }
+  .doc-frame td { padding: 0; }
+  .hdr-space, .ftr-space { display: none; }
+
+  h1 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 40px; line-height: 1.1; letter-spacing: -.4px; margin: 0 0 6px; text-wrap: balance; }
+  h2 { font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 21px; letter-spacing: -.2px; margin: 40px 0 4px; padding-top: 18px; border-top: 2px solid #1c1c22; text-wrap: balance; }
+  h3 { font-weight: 600; font-size: 16px; margin: 26px 0 8px; color: #15151a; text-wrap: balance; }
+  h4 { font-weight: 600; font-size: 14px; margin: 18px 0 6px; color: #3a3a44; }
+  p { margin: 0 0 12px; text-wrap: pretty; }
+  ul, ol { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 3px 0; text-wrap: pretty; }
+  a { color: #5b5bd6; }
+  strong { font-weight: 600; color: #15151a; }
+  code { font-family: 'IBM Plex Mono', monospace; font-size: .88em; background: #f2f2f6; padding: 1px 5px; border-radius: 4px; color: #4a4a8a; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  .lede { font-family: 'Newsreader', serif; font-size: 18.5px; line-height: 1.55; color: #44444e; margin: 0 0 18px; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #8585d6; font-weight: 600; margin: 0 0 14px; }
+
+  .meta { width: 100%; border-collapse: collapse; margin: 22px 0 8px; font-size: 13px; }
+  .meta td { border: 1px solid #e5e5ee; padding: 8px 12px; }
+  .meta td:first-child { background: #fafafd; font-weight: 600; color: #44444e; width: 150px; font-size: 12px; }
+
+  .toc { background: #fafafd; border: 1px solid #ececf4; border-radius: 12px; padding: 18px 22px; margin: 24px 0; columns: 2; column-gap: 36px; font-size: 13.5px; }
+  .toc a { color: #2c2c38; text-decoration: none; display: block; padding: 3px 0; break-inside: avoid; }
+  .toc .mono { color: #9595c8; margin-right: 8px; }
+
+  .req { border: 1px solid #e8e8f0; border-left: 3px solid #7c7cf0; border-radius: 10px; padding: 14px 16px 12px; margin: 12px 0; background: #fff; }
+  .req-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+  .rid { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: #5b5bd6; background: #f0f0fb; padding: 2px 8px; border-radius: 5px; }
+  .req-name { font-weight: 600; font-size: 14.5px; color: #15151a; }
+  .prio { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 2px 7px; border-radius: 5px; margin-left: auto; }
+  .p0 { background: #fde8e6; color: #c0392b; }
+  .p1 { background: #fdf2e0; color: #b8791f; }
+  .p2 { background: #e8f3ee; color: #2f8a5b; }
+  .req p { margin: 4px 0 6px; font-size: 13.5px; color: #33333c; }
+  .req .ac { margin: 4px 0 2px; padding-left: 18px; }
+  .req .ac li { font-size: 12.5px; color: #44444e; margin: 2px 0; }
+  .deps { font-size: 11.5px; color: #777781; margin-top: 7px; font-family: 'IBM Plex Mono', monospace; }
+  .deps strong { color: #5a5a64; font-weight: 600; }
+  .status-done { color: #2f8a5b; font-weight: 600; }
+  .status-future { color: #b8791f; font-weight: 600; }
+
+  .callout { background: #f5f5ff; border: 1px solid #e2e2f5; border-radius: 12px; padding: 16px 20px; margin: 20px 0; }
+  .callout h4 { margin-top: 0; color: #4a4a8a; }
+
+  table.grid { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12.5px; }
+  table.grid th { background: #1c1c22; color: #fff; text-align: left; padding: 9px 12px; font-weight: 600; font-size: 11.5px; }
+  table.grid td { border: 1px solid #e5e5ee; padding: 8px 12px; vertical-align: top; color: #33333c; }
+  table.grid tr:nth-child(even) td { background: #fafafd; }
+  table.grid .mono { font-size: 11.5px; color: #5b5bd6; font-weight: 600; }
+
+  .pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 1px 7px; border-radius: 5px; background: #f0f0fb; color: #5b5bd6; font-weight: 600; }
+
+  @page { size: letter; margin: 0; }
+  @media print {
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { margin: 0; padding: 0; }
+    .doc { max-width: none !important; margin: 0 !important; padding: 0 0.7in !important; box-shadow: none !important; }
+    .hdr-space, .ftr-space { display: table-cell; height: 0.7in; }
+    h1, h2, h3, h4 { break-after: avoid; }
+    .req, .callout, table.grid tr, pre, blockquote, .toc { break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    .screen-only { display: none !important; }
+  }
+</style>
+</helmet>
+
+<main class="doc">
+  <table class="doc-frame" role="presentation">
+    <thead><tr><td class="hdr-space"></td></tr></thead>
+    <tbody><tr><td>
+
+      <p class="eyebrow">Product Requirements Document</p>
+      <h1>NAC Code</h1>
+      <p class="lede">A desktop, IDE-style harness for running coding agents — workspace-organized chats, reusable static context, multi-provider model selection, and first-class visibility into cost, sessions, and the files the agent touches across every repository.</p>
+
+      <table class="meta">
+        <tr><td>Product</td><td>NAC Code <span style="color:#999">(“Not-A-CLI Code”)</span></td></tr>
+        <tr><td>Document status</td><td>Draft v1.0 — for review</td></tr>
+        <tr><td>Author</td><td>N. Fife · Fontfife Creative</td></tr>
+        <tr><td>Last updated</td><td>June 28, 2026</td></tr>
+        <tr><td>Prototype</td><td><span class="mono">Harness.dc.html</span> (interactive, all P0/P1 surfaces built)</td></tr>
+      </table>
+
+      <div class="toc">
+        <a href="#s1"><span class="mono">1</span>Summary</a>
+        <a href="#s2"><span class="mono">2</span>Problem &amp; motivation</a>
+        <a href="#s3"><span class="mono">3</span>Goals &amp; non-goals</a>
+        <a href="#s4"><span class="mono">4</span>Personas &amp; use cases</a>
+        <a href="#s5"><span class="mono">5</span>Product principles</a>
+        <a href="#s6"><span class="mono">6</span>Information architecture</a>
+        <a href="#s7"><span class="mono">7</span>Functional requirements</a>
+        <a href="#s8"><span class="mono">8</span>Requirement relationships</a>
+        <a href="#s9"><span class="mono">9</span>Non-functional requirements</a>
+        <a href="#s10"><span class="mono">10</span>Data model</a>
+        <a href="#s11"><span class="mono">11</span>Roadmap requirements</a>
+        <a href="#s12"><span class="mono">12</span>Glossary</a>
+      </div>
+
+      <h2 id="s1">1 · Summary</h2>
+      <p>NAC Code is a graphical wrapper around agentic coding models. It replaces terminal-bound CLI harnesses with a familiar IDE layout: a left rail of chats grouped by workspace, a central conversation surface where the agent works, and a right inspector that surfaces live session state. It is built around three ideas existing tools handle poorly:</p>
+      <ul>
+        <li><strong>Static context as a managed library.</strong> Skills, agents, instructions, and files are first-class, searchable objects you attach to a chat — not pasted text. Attaching is budget-aware and reusable through saved configurations.</li>
+        <li><strong>Everything is per-chat.</strong> Model, provider, agent, attached context, and compaction state belong to the individual chat, so switching conversations switches the entire working setup with it.</li>
+        <li><strong>Visibility into work and cost.</strong> The agent's file changes are shown per repository — including repos outside the active workspace — viewable in-app or launchable in an IDE, and session cost is expressed in each provider's real billing unit.</li>
+      </ul>
+
+      <h2 id="s2">2 · Problem &amp; motivation</h2>
+      <p>Current agent harnesses are overwhelmingly CLI-first. They make three recurring tasks painful:</p>
+      <ol>
+        <li><strong>Context management is ad-hoc.</strong> Users paste files and instructions into prompts with no reuse, no inventory, and no sense of token cost until the window overflows. At scale — dozens of skills, many agents, standing instructions — a tray of chips above the input does not work.</li>
+        <li><strong>Sessions bleed together.</strong> Model choice, system instructions, and loaded context are global or per-invocation, not bound to a durable conversation. Returning to yesterday's task means rebuilding its setup.</li>
+        <li><strong>The work is invisible.</strong> Which files changed, in which repositories, on which branches — and what each turn cost — is buried in scrollback. There is no structured, reviewable record.</li>
+      </ol>
+      <p>NAC Code addresses these directly with a managed context library, strict per-chat state, and dedicated review surfaces for changes and cost.</p>
+
+      <h2 id="s3">3 · Goals &amp; non-goals</h2>
+      <h3>Goals</h3>
+      <ul>
+        <li>Make selecting, saving, and swapping static context fast and legible at the scale of 100+ skills, 50+ agents, and many instructions.</li>
+        <li>Bind a complete working configuration to each chat and make switching chats instantaneous and lossless.</li>
+        <li>Support multiple model providers behind one interface, with honest, provider-specific cost reporting.</li>
+        <li>Give a complete, structured view of the agent's file changes across all impacted git repositories, reviewable without leaving the app.</li>
+        <li>Keep power users on the keyboard via a command palette.</li>
+      </ul>
+      <h3>Non-goals (v1)</h3>
+      <ul>
+        <li>Replacing the IDE. NAC Code reviews and launches into IntelliJ / VS Code; it is not a full code editor.</li>
+        <li>Multi-user collaboration, shared sessions, or team permissioning.</li>
+        <li>Authoring/governance of skills and agents beyond browsing and attaching (creation is a stub in v1).</li>
+        <li>Mobile or web-responsive layouts — this is a desktop application with a fixed minimum width.</li>
+      </ul>
+
+      <h2 id="s4">4 · Personas &amp; use cases</h2>
+      <h3>Primary persona — the agent power user</h3>
+      <p>An engineer who runs coding agents across several repositories and services daily, juggling many parallel tasks. Comfortable with CLIs but frustrated by their lack of organization. Cares about controlling cost and reviewing exactly what the agent did.</p>
+      <h3>Representative use cases</h3>
+      <ul>
+        <li><strong>Resume a task.</strong> Open yesterday's chat and have its model, agent, and context restored exactly.</li>
+        <li><strong>Stand up a focused session.</strong> Apply an “Infra &amp; Deploy” context configuration to a fresh chat in one click.</li>
+        <li><strong>Branch from a long session.</strong> Compact a sprawling chat and spawn a clean one with the condensed context, keeping the original.</li>
+        <li><strong>Review &amp; ship.</strong> Inspect every changed file across the main repo and an out-of-workspace shared package, then open the shared package in IntelliJ to finish.</li>
+        <li><strong>Control spend.</strong> Switch a routine chat to a local LM Studio model (free) and reserve Claude/GPT for hard problems, watching cost update live.</li>
+      </ul>
+
+      <h2 id="s5">5 · Product principles</h2>
+      <ul>
+        <li><strong>The chat is the unit of work.</strong> Configuration lives on the chat, never globally.</li>
+        <li><strong>Context is inventory, not prose.</strong> It is browsed, searched, costed, and reused.</li>
+        <li><strong>The inspector shows the present; dedicated views show history.</strong> Live state stays lightweight; stats and changes get their own room.</li>
+        <li><strong>Honest cost.</strong> Each provider's spend is shown in its own unit — dollars, credits, or free.</li>
+        <li><strong>Keyboard-first, mouse-complete.</strong> Every primary action is reachable from the palette and from the UI.</li>
+      </ul>
+
+      <h2 id="s6">6 · Information architecture</h2>
+      <p>The application is a single window with persistent chrome (top bar, status bar) and a body that hosts one of three primary <em>views</em>. The left rail and right inspector frame the body in the default view.</p>
+      <table class="grid">
+        <tr><th style="width:150px">Region</th><th>Contents</th><th style="width:120px">Persistence</th></tr>
+        <tr><td>Top bar</td><td>Product identity, active workspace, layout switcher, account</td><td>Always</td></tr>
+        <tr><td>Left rail</td><td>Workspace-grouped chat history, new chat, account footer</td><td>Chat view</td></tr>
+        <tr><td>Center — <strong>Chat view</strong></td><td>Chat header (config picker, actions), conversation thread, composer</td><td>Default</td></tr>
+        <tr><td>Center — <strong>Context Library</strong></td><td>Full-screen route: category nav, item list, detail panel, budget</td><td>On demand</td></tr>
+        <tr><td>Center — <strong>Changes</strong></td><td>Full-screen route: repos, changed files, in-app diff/source viewer</td><td>On demand</td></tr>
+        <tr><td>Right inspector</td><td>Live panels: connections, MCP, token &amp; cost, session, attached context, local models, activity</td><td>Chat view</td></tr>
+        <tr><td>Overlays</td><td>Model/provider modal, session stats modal, command palette</td><td>Transient</td></tr>
+        <tr><td>Status bar</td><td>Account, MCP status, context-window summary, version</td><td>Always</td></tr>
+      </table>
+
+      <h2 id="s7">7 · Functional requirements</h2>
+      <p>Requirements are grouped by feature area. Each carries an ID (<span class="mono">FR-n.m</span>), a priority (<span class="pill p0" style="background:#fde8e6;color:#c0392b">P0</span> critical, <span class="pill p1" style="background:#fdf2e0;color:#b8791f">P1</span> important, <span class="pill p2" style="background:#e8f3ee;color:#2f8a5b">P2</span> future), and its dependencies. Status reflects the current interactive prototype.</p>
+
+      <h3>7.1 · Application shell &amp; layouts</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-1.1</span><span class="req-name">Three-pane IDE shell</span><span class="prio p0">P0</span></div>
+        <p>A persistent window with top bar, left rail, center body, right inspector, and status bar. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>All five regions render at standard desktop widths.</li><li>Center body swaps view without disturbing chrome.</li></ul>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-1.2</span><span class="req-name">Layout modes — Studio / Cockpit / Focus</span><span class="prio p1">P1</span></div>
+        <p>A switcher offers three arrangements: Studio (balanced three-pane), Cockpit (adds an activity rail and chat tabs), and Focus (hides the inspector behind a toggle and widens the conversation). <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Switching is instant and preserves the active chat and view.</li><li>Inspector docking adapts per mode (see FR-10.9).</li></ul>
+        <p class="deps"><strong>Relates to:</strong> FR-1.3, FR-10.9</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-1.3</span><span class="req-name">Activity rail (Cockpit)</span><span class="prio p2">P2</span></div>
+        <p>A slim icon rail providing quick jumps to Context Library, Stats, and the command palette. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-1.2 · <strong>Targets:</strong> FR-5, FR-11, FR-14</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-1.4</span><span class="req-name">Top bar &amp; status bar</span><span class="prio p1">P1</span></div>
+        <p>Top bar shows product + active workspace and account; status bar shows account, MCP status, live context-window summary, and version. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Reads:</strong> FR-4.1, FR-10.4</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-1.5</span><span class="req-name">Minimum-width integrity</span><span class="prio p1">P1</span></div>
+        <p>Below a fixed minimum width the whole shell scrolls horizontally rather than letting panes collapse or overlap. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <h3>7.2 · Workspace &amp; chat navigation</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-2.1</span><span class="req-name">Collapsible workspace groups</span><span class="prio p0">P0</span></div>
+        <p>Chats are grouped under collapsible workspace headers, each showing a chat count. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Expand/collapse state persists during the session.</li><li>Header shows workspace name and number of chats.</li></ul>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-2.2</span><span class="req-name">Chat list items</span><span class="prio p0">P0</span></div>
+        <p>Each chat shows its title, relative time, and the model it uses; the active chat is clearly marked. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Reads:</strong> FR-4.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-2.3</span><span class="req-name">New chat</span><span class="prio p1">P1</span></div>
+        <p>A control to start a new chat in the current workspace. <span class="status-future">Partial — entry present; creation flow to be finalized.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-2.4</span><span class="req-name">Branched-chat indicator</span><span class="prio p1">P1</span></div>
+        <p>Chats spawned from compaction are marked with a branch icon and a “Compacted ·” title and appear at the top of their workspace. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-9.3</p>
+      </div>
+
+      <h3>7.3 · Conversation surface</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.1</span><span class="req-name">Threaded messages</span><span class="prio p0">P0</span></div>
+        <p>User and assistant turns render in a readable thread with avatars, timestamps, and formatted text/code. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.2</span><span class="req-name">Tool-call cards</span><span class="prio p0">P0</span></div>
+        <p>Agent tool invocations render as cards with tool name, command, and a status (Completed / Running / Error); error cards expand for detail. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.3</span><span class="req-name">Inline file diff</span><span class="prio p1">P1</span></div>
+        <p>Edits the agent makes appear inline in the thread as a compact colored diff with add/remove counts. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Relates to:</strong> FR-12.6 (full review)</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.4</span><span class="req-name">Streaming response state</span><span class="prio p1">P1</span></div>
+        <p>An in-progress assistant turn streams text with a visible cursor and live tool status. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.5</span><span class="req-name">Composer</span><span class="prio p0">P0</span></div>
+        <p>A message input with attach, model selector, thinking-level selector, an autonomy (“YOLO”) toggle, and send. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Hosts:</strong> FR-5.8, FR-7.5</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-3.6</span><span class="req-name">Chat header bar</span><span class="prio p1">P1</span></div>
+        <p>A bar above the thread carrying the chat title/model and the primary per-chat actions: context configuration picker, Files, Compact, New-from-compacted, and (in Focus) the inspector toggle. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Hosts:</strong> FR-6.2, FR-9.1, FR-9.3, FR-12.8</p>
+      </div>
+
+      <h3>7.4 · Per-chat session state <span style="font-weight:400;font-size:13px;color:#8585d6">— the spine</span></h3>
+
+      <div class="req" style="border-left-color:#c0392b"><div class="req-head"><span class="rid">FR-4.1</span><span class="req-name">Independent per-chat configuration</span><span class="prio p0">P0</span></div>
+        <p>Each chat independently owns its attached context, active configuration, provider, model, agent, and compaction/context-window state. <span class="status-done">Implemented.</span> This is the backbone requirement — most feature areas read from or write to it.</p>
+        <ul class="ac"><li>Mutating model, agent, config, or attachments affects only the active chat.</li><li>No configuration is stored globally.</li></ul>
+        <p class="deps"><strong>Depended on by:</strong> FR-5.5, FR-6.2, FR-7.4, FR-8.1, FR-9.3, FR-10.4/.6</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-4.2</span><span class="req-name">Lossless chat switching</span><span class="prio p0">P0</span></div>
+        <p>Selecting another chat restores its full configuration; returning restores the original. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1</p>
+      </div>
+
+      <h3>7.5 · Context Library</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.1</span><span class="req-name">Full-screen library route</span><span class="prio p0">P0</span></div>
+        <p>Context management lives in its own full-screen route, not a tray over the input — sized for hundreds of items. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Opens from the composer quick action, chat header, activity rail, and palette.</li><li>Returns to the originating chat unchanged.</li></ul>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.2</span><span class="req-name">Four item types</span><span class="prio p0">P0</span></div>
+        <p>The library holds Skills, Agents, Instructions, and Files, each visually distinguished and individually attachable. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.3</span><span class="req-name">Category navigation + counts</span><span class="prio p1">P1</span></div>
+        <p>A left nav lists “Attached to chat” plus each type with live counts. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.4</span><span class="req-name">Search &amp; filter</span><span class="prio p1">P1</span></div>
+        <p>Free-text search across names, descriptions, and tags, plus an “attached only” filter. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.5</span><span class="req-name">Attach / detach</span><span class="prio p0">P0</span></div>
+        <p>Toggling an item attaches or detaches it from the active chat, reflected immediately everywhere it is summarized. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1 · <strong>Feeds:</strong> FR-5.7, FR-6.4, FR-10.6</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.6</span><span class="req-name">Detail panel &amp; scope</span><span class="prio p2">P2</span></div>
+        <p>Selecting an item shows its description, size, source, and whether it is defined at workspace or global scope. <span class="status-done">Implemented (scope is display-only in v1).</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.7</span><span class="req-name">Token budget meter</span><span class="prio p1">P1</span></div>
+        <p>A live budget bar shows attached-context token weight against the window (e.g. <span class="mono">~6.3k / 128k</span>), shifting color as it fills. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Updates the instant an item is attached or detached.</li><li>Warns as the budget approaches the limit.</li></ul>
+        <p class="deps"><strong>Depends on:</strong> FR-5.5 · <strong>Generalized by:</strong> FR-6.6</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.8</span><span class="req-name">Composer quick action</span><span class="prio p1">P1</span></div>
+        <p>A compact “Context” button above the input shows the attached count and a short preview, opening the library to manage. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-3.5, FR-5.1</p>
+      </div>
+
+      <h3>7.6 · Context configurations</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.1</span><span class="req-name">Saved configurations</span><span class="prio p1">P1</span></div>
+        <p>Named bundles of context items (e.g. Standard, Infra &amp; Deploy, Code Review, DB Migration, Minimal) that can be applied to any chat. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Composed of:</strong> FR-5.2 items</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.2</span><span class="req-name">Config picker in chat header</span><span class="prio p0">P0</span></div>
+        <p>A header control shows the active configuration and lets the user swap it for the current chat in one action. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Lists all configurations with item count and token weight.</li><li>Applying replaces the chat's attached set.</li></ul>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1, FR-6.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.3</span><span class="req-name">Apply swaps attached set</span><span class="prio p0">P0</span></div>
+        <p>Applying a configuration sets the chat's attachments to exactly that bundle. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Writes:</strong> FR-5.5 state</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.4</span><span class="req-name">Modified (dirty) indicator</span><span class="prio p1">P1</span></div>
+        <p>If attachments diverge from the applied configuration, the picker shows a “modified” marker. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-5.5, FR-6.3</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.5</span><span class="req-name">Save current as configuration</span><span class="prio p1">P1</span></div>
+        <p>The current attached set can be saved as a new named configuration. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.6</span><span class="req-name">Per-config token weight</span><span class="prio p2">P2</span></div>
+        <p>Each configuration displays its total token weight wherever it is listed. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-5.7</p>
+      </div>
+
+      <h3>7.7 · Provider &amp; model selection</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-7.1</span><span class="req-name">Model &amp; provider modal</span><span class="prio p0">P0</span></div>
+        <p>A button opens a modal — not a dropdown — to choose a provider and then a model within it. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-7.2</span><span class="req-name">Supported providers</span><span class="prio p0">P0</span></div>
+        <p>Anthropic, OpenAI, GitHub Copilot, and LM Studio are supported in v1. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Drives:</strong> FR-13.1 cost semantics</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-7.3</span><span class="req-name">Connect a new provider</span><span class="prio p1">P1</span></div>
+        <p>If a provider is not connected, the user can connect it (e.g. supply an API key) from the modal. <span class="status-done">Implemented (entry &amp; key field).</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-7.4</span><span class="req-name">Per-chat model</span><span class="prio p0">P0</span></div>
+        <p>The selected provider/model applies to the active chat only. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-7.5</span><span class="req-name">Provider/model indicator</span><span class="prio p1">P1</span></div>
+        <p>The composer and chat header show the active model with a provider accent. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <h3>7.8 · Agent selection</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-8.1</span><span class="req-name">Agent picker</span><span class="prio p1">P1</span></div>
+        <p>A menu selects the active agent for the chat, showing each agent's role. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-8.2</span><span class="req-name">Browse all agents</span><span class="prio p2">P2</span></div>
+        <p>The picker links into the Context Library's Agents category for full browsing. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Targets:</strong> FR-5.2</p>
+      </div>
+
+      <h3>7.9 · Compaction &amp; branching</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-9.1</span><span class="req-name">Manual compaction</span><span class="prio p1">P1</span></div>
+        <p>A control compacts the active chat's context, showing in-progress and completed states. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-9.2</span><span class="req-name">Compaction reduces the window</span><span class="prio p1">P1</span></div>
+        <p>Completing compaction lowers the chat's context-window usage, reflected in the inspector and status bar. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Writes:</strong> FR-10.5 state</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-9.3</span><span class="req-name">Compact → new chat (branch)</span><span class="prio p1">P1</span></div>
+        <p>In one action, spawn a new chat that inherits the compacted context, configuration, model, and agent — leaving the original chat intact. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>New chat appears in the source chat's workspace, marked as branched.</li><li>Original chat is unmodified.</li><li>The two are independent thereafter.</li></ul>
+        <p class="deps"><strong>Depends on:</strong> FR-4.1, FR-9.1 · <strong>Surfaces via:</strong> FR-2.4</p>
+      </div>
+
+      <h3>7.10 · Inspector (live state)</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.1</span><span class="req-name">Collapsible live panels</span><span class="prio p0">P0</span></div>
+        <p>The inspector is a column of independently collapsible panels focused on present, live state. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.2</span><span class="req-name">CLI connections</span><span class="prio p1">P1</span></div>
+        <p>Lists CLI tool connections with auth status. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Extended by:</strong> FR-15</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.3</span><span class="req-name">MCP servers</span><span class="prio p2">P2</span></div>
+        <p>Shows configured MCP servers (empty state in v1). <span class="status-done">Implemented (placeholder).</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.4</span><span class="req-name">Token &amp; cost (live)</span><span class="prio p1">P1</span></div>
+        <p>Shows session tokens and current cost in the active provider's billing unit. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-7, FR-13.1 · <strong>Detailed in:</strong> FR-11.5</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.5</span><span class="req-name">Session panel</span><span class="prio p1">P1</span></div>
+        <p>Model, credits, thinking level, duration, working directory, and a context-window meter. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Reads:</strong> FR-4.1, FR-9.2</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.6</span><span class="req-name">Attached-context summary</span><span class="prio p1">P1</span></div>
+        <p>Summarizes attached context by type with counts; each row links into the Context Library. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-5.5 · <strong>Targets:</strong> FR-5.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.7</span><span class="req-name">Local models</span><span class="prio p2">P2</span></div>
+        <p>Shows local model host status (e.g. LM Studio). <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.8</span><span class="req-name">Activity</span><span class="prio p2">P2</span></div>
+        <p>Shows the agent's current in-flight activity. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.9</span><span class="req-name">Layout-aware docking</span><span class="prio p1">P1</span></div>
+        <p>The inspector docks in Studio/Cockpit and becomes a toggleable drawer in Focus. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-1.2</p>
+      </div>
+
+      <h3>7.11 · Session stats (history)</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-11.1</span><span class="req-name">Stats view</span><span class="prio p1">P1</span></div>
+        <p>A dedicated view for detailed, historical session data, keeping the inspector lightweight. <span class="status-done">Implemented (modal).</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-11.2</span><span class="req-name">Summary stat cards</span><span class="prio p2">P2</span></div>
+        <p>Duration, message count, tool calls, and errors. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-11.3</span><span class="req-name">Token usage chart</span><span class="prio p2">P2</span></div>
+        <p>Per-turn token usage with input/output/peak-context totals. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-11.4</span><span class="req-name">Tool timeline</span><span class="prio p1">P1</span></div>
+        <p>A chronological list of tool calls with durations and status — relocated here from the inspector to keep live state focused. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-11.5</span><span class="req-name">Cost breakdown</span><span class="prio p1">P1</span></div>
+        <p>A provider-aware cost breakdown (input/output dollars, or credits used/remaining, or free). <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Depends on:</strong> FR-13.1</p>
+      </div>
+
+      <h3>7.12 · Workspace changes &amp; git review</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.1</span><span class="req-name">Changes view</span><span class="prio p1">P1</span></div>
+        <p>A full-screen route listing files the agent added/modified/deleted this session. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.2</span><span class="req-name">Grouped by repository, incl. out-of-workspace</span><span class="prio p1">P1</span></div>
+        <p>Changes are grouped by the git repository they belong to, including repositories outside the active workspace, which are clearly flagged. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Each impacted repo is its own group.</li><li>Repos outside the workspace carry an explicit badge.</li></ul>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.3</span><span class="req-name">Repo metadata</span><span class="prio p1">P1</span></div>
+        <p>Each repo shows its path, current branch, and aggregate add/remove counts. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.4</span><span class="req-name">Launch repo in IDE</span><span class="prio p1">P1</span></div>
+        <p>Each repo offers one-click launch in IntelliJ IDEA or VS Code. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Launch targets the specific repo's path.</li><li>Action confirms with feedback.</li></ul>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.5</span><span class="req-name">File status grouping</span><span class="prio p1">P1</span></div>
+        <p>Within a repo, files are marked Added / Modified / Deleted with per-file add/remove counts. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.6</span><span class="req-name">In-app diff &amp; source viewer</span><span class="prio p1">P1</span></div>
+        <p>Any changed file is fully reviewable in-app as a colored diff or full source with line numbers, without opening an IDE; the viewer shows the file's repo and branch. <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>Diff and Source modes toggle freely.</li><li>Content is complete and scrollable.</li></ul>
+        <p class="deps"><strong>Complements:</strong> FR-3.3, FR-12.4</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.7</span><span class="req-name">Reveal in Finder / editor</span><span class="prio p2">P2</span></div>
+        <p>Per-file reveal-in-Finder and open-in-editor actions, plus reveal-folder for the repo. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.8</span><span class="req-name">Entry with change count</span><span class="prio p1">P1</span></div>
+        <p>A chat-header “Files” button shows the live changed-file count and opens the Changes view. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Hosted by:</strong> FR-3.6</p>
+      </div>
+
+      <h3>7.13 · Cost &amp; billing model</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-13.1</span><span class="req-name">Provider-aware cost semantics</span><span class="prio p1">P1</span></div>
+        <p>Cost is expressed in each provider's real unit: usage-based dollars (Anthropic, OpenAI), AI credits with allowance/remaining (Copilot), or free/local (LM Studio). <span class="status-done">Implemented.</span></p>
+        <ul class="ac"><li>The unit and breakdown change with the active provider.</li><li>Used by both the inspector (FR-10.4) and stats (FR-11.5).</li></ul>
+        <p class="deps"><strong>Depends on:</strong> FR-7.2 · <strong>Consumed by:</strong> FR-10.4, FR-11.5</p>
+      </div>
+
+      <h3>7.14 · Command palette</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-14.1</span><span class="req-name">⌘K palette</span><span class="prio p1">P1</span></div>
+        <p>A keyboard-summoned palette (<span class="mono">⌘K</span> / <span class="mono">Ctrl-K</span>, <span class="mono">Esc</span> to dismiss). <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-14.2</span><span class="req-name">Grouped commands</span><span class="prio p1">P1</span></div>
+        <p>Fuzzy search across chats, actions, and layouts, grouped by category. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Invokes:</strong> FR-2.2, FR-5.1, FR-7.1, FR-8.1, FR-9.1, FR-9.3, FR-11.1, FR-12.1, FR-1.2</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-14.3</span><span class="req-name">Keyboard execution</span><span class="prio p1">P1</span></div>
+        <p>The top result runs on Enter; the palette is fully operable without the mouse. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <h3>7.15 · Connections &amp; auth</h3>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-15.1</span><span class="req-name">Connection status</span><span class="prio p1">P1</span></div>
+        <p>CLI/tool connections show authenticated, expired, not-authenticated, or not-installed states. <span class="status-done">Implemented.</span></p>
+        <p class="deps"><strong>Extends:</strong> FR-10.2</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-15.2</span><span class="req-name">Inline re-auth</span><span class="prio p1">P1</span></div>
+        <p>Failed connections offer an inline action to re-authenticate, flipping to authenticated on success. <span class="status-done">Implemented.</span></p>
+      </div>
+
+      <h2 id="s8">8 · Requirement relationships</h2>
+      <p>The feature set has one backbone and several layered dependencies radiating from it.</p>
+
+      <div class="callout">
+        <h4>The spine — FR-4.1 Per-chat state</h4>
+        <p style="margin-bottom:0">Per-chat configuration is the single requirement the most others depend on. Attaching context (FR-5.5), applying a configuration (FR-6.2/6.3), choosing a provider/model (FR-7.4), selecting an agent (FR-8.1), branching (FR-9.3), and every inspector/stats readout (FR-10.4/10.5/10.6, FR-11.x) all read or write per-chat state. If FR-4.1 is correct, those features compose naturally; if it leaks to global state, all of them regress together.</p>
+      </div>
+
+      <h4>Dependency chains</h4>
+      <ul>
+        <li><strong>Context spine:</strong> FR-5.2 items → FR-5.5 attach → FR-5.7 budget → FR-6.1 configs → FR-6.2 picker → FR-10.6 summary. Configuration is sugar over the attach primitive.</li>
+        <li><strong>Cost spine:</strong> FR-7.2 providers → FR-13.1 cost semantics → consumed by FR-10.4 (live) and FR-11.5 (breakdown).</li>
+        <li><strong>Review spine:</strong> FR-3.3 inline diff → FR-12.1 changes view → FR-12.2 repo grouping → FR-12.6 full viewer + FR-12.4 IDE launch.</li>
+        <li><strong>Compaction spine:</strong> FR-9.1 compact → FR-9.2 window reduction; FR-9.1 + FR-4.1 → FR-9.3 branch → FR-2.4 indicator.</li>
+        <li><strong>Shell spine:</strong> FR-1.1 shell → FR-1.2 layouts → FR-10.9 docking; FR-1.3 rail and FR-14 palette are alternate entry points into routes.</li>
+      </ul>
+
+      <h4>Dependency matrix (selected)</h4>
+      <table class="grid">
+        <tr><th style="width:120px">Requirement</th><th>Depends on</th><th>Enables / feeds</th></tr>
+        <tr><td class="mono">FR-4.1</td><td>—</td><td>FR-5.5, FR-6.2, FR-7.4, FR-8.1, FR-9.3, FR-10.4/.5/.6</td></tr>
+        <tr><td class="mono">FR-5.5</td><td>FR-4.1</td><td>FR-5.7, FR-6.4, FR-10.6</td></tr>
+        <tr><td class="mono">FR-5.7</td><td>FR-5.5</td><td>FR-6.6</td></tr>
+        <tr><td class="mono">FR-6.2</td><td>FR-4.1, FR-6.1</td><td>FR-6.3, FR-6.4</td></tr>
+        <tr><td class="mono">FR-7.4</td><td>FR-4.1, FR-7.1</td><td>FR-13.1, FR-10.4</td></tr>
+        <tr><td class="mono">FR-9.3</td><td>FR-4.1, FR-9.1</td><td>FR-2.4</td></tr>
+        <tr><td class="mono">FR-12.6</td><td>FR-12.1, FR-12.2</td><td>FR-12.4, FR-12.7</td></tr>
+        <tr><td class="mono">FR-13.1</td><td>FR-7.2</td><td>FR-10.4, FR-11.5</td></tr>
+        <tr><td class="mono">FR-14.2</td><td>FR-14.1</td><td>routes &amp; actions (broad)</td></tr>
+      </table>
+
+      <h2 id="s9">9 · Non-functional requirements</h2>
+      <table class="grid">
+        <tr><th style="width:150px">ID</th><th>Requirement</th></tr>
+        <tr><td class="mono">NFR-1 · Rendering</td><td>The interface paints progressively and stays responsive during streaming agent output; no blocking on full-render.</td></tr>
+        <tr><td class="mono">NFR-2 · Theme</td><td>A single dark, low-glare IDE aesthetic with a restrained indigo accent; consistent type and spacing system.</td></tr>
+        <tr><td class="mono">NFR-3 · Contrast</td><td>Text and status colors meet legibility targets against the dark surfaces; no faint sub-contrast labels.</td></tr>
+        <tr><td class="mono">NFR-4 · Layout integrity</td><td>Fixed minimum width with graceful horizontal scroll; panes never overlap or collapse (see FR-1.5).</td></tr>
+        <tr><td class="mono">NFR-5 · Keyboard</td><td>Primary actions reachable via the command palette and standard shortcuts.</td></tr>
+        <tr><td class="mono">NFR-6 · Persistence</td><td>Per-chat configuration and view state persist across navigation within a session.</td></tr>
+        <tr><td class="mono">NFR-7 · Local-first option</td><td>A local provider (LM Studio) is usable with no cloud cost.</td></tr>
+      </table>
+
+      <h2 id="s10">10 · Data model (conceptual)</h2>
+      <p>The prototype implies the following core entities and relationships:</p>
+      <table class="grid">
+        <tr><th style="width:150px">Entity</th><th>Key attributes</th><th>Relationships</th></tr>
+        <tr><td><strong>Workspace</strong></td><td>id, name</td><td>has many Chats</td></tr>
+        <tr><td><strong>Chat</strong></td><td>id, title, time; <em>provider, model, agent, activeConfig, attached[], contextK, compacted</em></td><td>belongs to Workspace; references ContextItems, Configuration, Provider/Model, Agent; may branch from a Chat</td></tr>
+        <tr><td><strong>ContextItem</strong></td><td>id, type (skill/agent/instruction/file), name, description, tokens, scope, tags</td><td>attached to many Chats; member of many Configurations</td></tr>
+        <tr><td><strong>Configuration</strong></td><td>id, name, description, item ids[]</td><td>composed of ContextItems; applied to Chats</td></tr>
+        <tr><td><strong>Provider</strong></td><td>id, name, connected, models[], cost unit</td><td>has many Models; defines cost semantics</td></tr>
+        <tr><td><strong>Agent</strong></td><td>id, name, role</td><td>selected per Chat; also a ContextItem type</td></tr>
+        <tr><td><strong>Repository</strong></td><td>id, name, path, branch, inWorkspace</td><td>has many ChangedFiles</td></tr>
+        <tr><td><strong>ChangedFile</strong></td><td>path, status, adds, dels, language, source, diff</td><td>belongs to Repository</td></tr>
+        <tr><td><strong>Connection</strong></td><td>name, detail, auth status</td><td>shown in inspector; supports re-auth</td></tr>
+      </table>
+
+      <h2 id="s11">11 · Roadmap requirements (committed)</h2>
+      <p>The following are committed for delivery after the v1 surface. Each is a formal requirement with an ID in its parent feature family, priority, and dependencies; status is <span class="status-future">Planned</span>. They extend, rather than alter, the v1 requirements above.</p>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-6.7</span><span class="req-name">Configuration management</span><span class="prio p1">P1</span></div>
+        <p>Full lifecycle management of context configurations: rename, delete, duplicate, reorder, and share. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>Configurations can be renamed and deleted from a management surface (extending the Context Library).</li><li>Order is user-controllable and reflected in the chat-header picker.</li><li>A configuration can be exported/shared and imported into another workspace.</li></ul>
+        <p class="deps"><strong>Extends:</strong> FR-6.1, FR-6.5 · <strong>Surfaces in:</strong> FR-6.2, FR-5.1</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.9</span><span class="req-name">In-app authoring of context items</span><span class="prio p1">P1</span></div>
+        <p>Create and edit Skills, Agents, and Instructions inside the app, not just browse and attach. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>A create/edit flow exists for each authorable type (skill, agent, instruction).</li><li>Authored items enter the library immediately and are attachable.</li><li>Edits version safely without breaking chats that reference the item.</li></ul>
+        <p class="deps"><strong>Extends:</strong> FR-5.2 · <strong>Relates to:</strong> FR-8.2</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-5.10</span><span class="req-name">Scope enforcement</span><span class="prio p2">P2</span></div>
+        <p>Enforce workspace vs global scope, not merely display it: a workspace-scoped item is only attachable within its workspace. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>Attaching respects scope; out-of-scope items are hidden or blocked with explanation.</li><li>Global items remain available everywhere.</li></ul>
+        <p class="deps"><strong>Upgrades:</strong> FR-5.6 · <strong>Constrains:</strong> FR-5.5</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-12.9</span><span class="req-name">Live VCS integration</span><span class="prio p1">P1</span></div>
+        <p>Wire the Changes view to a live version-control provider and support staging, committing, and pushing directly from the view. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>File status, diffs, branch, and repo list reflect real working-tree state.</li><li>User can stage/unstage, write a commit, and push per repository from the Changes view.</li><li>Out-of-workspace repos are handled identically (extends FR-12.2).</li></ul>
+        <p class="deps"><strong>Extends:</strong> FR-12.1, FR-12.2, FR-12.6 · <strong>Relates to:</strong> FR-12.4</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-10.10</span><span class="req-name">Full MCP configuration &amp; health</span><span class="prio p2">P2</span></div>
+        <p>Configure MCP servers and surface their live health, beyond the v1 placeholder. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>Add, edit, and remove MCP servers from the inspector/settings.</li><li>Each server shows connection health and exposed tools.</li><li>Status reflects in the status bar's MCP indicator.</li></ul>
+        <p class="deps"><strong>Upgrades:</strong> FR-10.3 · <strong>Reflected in:</strong> FR-1.4</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-4.3</span><span class="req-name">Durable persistence across launches</span><span class="prio p1">P1</span></div>
+        <p>Persist chats, workspaces, and full per-chat state durably across application launches, not just within a session. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>Reopening the app restores all chats and each chat's model, agent, config, attachments, and context-window state.</li><li>Branched chats and saved configurations survive restart.</li></ul>
+        <p class="deps"><strong>Extends:</strong> FR-4.1, FR-4.2 · <strong>Satisfies:</strong> NFR-6</p>
+      </div>
+
+      <div class="req"><div class="req-head"><span class="rid">FR-13.2</span><span class="req-name">Live cost metering</span><span class="prio p1">P1</span></div>
+        <p>Replace illustrative cost figures with live, per-provider metering. <span class="status-future">Planned.</span></p>
+        <ul class="ac"><li>Token counts and cost derive from actual usage per provider.</li><li>Credit-based providers show real allowance and remaining balance.</li><li>Live figures flow to both the inspector (FR-10.4) and stats (FR-11.5).</li></ul>
+        <p class="deps"><strong>Upgrades:</strong> FR-13.1 · <strong>Consumed by:</strong> FR-10.4, FR-11.5</p>
+      </div>
+
+      <h2 id="s12">12 · Glossary</h2>
+      <ul>
+        <li><strong>Harness</strong> — the application layer that runs an agent against a model and a set of tools.</li>
+        <li><strong>Static context</strong> — reusable, attachable knowledge objects (skills, agents, instructions, files) pinned to a chat.</li>
+        <li><strong>Configuration</strong> — a named, reusable bundle of context items.</li>
+        <li><strong>Compaction</strong> — condensing a chat's context to reduce window usage.</li>
+        <li><strong>Branch / spawn</strong> — creating a new chat that inherits compacted context while preserving the original.</li>
+        <li><strong>Workspace</strong> — a named grouping of related chats (typically per project/repo).</li>
+        <li><strong>Inspector</strong> — the right panel of live, present-tense session state.</li>
+      </ul>
+
+      <p style="margin-top:40px;padding-top:16px;border-top:1px solid #e5e5ee;font-size:12px;color:#9595a0">NAC Code — Product Requirements Document · Draft v1.0 · Fontfife Creative · June 28, 2026</p>
+
+    </td></tr></tbody>
+    <tfoot><tr><td class="ftr-space"></td></tr></tfoot>
+  </table>
+</main>
+</x-dc>
+</body>
+</html>

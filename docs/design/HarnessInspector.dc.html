@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+  <div style="display:flex;align-items:center;gap:10px;padding:16px 18px 12px">
+    <span class="mono" style="font-size:11px;letter-spacing:1.6px;color:#9a9aa4;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">INSPECTOR</span>
+    <button onClick="{{ onOpenStats }}" style="display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.1);background:#16161a;color:#c8c8d0;font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:8px;cursor:pointer" style-hover="border-color:rgba(124,124,240,.4);color:#a6a6f5">
+      <svg width="12" height="12" viewBox="0 0 14 14"><path d="M2 12V8M6 12V3M10 12V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Stats
+    </button>
+    <svg width="16" height="16" viewBox="0 0 16 16" style="color:#777781"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><line x1="10" y1="3" x2="10" y2="13" stroke="currentColor" stroke-width="1.3"/></svg>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:0 0 20px">
+
+    <!-- CLI CONNECTIONS -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tCli }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">CLI CONNECTIONS</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cCli }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pCli }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 18px 14px;display:flex;flex-direction:column;gap:3px">
+          <sc-for list="{{ cliList }}" as="c" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:9px;padding:5px 0 5px {{ c.pad }}">
+              <span style="width:7px;height:7px;min-width:7px;border-radius:50%;background:{{ c.dot }}"></span>
+              <span class="mono" style="font-size:12.5px;color:#d2d2da;font-family:'IBM Plex Mono',monospace">{{ c.name }}</span>
+              <sc-if value="{{ c.hasDetail }}" hint-placeholder-val="{{ false }}"><span class="mono" style="font-size:11.5px;color:#70707a;font-family:'IBM Plex Mono',monospace">{{ c.detail }}</span></sc-if>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <sc-if value="{{ c.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:5px;font-size:11px;color:{{ c.badgeColor }}"><span style="width:5px;height:5px;border-radius:50%;background:{{ c.badgeColor }}"></span>{{ c.badge }}</span></sc-if>
+                <sc-if value="{{ c.showReauth }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.onReauth }}" style="border:1px solid rgba(124,124,240,.3);background:rgba(124,124,240,.1);color:#a6a6f5;font-family:inherit;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer" style-hover="background:rgba(124,124,240,.2)">Re-auth</button></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- MCP -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tMcp }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">MCP SERVERS</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cMcp }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pMcp }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 18px 16px"><div style="padding:11px 13px;border:1px dashed rgba(255,255,255,.1);border-radius:9px;font-size:12px;color:#65656d">No MCP servers configured.</div></div>
+      </sc-if>
+    </div>
+
+    <!-- USAGE -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tUsage }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">TOKEN &amp; COST</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cUsage }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pUsage }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 18px 16px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12.5px;color:#8a8a92">Tokens this session</span>
+            <span class="mono" style="font-size:14px;font-weight:600;color:#e9e9ee;font-family:'IBM Plex Mono',monospace">53,200</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:12.5px;color:#8a8a92">{{ costlabel }}</span>
+            <span class="mono" style="font-size:14px;font-weight:600;color:{{ costcolor }};font-family:'IBM Plex Mono',monospace">{{ costvalue }}</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- SESSION -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tSession }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">SESSION</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cSession }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pSession }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 18px 16px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#8a8a92">Model</span><span style="color:#e9e9ee;font-weight:500">{{ model }}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#8a8a92">AI Credits</span><span class="mono" style="color:#e9e9ee;font-family:'IBM Plex Mono',monospace">0</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#8a8a92">Thinking Level</span><span style="color:#e9e9ee">Medium</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#8a8a92">Duration</span><span class="mono" style="color:#e9e9ee;font-family:'IBM Plex Mono',monospace">17h 30m</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#8a8a92">Working dir</span><span class="mono" style="color:#e9e9ee;font-family:'IBM Plex Mono',monospace">…/nfife/aiworkspaces</span></div>
+          <div style="margin-top:4px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:#8a8a92">Context Window</span><span class="mono" style="color:#e9e9ee;font-family:'IBM Plex Mono',monospace">{{ ctxlabel }} <span style="color:#65656d">({{ ctxpct }}%)</span></span></div>
+            <div style="height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:{{ ctxbar }};border-radius:4px;background:linear-gradient(90deg,#7c7cf0,#a6a6f5);transition:width .4s"></div></div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- CONTEXT FILES -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tCtx }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">ATTACHED CONTEXT</span>
+        <span class="mono" style="font-size:10.5px;color:#777781;background:rgba(255,255,255,.05);padding:1px 7px;border-radius:5px">{{ ctxCount }}</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cCtx }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pCtx }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 12px 14px;display:flex;flex-direction:column;gap:1px">
+          <sc-for list="{{ ctxGroups }}" as="g" hint-placeholder-count="3">
+            <div onClick="{{ g.onOpen }}" style="display:flex;align-items:center;gap:11px;padding:8px 6px;border-radius:8px;cursor:pointer" style-hover="background:rgba(255,255,255,.04)">
+              <span style="width:8px;height:8px;min-width:8px;border-radius:3px;background:{{ g.color }}"></span>
+              <span style="flex:1;font-size:13px;color:#d2d2da">{{ g.plural }}</span>
+              <span class="mono" style="font-size:11px;color:#9a9aa4;background:rgba(255,255,255,.05);padding:1px 8px;border-radius:5px;font-family:'IBM Plex Mono',monospace">{{ g.count }}</span>
+              <svg width="11" height="11" viewBox="0 0 12 12" style="color:#777781"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </sc-for>
+          <sc-if value="{{ ctxEmpty }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ onOpenCtx }}" style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:8px;cursor:pointer;color:#8b8bf2;font-size:12.5px;font-weight:500" style-hover="background:rgba(124,124,240,.08)">
+              <svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Attach context…
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- LOCAL MODELS -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tLocal }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">LOCAL MODELS</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cLocal }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pLocal }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 18px 16px">
+          <p style="font-size:11.5px;color:#65656d;margin-bottom:10px">Active chat is using Copilot-hosted models.</p>
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="width:7px;height:7px;border-radius:50%;background:#46cf8b"></span>
+            <span class="mono" style="font-size:13px;color:#d2d2da;font-family:'IBM Plex Mono',monospace">LM Studio</span>
+            <span style="font-size:11px;color:#46cf8b">Connected</span>
+            <span style="margin-left:auto;font-size:11.5px;color:#65656d">11 models</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div style="border-top:1px solid rgba(255,255,255,.05)">
+      <div onClick="{{ tAct }}" style="display:flex;align-items:center;gap:8px;padding:13px 18px;cursor:pointer">
+        <span class="mono" style="font-size:10.5px;letter-spacing:1.3px;color:#7a7a82;font-weight:600;font-family:'IBM Plex Mono',monospace;flex:1">ACTIVITY</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="color:#777781;transform:{{ cAct }};transition:transform .15s"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <sc-if value="{{ pAct }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 18px 16px"><div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:rgba(227,178,95,.07);border:1px solid rgba(227,178,95,.18);border-radius:9px"><div style="width:13px;height:13px;border-radius:50%;border:2px solid rgba(227,178,95,.35);border-top-color:#e3b25f;animation:spin 1s linear infinite"></div><span style="font-size:12.5px;color:#cbb285">Pushing commit to gitlab…</span></div></div>
+      </sc-if>
+    </div>
+
+  </div>
+  <helmet><style>@keyframes spin{to{transform:rotate(360deg)}}</style></helmet>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props.panels || {};
+    const on = this.props.ontoggle || (() => {});
+    const groups = this.props.ctxgroups || [];
+    const acount = this.props.attachedcount || 0;
+    const onopen = this.props.onopen || (() => {});
+    const chev = (k) => p[k] ? 'rotate(0deg)' : 'rotate(180deg)';
+    return {
+      cliList: this.props.cli || [],
+      timeline: this.props.timeline || [],
+      usagebars: this.props.usagebars || [],
+      ctxGroups: groups,
+      ctxCount: acount + '',
+      ctxEmpty: groups.length === 0,
+      onOpenCtx: onopen,
+      model: this.props.model || 'Claude Sonnet 4.6',
+      ctxlabel: this.props.ctxlabel || '53K/128K',
+      ctxpct: this.props.ctxpct == null ? 41 : this.props.ctxpct,
+      ctxbar: this.props.ctxbar || '41%',
+      costlabel: this.props.costlabel || 'Est. cost',
+      costvalue: this.props.costvalue || '$0.34',
+      costcolor: this.props.costcolor || '#46cf8b',
+      onOpenStats: this.props.onopenstats || (() => {}),
+
+      pCli: !!p.cli, cCli: chev('cli'), tCli: () => on('cli'),
+      pMcp: !!p.mcp, cMcp: chev('mcp'), tMcp: () => on('mcp'),
+      pUsage: !!p.usage, cUsage: chev('usage'), tUsage: () => on('usage'),
+      pSession: !!p.session, cSession: chev('session'), tSession: () => on('session'),
+      pCtx: !!p.ctxfiles, cCtx: chev('ctxfiles'), tCtx: () => on('ctxfiles'),
+      pTl: !!p.timeline, cTl: chev('timeline'), tTl: () => on('timeline'),
+      pLocal: !!p.local, cLocal: chev('local'), tLocal: () => on('local'),
+      pAct: !!p.activity, cAct: chev('activity'), tAct: () => on('activity'),
+    };
+  }
+}
+</script>
+</body>
+</html>

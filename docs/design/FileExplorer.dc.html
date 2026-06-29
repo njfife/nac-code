@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="flex:1;display:flex;flex-direction:column;height:100%;width:100%;min-width:1180px;background:#0c0c0f;color:#e9e9ee;min-height:0;position:relative;font-family:'IBM Plex Sans',system-ui,sans-serif">
+
+  <!-- header -->
+  <div style="display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,.06)">
+    <button onClick="{{ onClose }}" style="display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.1);background:#16161a;color:#c8c8d0;font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;flex-shrink:0" style-hover="border-color:rgba(255,255,255,.2);background:#1c1c21">
+      <svg width="13" height="13" viewBox="0 0 14 14"><path d="M8.5 3L4.5 7l4 4M11 7H4.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Back to chat
+    </button>
+    <div style="flex:1">
+      <div style="font-size:17px;font-weight:600;letter-spacing:.2px">Changes</div>
+      <div style="font-size:12.5px;color:#8a8a92;margin-top:2px">Every git repo NAC Code touched this session — including repos outside the active workspace</div>
+    </div>
+    <span class="mono" style="font-size:12.5px;color:#9a9aa4;font-family:'IBM Plex Mono',monospace;flex-shrink:0">{{ repoCount }} repos · {{ fileCount }} files <span style="color:#46cf8b">+{{ totalAdds }}</span> <span style="color:#f0726a">−{{ totalDels }}</span></span>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0">
+
+    <!-- repo + file tree -->
+    <div style="width:340px;min-width:340px;display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,.06);overflow-y:auto;padding:12px 10px">
+      <sc-for list="{{ repoGroups }}" as="r" hint-placeholder-count="2">
+        <div style="margin-bottom:14px;border:1px solid {{ r.cardBorder }};border-radius:11px;overflow:hidden;background:{{ r.cardBg }}">
+          <!-- repo header -->
+          <div style="padding:11px 12px 10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <svg width="14" height="14" viewBox="0 0 16 16" style="color:{{ r.dot }};flex-shrink:0"><circle cx="4" cy="4" r="2" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="4" cy="12" r="2" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="12" cy="6" r="2" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M4 6v4M6 5.5C9 6 6.5 9 9 9.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>
+              <span style="font-size:13.5px;font-weight:600;color:#e9e9ee;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+              <sc-if value="{{ r.external }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#e3b25f;background:rgba(227,178,95,.14);padding:2px 6px;border-radius:5px;flex-shrink:0">OUTSIDE WS</span></sc-if>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+              <svg width="11" height="11" viewBox="0 0 12 12" style="color:#777781;flex-shrink:0"><circle cx="3" cy="3" r="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><circle cx="3" cy="9" r="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><circle cx="9" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M3 4.5v3M4.5 3H7a1.5 1.5 0 011.5 1.5v0" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+              <span class="mono" style="font-size:11px;color:#9a9aa4;font-family:'IBM Plex Mono',monospace">{{ r.branch }}</span>
+              <span class="mono" style="font-size:11px;color:#777781;font-family:'IBM Plex Mono',monospace;margin-left:auto"><span style="color:#46cf8b">+{{ r.adds }}</span> <span style="color:#f0726a">−{{ r.dels }}</span></span>
+            </div>
+            <div class="mono" style="font-size:10.5px;color:#70707a;font-family:'IBM Plex Mono',monospace;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.path }}</div>
+            <!-- launch buttons -->
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button onClick="{{ r.onIntelliJ }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.1);background:#161619;color:#c8c8d0;font-family:inherit;font-size:11.5px;font-weight:600;padding:6px 8px;border-radius:8px;cursor:pointer" style-hover="border-color:rgba(124,124,240,.4);color:#a6a6f5;background:#1a1a20">
+                <span style="width:13px;height:13px;border-radius:3px;background:linear-gradient(135deg,#fc3,#f43,#07c);flex-shrink:0"></span>IntelliJ
+              </button>
+              <button onClick="{{ r.onVSCode }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.1);background:#161619;color:#c8c8d0;font-family:inherit;font-size:11.5px;font-weight:600;padding:6px 8px;border-radius:8px;cursor:pointer" style-hover="border-color:rgba(95,179,227,.5);color:#9fd0f0;background:#1a1a20">
+                <svg width="13" height="13" viewBox="0 0 16 16" style="color:#5fb3e3;flex-shrink:0"><path d="M11 2L5.5 7 3 5 1.5 6 4 8l-2.5 2L3 11l2.5-2L11 14l3.5-1.5v-9z" fill="currentColor"/></svg>VS Code
+              </button>
+            </div>
+          </div>
+          <!-- files -->
+          <div style="border-top:1px solid rgba(255,255,255,.05);padding:6px">
+            <sc-for list="{{ r.files }}" as="f" hint-placeholder-count="3">
+              <div onClick="{{ f.onSelect }}" style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;cursor:pointer;background:{{ f.rowBg }};box-shadow:{{ f.rowRing }}" style-hover="background:rgba(255,255,255,.04)">
+                <span style="width:16px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;color:{{ f.color }};flex-shrink:0">{{ f.statusLetter }}</span>
+                <div style="flex:1;min-width:0">
+                  <div class="mono" style="font-size:12px;color:{{ f.nameColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'IBM Plex Mono',monospace">{{ f.name }}</div>
+                  <div class="mono" style="font-size:10px;color:#70707a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'IBM Plex Mono',monospace;margin-top:1px">{{ f.dir }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;line-height:1.3">
+                  <span class="mono" style="font-size:9.5px;color:#46cf8b;font-family:'IBM Plex Mono',monospace">{{ f.addLabel }}</span>
+                  <span class="mono" style="font-size:9.5px;color:#f0726a;font-family:'IBM Plex Mono',monospace">{{ f.delLabel }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- viewer -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+      <sc-if value="{{ sel.present }}" hint-placeholder-val="{{ true }}">
+        <!-- file toolbar -->
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 22px;border-bottom:1px solid rgba(255,255,255,.06)">
+          <span style="width:9px;height:9px;border-radius:3px;background:{{ sel.color }};flex-shrink:0"></span>
+          <div style="min-width:0;display:flex;flex-direction:column;gap:1px">
+            <span class="mono" style="font-size:13.5px;color:#e9e9ee;font-weight:500;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.path }}</span>
+            <span class="mono" style="font-size:10.5px;color:#777781;font-family:'IBM Plex Mono',monospace">{{ sel.repoName }} · {{ sel.branch }}</span>
+          </div>
+          <span style="font-size:10.5px;color:{{ sel.color }};text-transform:uppercase;letter-spacing:.6px;font-weight:600;flex-shrink:0">{{ sel.status }}</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0">
+            <div style="display:flex;background:#16161a;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:3px;gap:2px">
+              <button onClick="{{ onDiffMode }}" style="border:none;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:6px;background:{{ diffBg }};color:{{ diffFg }}">Diff</button>
+              <button onClick="{{ onSourceMode }}" style="border:none;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:6px;background:{{ srcBg }};color:{{ srcFg }}">Source</button>
+            </div>
+            <button onClick="{{ onReveal }}" title="Reveal in Finder" style="display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.1);background:#16161a;color:#c8c8d0;font-family:inherit;font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:8px;cursor:pointer" style-hover="border-color:rgba(124,124,240,.4);color:#a6a6f5">
+              <svg width="13" height="13" viewBox="0 0 16 16"><path d="M2.5 4.5A1.5 1.5 0 014 3h3l1.5 1.5H12a1.5 1.5 0 011.5 1.5v6A1.5 1.5 0 0112 13.5H4A1.5 1.5 0 012.5 12z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/></svg>Finder
+            </button>
+          </div>
+        </div>
+        <!-- content -->
+        <div style="flex:1;overflow:auto;background:#0a0a0d">
+          <sc-if value="{{ showDiff }}" hint-placeholder-val="{{ true }}">
+            <div class="mono" style="font-size:12.5px;line-height:1.7;font-family:'IBM Plex Mono',monospace;padding:8px 0">
+              <sc-for list="{{ diffRows }}" as="d" hint-placeholder-count="8">
+                <div style="display:flex;background:{{ d.bg }};min-width:max-content">
+                  <span style="width:30px;text-align:center;color:{{ d.signColor }};flex-shrink:0;user-select:none">{{ d.sign }}</span>
+                  <span style="color:{{ d.color }};padding-right:24px;white-space:pre">{{ d.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showSource }}" hint-placeholder-val="{{ false }}">
+            <div class="mono" style="font-size:12.5px;line-height:1.7;font-family:'IBM Plex Mono',monospace;padding:8px 0">
+              <sc-for list="{{ sourceRows }}" as="r" hint-placeholder-count="8">
+                <div style="display:flex;min-width:max-content" style-hover="background:rgba(255,255,255,.03)">
+                  <span style="width:46px;text-align:right;padding-right:16px;color:#56565e;flex-shrink:0;user-select:none">{{ r.n }}</span>
+                  <span style="color:#c4c4cc;padding-right:24px;white-space:pre">{{ r.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <sc-if value="{{ toastShown }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;background:#1c1c22;border:1px solid rgba(124,124,240,.35);border-radius:10px;padding:10px 16px;box-shadow:0 12px 36px rgba(0,0,0,.5);z-index:5">
+      <svg width="14" height="14" viewBox="0 0 16 16" style="color:#8b8bf2"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:13px;color:#e9e9ee">{{ toastMsg }}</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = { selId: null, mode: 'diff', toast: '' };
+
+  select(id) { this.setState({ selId: id }); }
+  setMode(m) { this.setState({ mode: m }); }
+  toast(msg) { this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: '' }), 2400); }
+
+  renderVals() {
+    const s = this.state;
+    const files = this.props.files || [];
+    const repos = this.props.repos || [];
+    const ST = {
+      added: { c: '#46cf8b', letter: 'A', label: 'Added', rank: 0 },
+      modified: { c: '#e3b25f', letter: 'M', label: 'Modified', rank: 1 },
+      deleted: { c: '#f0726a', letter: 'D', label: 'Deleted', rank: 2 },
+    };
+    const dirOf = (p) => { const i = p.lastIndexOf('/'); return i === -1 ? './' : p.slice(0, i + 1); };
+    let selRaw = files.find(f => f.id === s.selId) || files[0] || null;
+
+    const repoGroups = repos.map(r => {
+      const rfiles = files.filter(f => f.repo === r.id).slice().sort((a, b) => ST[a.status].rank - ST[b.status].rank);
+      return {
+        id: r.id, name: r.name, path: r.path, branch: r.branch,
+        external: !r.inWorkspace,
+        dot: r.inWorkspace ? '#8b8bf2' : '#e3b25f',
+        cardBg: r.inWorkspace ? 'rgba(255,255,255,.015)' : 'rgba(227,178,95,.04)',
+        cardBorder: r.inWorkspace ? 'rgba(255,255,255,.07)' : 'rgba(227,178,95,.2)',
+        adds: rfiles.reduce((a, f) => a + f.adds, 0),
+        dels: rfiles.reduce((a, f) => a + f.dels, 0),
+        onIntelliJ: () => this.toast('Opening ' + r.name + ' in IntelliJ IDEA…'),
+        onVSCode: () => this.toast('Opening ' + r.name + ' in VS Code…'),
+        files: rfiles.map(f => {
+          const m = ST[f.status];
+          return {
+            id: f.id, name: f.name, dir: dirOf(f.path),
+            color: m.c, statusLetter: m.letter,
+            addLabel: f.adds ? '+' + f.adds : '',
+            delLabel: f.dels ? '−' + f.dels : '',
+            rowBg: selRaw && selRaw.id === f.id ? 'rgba(124,124,240,.12)' : 'transparent',
+            rowRing: selRaw && selRaw.id === f.id ? 'inset 0 0 0 1px rgba(124,124,240,.3)' : 'none',
+            nameColor: selRaw && selRaw.id === f.id ? '#f0f0f5' : '#d2d2da',
+            onSelect: () => this.select(f.id),
+          };
+        }),
+      };
+    });
+
+    let sel = { present: false };
+    let diffRows = [], sourceRows = [];
+    if (selRaw) {
+      const m = ST[selRaw.status];
+      const r = repos.find(x => x.id === selRaw.repo) || {};
+      sel = {
+        present: true, path: selRaw.path, status: m.label, color: m.c,
+        repoName: r.name || '', branch: r.branch || '',
+      };
+      const dk = { add: { bg: 'rgba(70,207,139,.1)', color: '#9fd9b8', sign: '+', signColor: '#46cf8b' },
+        del: { bg: 'rgba(240,114,106,.1)', color: '#e0a59f', sign: '−', signColor: '#f0726a' },
+        ctx: { bg: 'transparent', color: '#9a9aa4', sign: ' ', signColor: '#56565e' },
+        hunk: { bg: 'rgba(95,179,227,.07)', color: '#5fb3e3', sign: ' ', signColor: '#5fb3e3' } };
+      diffRows = (selRaw.diff || []).map(([k, t]) => ({ ...dk[k], text: t }));
+      sourceRows = (selRaw.source || '').split('\n').map((t, i) => ({ n: i + 1, text: t }));
+    }
+
+    return {
+      onClose: this.props.onclose || (() => {}),
+      repoCount: repos.length,
+      fileCount: files.length,
+      totalAdds: files.reduce((a, f) => a + f.adds, 0),
+      totalDels: files.reduce((a, f) => a + f.dels, 0),
+      repoGroups,
+      sel,
+      onReveal: () => this.toast('Revealed ' + (selRaw ? selRaw.name : 'file') + ' in Finder'),
+      diffRows, sourceRows,
+      showDiff: s.mode === 'diff',
+      showSource: s.mode === 'source',
+      onDiffMode: () => this.setMode('diff'),
+      onSourceMode: () => this.setMode('source'),
+      diffBg: s.mode === 'diff' ? 'rgba(124,124,240,.22)' : 'transparent',
+      diffFg: s.mode === 'diff' ? '#c4c4f8' : '#8a8a92',
+      srcBg: s.mode === 'source' ? 'rgba(124,124,240,.22)' : 'transparent',
+      srcFg: s.mode === 'source' ? '#c4c4f8' : '#8a8a92',
+      toastShown: !!s.toast,
+      toastMsg: s.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>

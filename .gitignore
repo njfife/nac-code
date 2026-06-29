@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+
+# Node / build (app scaffold lands in M0-7)
+node_modules/
+dist/
+dist-electron/
+out/
+build/
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Redundant source archive — extracted contents are tracked under docs/design/
+Harness wrapper interface design latest.zip
+*.zip
