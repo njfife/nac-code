@@ -11,6 +11,9 @@ export interface ContextItem {
   scope: 'workspace' | 'global'
   source: string
   tags: string[]
+  content?: string // authored text injected when attached (notes/skills/instructions)
+  path?: string // file on disk; its content is read + injected when attached
+  user?: boolean // created by the user (vs a seed) — removable
 }
 
 export const TYPE_META: Record<ItemType, { label: string; color: string; letter: string }> = {
@@ -21,7 +24,7 @@ export const TYPE_META: Record<ItemType, { label: string; color: string; letter:
 }
 
 export const CONTEXT_ITEMS: ContextItem[] = [
-  { id: 'sk-tdd', type: 'skill', name: 'test-driven-development', description: 'Write the failing test first, then the minimal code to pass.', tokens: 1800, scope: 'global', source: 'superpowers', tags: ['testing'] },
+  { id: 'sk-tdd', type: 'skill', name: 'test-driven-development', description: 'Write the failing test first, then the minimal code to pass.', tokens: 1800, scope: 'global', source: 'superpowers', tags: ['testing'], content: 'Follow strict TDD: write a failing test first, then the minimal code to make it pass, then refactor. Never write implementation before its test exists.' },
   { id: 'sk-debug', type: 'skill', name: 'systematic-debugging', description: 'Find the root cause before proposing a fix.', tokens: 1500, scope: 'global', source: 'superpowers', tags: ['debug'] },
   { id: 'sk-brainstorm', type: 'skill', name: 'brainstorming', description: 'Explore intent and design before implementation.', tokens: 1200, scope: 'workspace', source: 'superpowers', tags: ['planning'] },
   { id: 'sk-review', type: 'skill', name: 'requesting-code-review', description: 'Run an adversarial review pass before merging.', tokens: 1400, scope: 'global', source: 'superpowers', tags: ['review'] },
@@ -29,8 +32,8 @@ export const CONTEXT_ITEMS: ContextItem[] = [
   { id: 'ag-infra', type: 'agent', name: 'infra', description: 'Infrastructure & deployment specialist.', tokens: 1100, scope: 'workspace', source: 'agents', tags: ['infra'] },
   { id: 'ag-reviewer', type: 'agent', name: 'backend-reviewer', description: 'Reviews backend changes for correctness.', tokens: 1000, scope: 'global', source: 'agents', tags: ['review'] },
   { id: 'ag-frontend', type: 'agent', name: 'frontend-reviewer', description: 'Reviews UI changes against the design system.', tokens: 1000, scope: 'global', source: 'agents', tags: ['review'] },
-  { id: 'in-style', type: 'instruction', name: 'code-style', description: 'Match the surrounding code conventions.', tokens: 600, scope: 'workspace', source: 'instructions', tags: ['style'] },
-  { id: 'in-security', type: 'instruction', name: 'security-baseline', description: 'No secrets in code; least privilege; validate input.', tokens: 800, scope: 'global', source: 'instructions', tags: ['security'] },
+  { id: 'in-style', type: 'instruction', name: 'code-style', description: 'Match the surrounding code conventions.', tokens: 600, scope: 'workspace', source: 'instructions', tags: ['style'], content: 'Match the surrounding code: its naming, formatting, and comment density. Do not introduce new patterns, libraries, or abstractions unless necessary.' },
+  { id: 'in-security', type: 'instruction', name: 'security-baseline', description: 'No secrets in code; least privilege; validate input.', tokens: 800, scope: 'global', source: 'instructions', tags: ['security'], content: 'Never hardcode secrets or credentials. Validate and sanitize all external input. Apply least privilege. Never log sensitive values.' },
   { id: 'in-commit', type: 'instruction', name: 'commit-format', description: 'Conventional commits; imperative subject.', tokens: 400, scope: 'workspace', source: 'instructions', tags: ['git'] },
   { id: 'fl-readme', type: 'file', name: 'README.md', description: 'Project overview and orientation.', tokens: 1200, scope: 'workspace', source: 'docs/', tags: ['docs'] },
   { id: 'fl-spec', type: 'file', name: 'M0-agent-runtime-and-context.md', description: 'Agent runtime + cross-provider context spec.', tokens: 5400, scope: 'workspace', source: 'docs/specs/', tags: ['spec'] },

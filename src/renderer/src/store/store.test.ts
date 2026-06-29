@@ -114,4 +114,16 @@ describe('app store — per-chat spine', () => {
     expect(u.claude.costUsd).toBeCloseTo(0.07)
     expect(u.codex).toEqual({ turns: 1, inputTokens: 200, outputTokens: 0, costUsd: 0 })
   })
+
+  it('addNote creates an injectable user item (FR-5)', () => {
+    const n0 = useApp.getState().userItems.length
+    useApp.getState().addNote('api-rules', 'Always validate input.')
+    const items = useApp.getState().userItems
+    expect(items.length).toBe(n0 + 1)
+    const note = items[items.length - 1]
+    expect(note.name).toBe('api-rules')
+    expect(note.content).toBe('Always validate input.')
+    expect(note.user).toBe(true)
+    expect(note.type).toBe('instruction')
+  })
 })

@@ -1,4 +1,5 @@
 import { useApp, type Chat, type Workspace, type Layout, type ThinkingLevel } from './store'
+import type { ContextItem } from '../data/context'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
@@ -7,6 +8,7 @@ interface PersistedState {
   activeChatId: string
   layout: Layout
   expanded: Record<string, boolean>
+  userItems?: ContextItem[]
 }
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
@@ -56,7 +58,8 @@ export async function initPersistence(): Promise<void> {
         workspaces,
         activeChatId,
         layout: loaded.layout ?? useApp.getState().layout,
-        expanded: loaded.expanded ?? useApp.getState().expanded
+        expanded: loaded.expanded ?? useApp.getState().expanded,
+        userItems: Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems
       })
     }
   } catch {
@@ -71,7 +74,8 @@ export async function initPersistence(): Promise<void> {
         workspaces: s.workspaces,
         activeChatId: s.activeChatId,
         layout: s.layout,
-        expanded: s.expanded
+        expanded: s.expanded,
+        userItems: s.userItems
       }
       void window.nac.state.save(snapshot)
     }, 400)

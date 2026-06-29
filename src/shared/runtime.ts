@@ -45,7 +45,12 @@ export const STATE_CHANNELS = {
 } as const
 
 export const DIALOG_CHANNELS = {
-  pickDirectory: 'dialog:pickDirectory'
+  pickDirectory: 'dialog:pickDirectory',
+  pickFile: 'dialog:pickFile'
+} as const
+
+export const FILES_CHANNELS = {
+  read: 'files:read'
 } as const
 
 export const DISCOVERY_CHANNELS = {

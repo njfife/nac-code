@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
-import { CONTEXT_ITEMS, ITEMS_BY_ID, TYPE_META, WINDOW_TOKENS, budgetColor, type ItemType } from '../data/context'
+import { CONTEXT_ITEMS, ITEMS_BY_ID, TYPE_META, WINDOW_TOKENS, budgetColor, type ItemType, type ContextItem } from '../data/context'
 
 type Category = 'attached' | ItemType
 
@@ -9,26 +9,39 @@ export default function ContextLibrary() {
   const active = useApp(selectActiveChat)
   const setView = useApp((s) => s.setView)
   const toggleAttach = useApp((s) => s.toggleAttach)
+  const userItems = useApp((s) => s.userItems)
+  const addNote = useApp((s) => s.addNote)
+  const addFileItem = useApp((s) => s.addFileItem)
+  const removeUserItem = useApp((s) => s.removeUserItem)
+
+  const allItems: ContextItem[] = [...userItems, ...CONTEXT_ITEMS]
+  const byId = (id: string): ContextItem | undefined => userItems.find((u) => u.id === id) ?? ITEMS_BY_ID[id]
 
   const [category, setCategory] = useState<Category>('attached')
   const [query, setQuery] = useState('')
   const [attachedOnly, setAttachedOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string>(active.attachedIds[0] ?? CONTEXT_ITEMS[0].id)
+  const [noteForm, setNoteForm] = useState<{ name: string; content: string } | null>(null)
 
   const attached = new Set(active.attachedIds)
-  const attachedTokens = active.attachedIds.reduce((sum, id) => sum + (ITEMS_BY_ID[id]?.tokens ?? 0), 0)
+  const attachedTokens = active.attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
   const pct = Math.min(100, Math.round((attachedTokens / WINDOW_TOKENS) * 100))
 
+  const onAddFile = async (): Promise<void> => {
+    const picked = await window.nac?.dialog?.pickFile()
+    if (picked) addFileItem(picked.name, picked.path)
+  }
+
   const q = query.trim().toLowerCase()
-  const list = CONTEXT_ITEMS.filter((it) => {
+  const list = allItems.filter((it) => {
     if (category === 'attached' ? !attached.has(it.id) : it.type !== category) return false
     if (attachedOnly && !attached.has(it.id)) return false
     if (q && !`${it.name} ${it.description} ${it.tags.join(' ')}`.toLowerCase().includes(q)) return false
     return true
   })
 
-  const typeCount = (t: ItemType): number => CONTEXT_ITEMS.filter((i) => i.type === t).length
-  const selected = ITEMS_BY_ID[selectedId]
+  const typeCount = (t: ItemType): number => allItems.filter((i) => i.type === t).length
+  const selected = byId(selectedId)
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--app-bg)' }}>
@@ -54,7 +67,10 @@ export default function ContextLibrary() {
           {(['skill', 'agent', 'instruction', 'file'] as ItemType[]).map((t) => (
             <CatBtn key={t} label={`${TYPE_META[t].label}s`} active={category === t} count={typeCount(t)} onClick={() => setCategory(t)} />
           ))}
-          <button style={importBtn}>+ New / Import</button>
+          <div style={{ marginTop: 'auto', display: 'flex', gap: 6 }}>
+            <button style={importBtn} onClick={() => setNoteForm({ name: '', content: '' })}>+ Note</button>
+            <button style={importBtn} onClick={onAddFile}>+ File</button>
+          </div>
         </nav>
 
         {/* List */}
@@ -137,11 +153,48 @@ export default function ContextLibrary() {
                   </span>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 6 }}>Display-only in v1 (FR-5.6).</div>
+              {selected.content && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted-2)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Content</div>
+                  <div className="mono" style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--code-bg)', borderRadius: 8, padding: 10, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{selected.content}</div>
+                </div>
+              )}
+              <div style={{ fontSize: 11.5, color: selected.content || selected.path ? 'var(--success)' : 'var(--faint)', marginTop: 10 }}>
+                {selected.content || selected.path ? '✓ Injected into the agent context when attached' : 'Display-only (no content)'}
+              </div>
+              {selected.user && (
+                <button onClick={() => { removeUserItem(selected.id); setSelectedId(CONTEXT_ITEMS[0].id) }} style={{ ...attachBtn, width: '100%', padding: 8, marginTop: 12, color: 'var(--error)', borderColor: 'var(--error)' }}>
+                  Delete item
+                </button>
+              )}
             </>
           )}
         </aside>
       </div>
+
+      {noteForm && (
+        <div onClick={() => setNoteForm(null)} style={noteBackdrop}>
+          <div onClick={(e) => e.stopPropagation()} style={noteCard}>
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>New note</div>
+            <input autoFocus value={noteForm.name} onChange={(e) => setNoteForm({ ...noteForm, name: e.target.value })} placeholder="Name (e.g. api-conventions)" style={noteInput} />
+            <textarea value={noteForm.content} onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })} placeholder="Text injected into the agent's context when this note is attached…" rows={6} style={{ ...noteInput, resize: 'vertical', fontFamily: 'inherit' }} />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button onClick={() => setNoteForm(null)} style={attachBtn}>Cancel</button>
+              <button
+                onClick={() => {
+                  if (noteForm.content.trim()) {
+                    addNote(noteForm.name, noteForm.content)
+                    setNoteForm(null)
+                  }
+                }}
+                style={attachedBtn}
+              >
+                Save note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -180,7 +233,10 @@ function Detail(props: { label: string; value: string }) {
 }
 
 const backBtn: CSSProperties = { background: 'var(--card)', color: 'var(--text-2)', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }
-const importBtn: CSSProperties = { marginTop: 'auto', background: 'transparent', border: '1px dashed var(--line-2)', color: 'var(--accent-light)', borderRadius: 8, padding: '8px', fontSize: 12.5, cursor: 'pointer' }
+const importBtn: CSSProperties = { flex: 1, background: 'transparent', border: '1px dashed var(--line-2)', color: 'var(--accent-light)', borderRadius: 8, padding: '8px', fontSize: 12.5, cursor: 'pointer' }
+const noteBackdrop: CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+const noteCard: CSSProperties = { width: 460, maxWidth: '90vw', background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 30px 90px rgba(0,0,0,.6)', padding: 16 }
+const noteInput: CSSProperties = { width: '100%', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', color: 'var(--text)', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }
 const tile: CSSProperties = { width: 26, height: 26, flexShrink: 0, borderRadius: 6, color: '#0c0c0f', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const attachBtn: CSSProperties = { background: 'var(--card)', color: 'var(--text-2)', border: '1px solid var(--line-2)', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }
 const attachedBtn: CSSProperties = { background: 'var(--accent-tint-3)', color: 'var(--accent-light)', border: '1px solid var(--accent)', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }

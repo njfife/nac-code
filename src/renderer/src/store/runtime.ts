@@ -1,5 +1,6 @@
 import { useApp, type Chat, type Turn } from './store'
 import { modelIdFor } from '../data/providers'
+import { ITEMS_BY_ID, type ContextItem } from '../data/context'
 
 // Renderer-side run controller: maps each run's AgentEvent stream onto the owning chat's transcript,
 // and decides native-resume vs transcript-replay per send.
@@ -45,6 +46,17 @@ export function buildReplayPrompt(summary: string | null, tail: Turn[], message:
   return `Here is the prior conversation, for context:\n\n${parts.join('\n\n')}\n\n---\nContinue the conversation.\n\nUser: ${message}`
 }
 
+// Inject attached context items (authored notes/skills + file contents) as a leading context block (FR-5).
+export function buildContextBlock(items: ContextItem[], fileContents: Record<string, string>): string {
+  const parts: string[] = []
+  for (const it of items) {
+    if (it.content && it.content.trim()) parts.push(`## ${it.name}\n${it.content.trim()}`)
+    else if (it.path && fileContents[it.path]) parts.push(`## ${it.name} (${it.path})\n\`\`\`\n${fileContents[it.path]}\n\`\`\``)
+  }
+  if (!parts.length) return ''
+  return `Attached context for this conversation:\n\n${parts.join('\n\n')}\n\n---\n\n`
+}
+
 export async function sendMessage(text: string): Promise<void> {
   const s = useApp.getState()
   const message = text.trim()
@@ -62,8 +74,22 @@ export async function sendMessage(text: string): Promise<void> {
   s.pushTurn(chatId, { id: `u_${now}`, role: 'user', text: message })
   s.pushTurn(chatId, { id: `a_${now}`, role: 'assistant', text: '', streaming: true })
   try {
+    let contextBlock = ''
+    if (!useNative) {
+      const attachedItems = chat.attachedIds
+        .map((id) => s.userItems.find((u) => u.id === id) ?? ITEMS_BY_ID[id])
+        .filter((i): i is ContextItem => Boolean(i))
+      const fileContents: Record<string, string> = {}
+      for (const it of attachedItems) {
+        if (it.path && !it.content) {
+          const c = await window.nac.files?.read(it.path)
+          if (c) fileContents[it.path] = c
+        }
+      }
+      contextBlock = buildContextBlock(attachedItems, fileContents)
+    }
     const { runId } = await window.nac.runs.start({
-      prompt: useNative ? message : buildReplayPrompt(chat.summary, tail, message),
+      prompt: useNative ? message : contextBlock + buildReplayPrompt(chat.summary, tail, message),
       provider: chat.provider,
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
       cwd,

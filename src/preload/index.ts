@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent, type ChangesResult, type FileDiffResult } from '../shared/runtime'
+import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent, type ChangesResult, type FileDiffResult } from '../shared/runtime'
 
 // The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
 // allowlisted IPC channels — never raw Node access in the renderer.
@@ -22,7 +22,11 @@ const api = {
     save: (data: unknown): Promise<void> => ipcRenderer.invoke(STATE_CHANNELS.save, data)
   },
   dialog: {
-    pickDirectory: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke(DIALOG_CHANNELS.pickDirectory)
+    pickDirectory: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke(DIALOG_CHANNELS.pickDirectory),
+    pickFile: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke(DIALOG_CHANNELS.pickFile)
+  },
+  files: {
+    read: (path: string): Promise<string> => ipcRenderer.invoke(FILES_CHANNELS.read, path)
   },
   models: {
     discover: (provider: string): Promise<string[]> => ipcRenderer.invoke(DISCOVERY_CHANNELS.models, provider)

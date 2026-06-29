@@ -101,3 +101,9 @@ async function readFileSafe(path: string): Promise<string> {
     return ''
   }
 }
+
+// Read a file for context injection (expands ~, caps size).
+export async function readFileForContext(rawPath: string): Promise<string> {
+  const text = await readFileSafe(resolveCwd(rawPath) ?? rawPath)
+  return text.length > 200_000 ? `${text.slice(0, 200_000)}\n…[truncated]` : text
+}

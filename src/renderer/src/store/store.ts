@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
 import { modelIdFor } from '../data/providers'
+import type { ContextItem } from '../data/context'
 import type { TurnUsage } from '../../../shared/runtime'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
@@ -106,6 +107,11 @@ interface AppState {
   endTurn: (chatId: string, error?: string) => void
   setSession: (chatId: string, sessionId: string, provider: string) => void
   recordUsage: (chatId: string, provider: string, usage: TurnUsage) => void
+  // user-authored context library items (notes + files), persisted
+  userItems: ContextItem[]
+  addNote: (name: string, content: string) => void
+  addFileItem: (name: string, path: string) => void
+  removeUserItem: (id: string) => void
 }
 
 const workspaces: Workspace[] = [
@@ -141,6 +147,7 @@ export const useApp = create<AppState>()((set, get) => ({
   modal: null,
   wsModalId: null,
   palette: false,
+  userItems: [],
 
   selectChat: (id) => set({ activeChatId: id }),
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
@@ -305,7 +312,20 @@ export const useApp = create<AppState>()((set, get) => ({
         costUsd: prev.costUsd + (u.costUsd ?? 0)
       }
       return { chats: { ...s.chats, [chatId]: { ...c, usage: { ...c.usage, [provider]: next } } } }
-    })
+    }),
+  addNote: (name, content) =>
+    set((s) => ({
+      userItems: [...s.userItems, { id: `u_${Date.now()}_${++chatSeq}`, type: 'instruction', name: name.trim() || 'note', description: content.trim().slice(0, 80), tokens: Math.ceil(content.length / 4), scope: 'workspace', source: 'user', tags: ['note'], content, user: true }]
+    })),
+  addFileItem: (name, path) =>
+    set((s) => ({
+      userItems: [...s.userItems, { id: `u_${Date.now()}_${++chatSeq}`, type: 'file', name: name.trim() || path.split('/').pop() || 'file', description: path, tokens: 0, scope: 'workspace', source: 'file', tags: ['file'], path, user: true }]
+    })),
+  removeUserItem: (id) =>
+    set((s) => ({
+      userItems: s.userItems.filter((i) => i.id !== id),
+      chats: Object.fromEntries(Object.entries(s.chats).map(([cid, c]) => [cid, { ...c, attachedIds: c.attachedIds.filter((a) => a !== id) }]))
+    }))
 }))
 
 // --- selectors / helpers ---

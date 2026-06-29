@@ -1,9 +1,9 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { discoverModels } from './discovery'
-import { getChanges, getFileDiff } from './changes'
+import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
@@ -106,4 +106,14 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))
   ipcMain.handle(CHANGES_CHANNELS.diff, (_e, cwd: string, file: string) => getFileDiff(cwd, file))
+
+  // File picker + read, for attaching real files to a chat's context.
+  ipcMain.handle(DIALOG_CHANNELS.pickFile, async (): Promise<{ path: string; name: string } | null> => {
+    const win = getWindow()
+    const opts: Electron.OpenDialogOptions = { properties: ['openFile'] }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (res.canceled || res.filePaths.length === 0) return null
+    return { path: res.filePaths[0], name: basename(res.filePaths[0]) }
+  })
+  ipcMain.handle(FILES_CHANNELS.read, (_e, path: string): Promise<string> => readFileForContext(path))
 }
