@@ -10,7 +10,9 @@
 
 **🎯 GOAL ACHIEVED — cross-provider context replay works** (`f043a43`): switching a chat between Claude and Codex preserves context. Native `--resume` is the same-provider Claude fast-path; any switch (or non-Claude provider) replays the stored transcript as priming context (the universal `buildContext` path, M0-8 Part B). **Verified end-to-end vs the real binaries** — a codeword planted in a Claude turn was recalled by Codex after the switch.
 
-**Next (follow-on, lower priority):** a **Copilot adapter** (3rd provider, CLI installed); **Codex native resume** (same-provider fast-path — currently Codex always replays, which works but re-sends the transcript each turn); token-streaming for Codex; large-transcript handling (compaction before replay); the visible UI gaps (workspace setup). **▶ Loop paused** at the core-goal milestone, awaiting Nathan's GUI test / feedback.
+**✅ Compaction-aware replay** (`287ae7b`): real compaction (was a mock) summarizes into a provider-neutral checkpoint (`summary` + `summarizedThrough`) and invalidates the native session, so replay = `summary + tail` (never the whole raw transcript) — bounded context no matter how many compactions, on any provider. One-shot `runs.summarize` runs the harness with no chat wiring. **Verified vs real binaries**: Claude summarized a planted codeword; Codex recalled it from the summary alone. Also fixed collision-prone `c_${Date.now()}` chat ids.
+
+**Next (follow-on, lower priority):** a **Copilot adapter** (3rd provider, CLI installed — completes Nathan's Claude/Codex/Copilot set); **Codex native resume** (same-provider fast-path — Codex currently always replays); token-streaming for Codex; the visible UI gaps (workspace setup). **▶ Loop running** — building the Copilot adapter next.
 
 ## Locked decisions (newest first)
 
