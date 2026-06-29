@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
+import { changesSummary } from '../data/changes'
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
@@ -9,6 +10,7 @@ export default function ChatView() {
   const active = useApp(selectActiveChat)
   const openModal = useApp((s) => s.openModal)
   const setView = useApp((s) => s.setView)
+  const changed = changesSummary().files
   const [prompt, setPrompt] = useState('')
   const [sent, setSent] = useState('')
   const [output, setOutput] = useState('')
@@ -59,11 +61,11 @@ export default function ChatView() {
           {active.model}
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          {['Files', 'Compact', 'Context: Standard ▾'].map((a) => (
-            <span key={a} style={headerAction}>
-              {a}
-            </span>
-          ))}
+          <span style={headerAction} onClick={() => setView('changes')}>
+            Files {changed > 0 && <span style={badge}>{changed}</span>}
+          </span>
+          <span style={headerAction}>Compact</span>
+          <span style={headerAction}>Context: Standard ▾</span>
         </div>
       </div>
 
@@ -215,3 +217,4 @@ const toolbarItem: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center'
 }
+const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }

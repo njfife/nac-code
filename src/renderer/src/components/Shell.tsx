@@ -5,6 +5,7 @@ import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
 import ContextLibrary from './ContextLibrary'
+import Changes from './Changes'
 import CommandPalette from './CommandPalette'
 
 const ACCOUNT = '@nfife_fontfife'
@@ -43,6 +44,8 @@ export default function Shell() {
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {view === 'context' ? (
           <ContextLibrary />
+        ) : view === 'changes' ? (
+          <Changes />
         ) : (
           <>
             <LeftRail />
