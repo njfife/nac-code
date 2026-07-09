@@ -43,7 +43,10 @@
 **✅ Context library v1** (`27e7e93`, `8c4d63f`): pillar 1 is real — authored **notes** (in-app form) + **file** attach (picker) become items with real content/path; attaching injects them as a leading context block on the non-native send path (seeds the session; resume turns inherit, re-seeded on switch/compaction). Persisted. Verified vs a real harness (an attached note's rule was followed). The "seeds once per session" behavior is **surfaced in the UI**: a "context changed · apply now" pill (composer) + banner (library) appear when attachments differ from what was seeded (`contextPending`); **Apply now** (`reseedContext`) drops the session so the next send re-seeds.
 
 **Next — roadmap toward a daily-drivable app (owner-prioritized 2026-07-09):**
-1. **▶ IN PROGRESS: Interactive run transport (ACP/app-server)** — permission prompts ("can I edit this file?") + structured tool events replacing one-shot headless runs and flattened `[tool: X]` text. Builds on the M4 protocol clients (copilot ACP, codex app-server); unlocks codex token-streaming. The "wrapper, never a harness" thesis fully realized.
+1. **Interactive run transport (ACP/app-server)** — permission prompts + structured tool events replacing one-shot headless runs. Decomposed into per-transport pillars behind the `TransportSession` seam:
+   - ✅ **Pillar 1 — copilot ACP** (PR #3/#4, merged): permission cards, tool rows, real cancel, native + restart continuity, replay-clean. Live-verified.
+   - ▶ **Pillar 2 — codex app-server** (next): richest surface — token-streaming, turn diffs, guardian approvals; codex is a primary harness. Reuses the seam + captured v2 schema (thread/turn lifecycle already probed in scratch).
+   - **Pillar 3 — claude**, **Pillar 4 — opencode acp**: after pillar 2.
 2. **No-fake-pixels sweep** — remove seed demo chats on fresh state; real Inspector context-window/cost rows (contextK + $0.42 are fake); agent picker wiring (`--agent`); closes M0-5 error/empty states.
 3. **Context library polish** — edit notes; mid-conversation re-seed on attachment change; per-harness-native injection.
 4. **Packaging** (electron-builder) — after #1 makes daily-driving real. Known constraint: registry/adapters assume PATH access, which Finder-launched packaged apps don't inherit.
