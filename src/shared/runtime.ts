@@ -76,6 +76,31 @@ export interface ProviderProbe {
   version?: string
 }
 
+export const CAPABILITIES_CHANNELS = {
+  get: 'capabilities:get'
+} as const
+
+// Per-account model & capability discovery (M4 pillar one). One neutral shape for every provider.
+export interface DiscoveredModel {
+  id: string // harness model id (what --model / -m receives)
+  label: string // display name
+  isDefault?: boolean
+  efforts?: string[] // per-model scale (codex); absent = provider-wide scale applies
+  defaultEffort?: string
+  variants?: { id: string; label: string }[] // e.g. claude sonnet[1m]
+  gated?: boolean // learned: this account's harness rejected the id
+  note?: string // honest caveat (e.g. '9x usage', 'session-only')
+}
+
+export interface ProviderCapabilities {
+  provider: string
+  source: 'protocol' | 'static' | 'static+learned'
+  models: DiscoveredModel[]
+  efforts: string[] // provider-wide effort scale (fallback when models carry none)
+  effortNote?: string // honest caveat shown under the effort chips (e.g. claude session-only levels)
+  fetchedAt: number
+}
+
 // Real working-tree changes for a workspace (FR-12), read from git.
 export type FileStatus = 'added' | 'modified' | 'deleted'
 export interface ChangedFileInfo {
