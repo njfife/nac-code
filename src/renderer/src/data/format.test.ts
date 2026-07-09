@@ -20,4 +20,7 @@ describe('costLabel', () => {
   it('no turns yet is an em dash', () => {
     expect(costLabel(chat('codex', 'GPT-5.5', {}))).toBe('—')
   })
+  it('real accumulated cost wins over the local shortcut (matrix order is binding)', () => {
+    expect(costLabel(chat('opencode', 'lmstudio-local/qwen/qwen3.6-27b', { opencode: { turns: 2, inputTokens: 1, outputTokens: 1, costUsd: 0.5 } }))).toBe('$0.50')
+  })
 })
