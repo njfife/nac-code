@@ -57,6 +57,7 @@ export class JsonRpcClient {
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
   private notificationHandlers = new Map<string, (params: unknown) => void>()
   private requestHandlers = new Map<string, (params: unknown) => Promise<unknown> | unknown>()
+  private closeHandlers: Array<() => void> = []
   private closed = false
 
   constructor(command: string, args: string[]) {
@@ -78,11 +79,23 @@ export class JsonRpcClient {
         }
       }
     })
-    this.child.on('error', (err) => this.failAll(err))
-    this.child.on('close', () => {
-      this.closed = true
-      this.failAll(new Error('rpc server closed'))
-    })
+    // 'close' follows 'error' on spawn failure (verified on darwin/Node 20) — the shared
+    // idempotent path collapses the pair to one closed-transition and one handler firing.
+    this.child.on('error', (err) => this.handleClose(err))
+    this.child.on('close', () => this.handleClose(new Error('rpc server closed')))
+  }
+
+  private handleClose(err: Error): void {
+    if (this.closed) return
+    this.closed = true
+    this.failAll(err)
+    for (const h of this.closeHandlers) {
+      try {
+        h()
+      } catch {
+        // a broken close handler must not crash the transport
+      }
+    }
   }
 
   /** True once the child process has exited — further requests would hang forever on a dead pipe. */
@@ -116,6 +129,21 @@ export class JsonRpcClient {
 
   onRequest(method: string, handler: (params: unknown) => Promise<unknown> | unknown): void {
     this.requestHandlers.set(method, handler)
+  }
+
+  /** Fired when the child process exits — the only signal a transport gets that no more
+   *  notifications (e.g. turn/completed) are coming. Handlers run after pending requests are failed.
+   *  Registering after the child already exited fires the handler immediately (no missed signal). */
+  onClose(handler: () => void): void {
+    if (this.closed) {
+      try {
+        handler()
+      } catch {
+        // a broken close handler must not crash the transport
+      }
+      return
+    }
+    this.closeHandlers.push(handler)
   }
 
   notify(method: string, params?: unknown): void {

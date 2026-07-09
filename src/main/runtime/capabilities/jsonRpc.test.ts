@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRpcLine, LineDecoder, classifyRpcMessage } from './jsonRpc'
+import { parseRpcLine, LineDecoder, classifyRpcMessage, JsonRpcClient } from './jsonRpc'
 
 describe('parseRpcLine', () => {
   it('parses codex-style responses that omit the jsonrpc field', () => {
@@ -38,5 +38,55 @@ describe('classifyRpcMessage', () => {
     expect(classifyRpcMessage({ id: 0, method: 'session/request_permission' })).toBe('server-request')
     expect(classifyRpcMessage({ method: 'session/update' })).toBe('notification')
     expect(classifyRpcMessage({ id: 1, error: { code: -32601 } })).toBe('response')
+  })
+})
+
+describe('JsonRpcClient close handling', () => {
+  it('invokes onClose handlers once the underlying child process exits', async () => {
+    // Real short-lived child (no mocking harness in this repo for spawn) — exits immediately,
+    // which is exactly the "server closed" signal onClose must surface.
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    const fired = await new Promise<boolean>((resolve) => {
+      client.onClose(() => resolve(true))
+    })
+    expect(fired).toBe(true)
+    expect(client.isClosed).toBe(true)
+  })
+
+  it('does not let a throwing onClose handler stop other handlers from running', async () => {
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    client.onClose(() => {
+      throw new Error('boom')
+    })
+    const fired = await new Promise<boolean>((resolve) => {
+      client.onClose(() => resolve(true))
+    })
+    expect(fired).toBe(true)
+  })
+
+  it('fires an onClose handler registered AFTER the child already exited', async () => {
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    await new Promise<void>((resolve) => client.onClose(resolve))
+    // Late subscriber (e.g. a transport wired up after a crash-on-spawn) must still be told.
+    const late = await new Promise<boolean>((resolve) => {
+      client.onClose(() => resolve(true))
+    })
+    expect(late).toBe(true)
+  })
+
+  it('marks the client closed and fires handlers exactly once on spawn failure', async () => {
+    const client = new JsonRpcClient('definitely-not-a-real-binary-xyz', [])
+    let fires = 0
+    await new Promise<void>((resolve) => {
+      client.onClose(() => {
+        fires++
+        resolve()
+      })
+    })
+    // 'close' follows 'error' on ENOENT — the once-guard must collapse the pair to one firing.
+    await new Promise((r) => setTimeout(r, 50))
+    expect(fires).toBe(1)
+    expect(client.isClosed).toBe(true)
+    await expect(client.request('initialize', {}, 200)).rejects.toThrow()
   })
 })

@@ -64,7 +64,7 @@ export default function Inspector() {
         <Panel title="Token & Cost" defaultOpen>
           <Row>
             <span style={lbl}>Tokens this session</span>
-            <span className="mono" style={val}>~{active.contextK}k</span>
+            <span className="mono" style={val}>{active.contextLive ? '' : '~'}{active.contextK}k</span>
           </Row>
           <Row>
             <span style={lbl}>Cost</span>

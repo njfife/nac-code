@@ -72,6 +72,7 @@ export interface Chat {
   compacted: boolean
   contextK: number
   windowK: number
+  contextLive?: boolean // context bar shows REAL harness-reported numbers (codex app-server); reset on hydrate/provider switch
   branchedFrom: string | null
   messages: Turn[] // conversation transcript (provider-neutral source of truth — M0-8)
   sessionId: string | null // native session id (provider-specific)
@@ -128,6 +129,7 @@ interface AppState {
   endTurn: (chatId: string, error?: string) => void
   setSession: (chatId: string, sessionId: string, provider: string) => void
   recordUsage: (chatId: string, provider: string, usage: TurnUsage) => void
+  setLiveContext: (chatId: string, usedTokens: number, windowTokens?: number) => void
   upsertTool: (chatId: string, row: ToolRow) => void
   upsertPermission: (chatId: string, card: PermissionCard) => void
   resolvePermission: (chatId: string, requestId: string, optionId: string) => void
@@ -145,7 +147,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
-const base = { yolo: false, fast: false, effort: null as string | null, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
+const base = { yolo: false, fast: false, effort: null as string | null, compacting: false, compacted: false, contextLive: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -214,7 +216,8 @@ export const useApp = create<AppState>()((set, get) => ({
       const scale = effortScaleFor(s.caps[provider], model)
       // Effort scales aren't portable: reset on provider switch, and clamp to the new model's scale.
       const effort = provider !== chat.provider ? null : chat.effort && !scale.includes(chat.effort) ? null : chat.effort
-      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort } } }
+      const contextLive = provider !== chat.provider ? false : chat.contextLive
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort, contextLive } } }
     }),
   setAgent: (agent) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
@@ -349,7 +352,16 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const messages = updateLast(c.messages, (t) => ({ ...t, streaming: false, error: Boolean(error), text: error ? `${t.text}\n[error] ${error}` : t.text }))
+      // Interrupted/errored turns can leave tool rows mid-flight (codex turn/interrupt never
+      // completes the open item) — same doctrine as the hydration sanitizer: nothing stays
+      // live-looking once the run is over.
+      const messages = updateLast(c.messages, (t) => ({
+        ...t,
+        streaming: false,
+        error: Boolean(error),
+        text: error ? `${t.text}\n[error] ${error}` : t.text,
+        tools: t.tools?.map((x) => (x.status === 'pending' || x.status === 'running' ? { ...x, status: 'failed' as const } : x))
+      }))
       return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
     }),
   setSession: (chatId, sessionId, provider) =>
@@ -370,6 +382,22 @@ export const useApp = create<AppState>()((set, get) => ({
         costUsd: prev.costUsd + (u.costUsd ?? 0)
       }
       return { chats: { ...s.chats, [chatId]: { ...c, usage: { ...c.usage, [provider]: next } } } }
+    }),
+  setLiveContext: (chatId, usedTokens, windowTokens) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c || usedTokens <= 0) return {}
+      return {
+        chats: {
+          ...s.chats,
+          [chatId]: {
+            ...c,
+            contextK: Math.max(1, Math.round(usedTokens / 1000)),
+            windowK: windowTokens && windowTokens > 0 ? Math.round(windowTokens / 1000) : c.windowK,
+            contextLive: true
+          }
+        }
+      }
     }),
   upsertTool: (chatId, row) =>
     set((s) => {

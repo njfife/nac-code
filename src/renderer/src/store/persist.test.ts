@@ -34,4 +34,9 @@ describe('normalizeChat — never restore live-looking tool/permission state', (
     const raw = { fast: false, messages: [{ id: 'a', role: 'assistant', text: 'x', streaming: true }] } as never
     expect(normalizeChat(raw, 'c_stream').messages[0].streaming).toBe(false)
   })
+
+  it('never rehydrates contextLive', () => {
+    const raw = { fast: false, contextLive: true, messages: [] } as never
+    expect(normalizeChat(raw, 'c_ctx').contextLive).toBe(false)
+  })
 })

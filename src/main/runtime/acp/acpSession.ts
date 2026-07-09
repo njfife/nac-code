@@ -6,8 +6,16 @@ import { resolveCwd } from '../paths'
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
 const HANDSHAKE_TIMEOUT_MS = 10_000
 
+export interface PromptOpts {
+  model?: string
+  effort?: string
+}
+
 export interface TransportSession {
-  prompt(runId: string, text: string): void
+  readonly busy: boolean
+  readonly dead: boolean
+  setYolo(y: boolean): void
+  prompt(runId: string, text: string, opts?: PromptOpts): void
   respondPermission(requestId: string, optionId: string): void
   cancel(): void
   dispose(): void
@@ -79,7 +87,7 @@ export class AcpSession implements TransportSession {
         // Re-throw: the caller sent a BARE message (renderer chose native continuity, no replay
         // text seeded). Falling through to session/new here would silently start an empty
         // session and drop the conversation — a hard context-preservation violation. Rejecting
-        // connect() instead makes promptViaAcp resolve { ok: false }, so ipc.ts falls back to the
+        // connect() instead makes promptViaTransport resolve { ok: false }, so ipc.ts falls back to the
         // one-shot startCopilotRun(sessionId) path, which uses --resume to preserve context.
         throw e instanceof Error ? e : new Error(String(e))
       } finally {
@@ -127,7 +135,8 @@ export class AcpSession implements TransportSession {
     return this.currentRunId !== null
   }
 
-  prompt(runId: string, text: string): void {
+  prompt(runId: string, text: string, _opts?: PromptOpts): void {
+    // pillar-1 limitation: copilot ACP runs the account-default model; opts are honored by CodexSession
     if (!this.sessionId) throw new Error('acp: no session')
     this.currentRunId = runId
     this.onEvent({ type: 'run.started', runId, sessionId: this.sessionId })

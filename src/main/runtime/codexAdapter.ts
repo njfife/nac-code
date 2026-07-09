@@ -24,7 +24,7 @@ interface CodexEvent {
 }
 
 // Codex wraps shell commands as `/bin/zsh -lc '<cmd>'` — unwrap to the readable inner command.
-function readableCommand(raw: string): string {
+export function readableCommand(raw: string): string {
   const m = raw.match(/^\/bin\/(?:zsh|bash|sh)\s+-l?c\s+'([\s\S]*)'$/)
   return m ? m[1] : raw
 }

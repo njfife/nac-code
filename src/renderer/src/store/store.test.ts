@@ -196,6 +196,18 @@ describe('app store — per-chat spine', () => {
     expect(turn.tools).toEqual([{ toolCallId: 't1', title: 'Run x', status: 'completed', detail: 'done' }])
   })
 
+  it('endTurn sweeps still-open tools to failed (interrupted turn leaves no live spinner)', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a8', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'r1', title: 'sleep 40', kind: 'execute', status: 'running' })
+    s.upsertTool(id, { toolCallId: 'r2', title: 'touch x', kind: 'execute', status: 'completed' })
+    s.endTurn(id)
+    const turn = useApp.getState().chats[id].messages.at(-1)!
+    expect(turn.tools?.find((t) => t.toolCallId === 'r1')?.status).toBe('failed')
+    expect(turn.tools?.find((t) => t.toolCallId === 'r2')?.status).toBe('completed')
+  })
+
   it('permission cards resolve in place', () => {
     const s = useApp.getState()
     const id = s.activeChatId
@@ -215,5 +227,18 @@ describe('app store — per-chat spine', () => {
     const msgs = useApp.getState().chats[id].messages
     expect(msgs.at(-1)!.tools).toBeUndefined() // user turn untouched
     expect(msgs.at(-2)!.tools?.[0].toolCallId).toBe('late')
+  })
+
+  it('setLiveContext maps real tokens onto contextK/windowK and marks the chat live', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42305, 272000)
+    const c = useApp.getState().chats[id]
+    expect(c.contextK).toBe(42)
+    expect(c.windowK).toBe(272)
+    expect(c.contextLive).toBe(true)
+    s.setLiveContext(id, 61000) // window omitted: keep the previous window
+    expect(useApp.getState().chats[id].contextK).toBe(61)
+    expect(useApp.getState().chats[id].windowK).toBe(272)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCodexLine, codexArgs } from './codexAdapter'
+import { parseCodexLine, codexArgs, readableCommand } from './codexAdapter'
 
 describe('codexArgs (autonomy)', () => {
   it('is read-only by default and workspace-write under yolo', () => {
@@ -63,5 +63,12 @@ describe('parseCodexLine', () => {
   it('ignores turn.started and non-JSON noise', () => {
     expect(parseCodexLine('r', '{"type":"turn.started"}')).toEqual([])
     expect(parseCodexLine('r', '2026-06-29 ERROR rmcp transport closed')).toEqual([])
+  })
+})
+
+describe('readableCommand', () => {
+  it('unwraps zsh -lc wrapping (as app-server commandExecution items arrive)', () => {
+    expect(readableCommand("/bin/zsh -lc 'touch nac-approval-probe.txt'")).toBe('touch nac-approval-probe.txt')
+    expect(readableCommand('plain command')).toBe('plain command')
   })
 })
