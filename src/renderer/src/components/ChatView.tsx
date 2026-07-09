@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { useApp, selectActiveChat, contextPending } from '../store/store'
-import { sendMessage, isStreaming } from '../store/runtime'
+import { useApp, selectActiveChat, contextPending, type Turn } from '../store/store'
+import { sendMessage, isStreaming, runIdForChat } from '../store/runtime'
 import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
 import { effortScaleFor } from '../../../shared/capabilities'
+import ToolRow from './ToolRow'
+import PermissionCard from './PermissionCard'
 
 // Center pane: chat header · thread · composer. Send drives a real run (Claude adapter) or the stub;
 // streamed AgentEvents land in the chat's transcript via the run controller.
@@ -25,6 +27,7 @@ export default function ChatView() {
   const messages = active.messages ?? [] // defensive: tolerate stale data missing the field
   const pending = contextPending(active)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const runId = runIdForChat(active.id) // cards only appear on the streaming turn, so this is unambiguous
   const cwd = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.path) ?? ''
   const [changed, setChanged] = useState(0)
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function ChatView() {
             </p>
           )}
           {messages.map((m) => (
-            <Message key={m.id} role={m.role} text={m.text} streaming={m.streaming} error={m.error} />
+            <Message key={m.id} turn={m} runId={runId} />
           ))}
           <div ref={bottomRef} />
         </div>
@@ -163,11 +166,22 @@ export default function ChatView() {
               <span onClick={() => toggleYolo()} style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}>
                 YOLO{active.yolo ? ' ●' : ''}
               </span>
+              {streaming && (
+                <button
+                  onClick={() => {
+                    const r = runIdForChat(active.id)
+                    if (r) void window.nac.runs.cancel(r)
+                  }}
+                  style={{ ...stopBtn, marginLeft: 'auto' }}
+                >
+                  Stop
+                </button>
+              )}
               <button
                 onClick={send}
                 disabled={streaming || !prompt.trim()}
                 style={{
-                  marginLeft: 'auto',
+                  marginLeft: streaming ? undefined : 'auto',
                   background: streaming || !prompt.trim() ? '#3a3a44' : 'var(--accent)',
                   color: '#fff',
                   border: 'none',
@@ -188,11 +202,15 @@ export default function ChatView() {
   )
 }
 
-function Message(props: { role: 'user' | 'assistant'; text: string; streaming?: boolean; error?: boolean }) {
-  const isNc = props.role === 'assistant'
+function Message(props: { turn: Turn; runId?: string }) {
+  const { turn } = props
+  const isNc = turn.role === 'assistant'
   // Strip leading whitespace (some models — e.g. reasoning models via OpenCode — emit leading newlines
   // that render as a gap under the header); fully trim once the turn is done.
-  const text = props.streaming ? props.text.replace(/^\s+/, '') : props.text.trim()
+  const text = turn.streaming ? turn.text.replace(/^\s+/, '') : turn.text.trim()
+  function respondPermission(requestId: string, optionId: string): void {
+    if (props.runId) void window.nac.runs.respondPermission(props.runId, requestId, optionId)
+  }
   return (
     <div style={{ display: 'flex', gap: 12 }}>
       <div
@@ -214,9 +232,15 @@ function Message(props: { role: 'user' | 'assistant'; text: string; streaming?: 
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="mono" style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{isNc ? 'NAC Code' : 'You'}</div>
-        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: props.error ? 'var(--error)' : 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
+        {turn.permissions?.map((p) => (
+          <PermissionCard key={p.requestId} card={p} onRespond={(optionId) => respondPermission(p.requestId, optionId)} />
+        ))}
+        {turn.tools?.map((t) => (
+          <ToolRow key={t.toolCallId} tool={t} />
+        ))}
+        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: turn.error ? 'var(--error)' : 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
           {text}
-          {props.streaming && (
+          {turn.streaming && (
             <span style={{ display: 'inline-block', width: 7, height: 15, marginLeft: 2, background: 'var(--accent)', verticalAlign: 'text-bottom', animation: 'nac-blink 1.1s step-end infinite' }} />
           )}
         </div>
@@ -233,3 +257,4 @@ const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10,
 const configPopover: CSSProperties = { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 250, background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.55)', padding: 6, zIndex: 50 }
 const configRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
 const configSaveRow: CSSProperties = { padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--accent-light)', cursor: 'pointer' }
+const stopBtn: CSSProperties = { background: 'var(--card)', color: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer' }

@@ -123,3 +123,8 @@ export function isStreaming(chat: Chat): boolean {
   if (!msgs || msgs.length === 0) return false
   return Boolean(msgs[msgs.length - 1]?.streaming)
 }
+
+// Reverse-lookup: the run id currently driving a chat's streaming turn (for Stop / permission responses).
+export function runIdForChat(chatId: string): string | undefined {
+  return Object.keys(runToChat).find((r) => runToChat[r] === chatId)
+}
