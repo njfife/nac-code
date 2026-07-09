@@ -9,6 +9,8 @@ export function costLabel(chat: Pick<Chat, 'provider' | 'model' | 'usage'>): str
   const real = Object.values(chat.usage).reduce((sum, u) => sum + (u.costUsd ?? 0), 0)
   if (real > 0) return real < 0.01 ? '<$0.01' : `$${real.toFixed(2)}`
   if (chat.provider === 'opencode' && chat.model.startsWith('lmstudio')) return 'free · local'
-  if (Object.values(chat.usage).some((u) => u.turns > 0)) return '$0.00'
+  // $0.00 only when a harness actually REPORTED cost (measured zero). A provider that supplies no
+  // cost signal at all (codex) is unknown, not free — the em dash stays.
+  if (Object.values(chat.usage).some((u) => u.turns > 0 && u.costKnown)) return '$0.00'
   return '—'
 }

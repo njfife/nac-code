@@ -161,7 +161,8 @@ describe('app store — per-chat spine', () => {
     expect(u.claude.inputTokens).toBe(150)
     expect(u.claude.outputTokens).toBe(30)
     expect(u.claude.costUsd).toBeCloseTo(0.07)
-    expect(u.codex).toEqual({ turns: 1, inputTokens: 200, outputTokens: 0, costUsd: 0 })
+    expect(u.codex).toEqual({ turns: 1, inputTokens: 200, outputTokens: 0, costUsd: 0, costKnown: false }) // codex reports no cost signal
+    expect(u.claude.costKnown).toBe(true)
   })
 
   it('addNote creates an injectable user item (FR-5)', () => {

@@ -54,7 +54,8 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     sessionProvider: c.sessionProvider ?? (c.claudeSessionId ? 'claude' : null),
     summary: c.summary ?? null,
     summarizedThrough: typeof c.summarizedThrough === 'number' ? c.summarizedThrough : 0,
-    usage: c.usage ?? {},
+    // Legacy usage entries predate costKnown: treat a positive figure as known, zero as unknown.
+    usage: Object.fromEntries(Object.entries(c.usage ?? {}).map(([k, u]) => [k, { ...u, costKnown: u.costKnown ?? u.costUsd > 0 }])),
     seededAttachments: Array.isArray(c.seededAttachments) ? c.seededAttachments : null
   }
 }

@@ -51,6 +51,9 @@ export interface ProviderUsage {
   inputTokens: number
   outputTokens: number
   costUsd: number
+  // True once any turn actually REPORTED a cost figure — distinguishes measured $0.00 (opencode
+  // free tier) from providers that supply no cost signal at all (codex → the UI keeps '—').
+  costKnown: boolean
 }
 
 export interface Chat {
@@ -432,12 +435,13 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const prev = c.usage[provider] ?? { turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 }
+      const prev = c.usage[provider] ?? { turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, costKnown: false }
       const next = {
         turns: prev.turns + 1,
         inputTokens: prev.inputTokens + (u.inputTokens ?? 0),
         outputTokens: prev.outputTokens + (u.outputTokens ?? 0),
-        costUsd: prev.costUsd + (u.costUsd ?? 0)
+        costUsd: prev.costUsd + (u.costUsd ?? 0),
+        costKnown: prev.costKnown || u.costUsd !== undefined
       }
       return { chats: { ...s.chats, [chatId]: { ...c, usage: { ...c.usage, [provider]: next } } } }
     }),

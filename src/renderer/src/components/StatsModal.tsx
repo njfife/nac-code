@@ -60,7 +60,7 @@ export default function StatsModal() {
                       )}
                     </span>
                     <span className="mono" style={{ marginLeft: 'auto', fontSize: 12.5, color: u.costUsd > 0 ? 'var(--text)' : 'var(--success)' }}>
-                      {u.costUsd > 0 ? fmtCost(u.costUsd) : u.turns > 0 ? '$0.00' : '—'}
+                      {u.costUsd > 0 ? fmtCost(u.costUsd) : u.turns > 0 && u.costKnown ? '$0.00' : '—'}
                     </span>
                   </div>
                 ))
