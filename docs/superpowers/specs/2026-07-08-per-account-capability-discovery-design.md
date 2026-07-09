@@ -30,8 +30,8 @@ no hardcoded, possibly-wrong lists.
 
 | Provider | Model list surface | Effort surface | Notes |
 |---|---|---|---|
-| codex | app-server v2 JSON-RPC `model/list` → `Model{id, displayName, description, isDefault, hidden, supportedReasoningEfforts, defaultReasoningEffort, …}` (schema dumped via `codex app-server generate-json-schema`) | per-model `supportedReasoningEfforts` | `-m gpt-5.5` (plan id) verified working on the owner's ChatGPT account; `-m gpt-5-codex` 400s ("not supported with a ChatGPT account") — gating is per-id, not blanket. app-server is EXPERIMENTAL. |
-| copilot | `models.list` JSON-RPC (docs-confirmed; known issue #1608: response omits the configured default) | documented flag choices: `none, minimal, low, medium, high, xhigh, max` | configured default lives in `~/.copilot/settings.json` (`model`, `effortLevel`). Bogus model → clean error `Model "X" from --model flag is not available.` |
+| codex | **app-server v2 `model/list`, verified live 2026-07-08**: newline-delimited JSON-RPC over stdio; `initialize` (clientInfo) → `model/list` → `data[]` of `Model{id, displayName, description, isDefault, hidden, supportedReasoningEfforts[{reasoningEffort, description}], defaultReasoningEffort, serviceTiers, …}`. NOTE: responses omit the `jsonrpc` field — the parser must not require it. | per-model `supportedReasoningEfforts` (owner's gpt-5.5: low/medium/high/xhigh, default medium) | `-m gpt-5.5` (plan id) verified working on the owner's ChatGPT account; `-m gpt-5-codex` 400s ("not supported with a ChatGPT account") — gating is per-id, not blanket. app-server is EXPERIMENTAL. |
+| copilot | **ACP (`copilot --acp`), verified live 2026-07-08**: `initialize` (protocolVersion 1) → `session/new` → `result.models.availableModels` (11 models on the owner's account: modelId, name, description, `_meta.copilotUsage` multiplier, `_meta.copilotEnablement`) + `currentModelId`. The docs-reported `models.list` method returns -32601 on this surface. | documented flag choices: `none, minimal, low, medium, high, xhigh, max` | Bogus model → clean error `Model "X" from --model flag is not available.` ACP also exposes session modes (agent/plan/autopilot) — out of scope, noted for the future run-transport milestone. |
 | claude | none headless — alias set (fable/opus/sonnet/haiku + `[1m]`) fixed per CLI version, account-gated at request time | `--effort low|medium|high|xhigh|max` (+ `ultracode`, session-only; `max` session-only; per-model support varies; org caps may clamp) | bad model → structured result JSON with `is_error`, `api_error_status: 404` |
 | opencode | `opencode models` (already wired) | `--variant`, model-dependent | unchanged |
 
@@ -74,10 +74,11 @@ One strategy per provider behind `discoverCapabilities(provider)`:
   kill the child. Any protocol/spawn error, malformed frame, or timeout (5s) → static
   fallback. JSON-RPC framing + response mapping are pure, exported, fixture-tested
   against the dumped schema shapes.
-- **copilot.ts** — invoke its `models.list` JSON-RPC surface (exact transport verified
-  at implementation start — docs confirm the method exists for v1.0.69+); merge in the
-  configured default from `~/.copilot/settings.json` if the response omits it (issue
-  #1608). Provider-wide efforts = the 7 documented values. Read-only file access.
+- **copilot.ts** — spawn `copilot --acp` (stdio, standard ACP JSON-RPC, verified live):
+  `initialize` (protocolVersion 1) → `session/new` (`cwd`: home dir, `mcpServers: []`)
+  → map `result.models.availableModels` (modelId → id, name → label; carry
+  `_meta.copilotUsage` into `note`, e.g. "9x usage") and `currentModelId` → `isDefault`;
+  kill the child. Provider-wide efforts = the 7 documented values.
 - **claude.ts** — static base: current aliases + 1M variant, efforts
   `low|medium|high|xhigh|max` (+`ultracode` with `note: 'session-only'`); merge the
   gating ledger → `source: 'static+learned'`.
