@@ -31,6 +31,15 @@ export function initRuntime(): void {
         s.endTurn(chatId, event.message)
         delete runToChat[event.runId]
         break
+      case 'tool.updated':
+        s.upsertTool(chatId, { toolCallId: event.toolCallId, title: event.title, kind: event.kind, status: event.status, detail: event.detail })
+        break
+      case 'permission.requested':
+        s.upsertPermission(chatId, { requestId: event.requestId, title: event.title, detail: event.detail, options: event.options })
+        break
+      case 'permission.resolved':
+        s.resolvePermission(chatId, event.requestId, event.optionId)
+        break
     }
   })
 }
@@ -95,6 +104,7 @@ export async function sendMessage(text: string): Promise<void> {
     const { runId } = await window.nac.runs.start({
       prompt: useNative ? message : contextBlock + buildReplayPrompt(chat.summary, tail, message),
       provider: chat.provider,
+      chatId,
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
       cwd,
       yolo: chat.yolo,

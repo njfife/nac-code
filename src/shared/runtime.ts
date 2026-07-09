@@ -4,6 +4,7 @@
 export interface RunRequest {
   prompt: string
   provider?: string // harness driver id; selects the adapter (e.g. 'claude' → real, else stub)
+  chatId?: string // session-affinity key for persistent transports
   sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)
   cwd?: string // working directory for the harness = the chat's workspace folder (agents act on real code)
   yolo?: boolean // autonomy: on = full file/command access; off (default) = restricted per harness (M0-2)

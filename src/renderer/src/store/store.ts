@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
 import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor } from '../../../shared/capabilities'
 import type { ContextItem } from '../data/context'
-import type { TurnUsage, ProviderCapabilities } from '../../../shared/runtime'
+import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
@@ -20,6 +20,21 @@ export interface Workspace {
   defaults?: WorkspaceDefaults // new chats here inherit these (else fall back to active-chat inheritance — M0-4)
 }
 
+export interface ToolRow {
+  toolCallId: string
+  title: string
+  kind?: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  detail?: string
+}
+export interface PermissionCard {
+  requestId: string
+  title: string
+  detail?: string
+  options: PermissionOption[]
+  resolvedOptionId?: string
+}
+
 // A turn in the provider-neutral transcript (M0-8 source of truth — renders the UI and, later, powers replay).
 export interface Turn {
   id: string
@@ -27,6 +42,8 @@ export interface Turn {
   text: string
   streaming?: boolean
   error?: boolean
+  tools?: ToolRow[] // render-only history — NEVER read by buildReplayPrompt
+  permissions?: PermissionCard[]
 }
 
 // Accumulated metering for a chat, keyed by provider (each provider reports in its own units).
@@ -111,6 +128,9 @@ interface AppState {
   endTurn: (chatId: string, error?: string) => void
   setSession: (chatId: string, sessionId: string, provider: string) => void
   recordUsage: (chatId: string, provider: string, usage: TurnUsage) => void
+  upsertTool: (chatId: string, row: ToolRow) => void
+  upsertPermission: (chatId: string, card: PermissionCard) => void
+  resolvePermission: (chatId: string, requestId: string, optionId: string) => void
   // user-authored context library items (notes + files), persisted
   userItems: ContextItem[]
   addNote: (name: string, content: string) => void
@@ -337,6 +357,42 @@ export const useApp = create<AppState>()((set, get) => ({
         costUsd: prev.costUsd + (u.costUsd ?? 0)
       }
       return { chats: { ...s.chats, [chatId]: { ...c, usage: { ...c.usage, [provider]: next } } } }
+    }),
+  upsertTool: (chatId, row) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      const messages = updateLast(c.messages, (t) => {
+        const tools = t.tools ? [...t.tools] : []
+        const i = tools.findIndex((x) => x.toolCallId === row.toolCallId)
+        if (i >= 0) tools[i] = { ...tools[i], ...row }
+        else tools.push(row)
+        return { ...t, tools }
+      })
+      return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
+    }),
+  upsertPermission: (chatId, card) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      const messages = updateLast(c.messages, (t) => {
+        const permissions = t.permissions ? [...t.permissions] : []
+        const i = permissions.findIndex((x) => x.requestId === card.requestId)
+        if (i >= 0) permissions[i] = { ...permissions[i], ...card }
+        else permissions.push(card)
+        return { ...t, permissions }
+      })
+      return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
+    }),
+  resolvePermission: (chatId, requestId, optionId) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      const messages = updateLast(c.messages, (t) => ({
+        ...t,
+        permissions: (t.permissions ?? []).map((p) => (p.requestId === requestId ? { ...p, resolvedOptionId: optionId } : p))
+      }))
+      return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
     }),
   addNote: (name, content) =>
     set((s) => ({
