@@ -9,7 +9,7 @@ import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
-import { getCapabilities } from './capabilities'
+import { getCapabilities, invalidateCapabilities } from './capabilities'
 import { classifyModelRejection } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
 
@@ -59,8 +59,10 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       send(event)
       // Gating ledger: learn per-account model verdicts from real outcomes (explicit model only).
       if (req.model && req.provider) {
-        if (event.type === 'run.errored' && classifyModelRejection(event.message)) recordOutcome(req.provider, req.model, 'gated', event.message)
-        else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
+        if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
+          recordOutcome(req.provider, req.model, 'gated', event.message)
+          invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
+        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }

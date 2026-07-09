@@ -1,4 +1,4 @@
-import type { DiscoveredModel, ProviderCapabilities } from './runtime'
+import type { ProviderCapabilities } from './runtime'
 
 // Static capability floor (the degradation ladder's bottom). Live discovery replaces these when it
 // succeeds; claude's entry is also the protocol-less base merged with the gating ledger.
@@ -65,6 +65,3 @@ export function effortScaleFor(caps: ProviderCapabilities | undefined, modelLabe
   return ['low', 'medium', 'high']
 }
 
-export function findModel(caps: ProviderCapabilities | undefined, label: string): DiscoveredModel | undefined {
-  return caps?.models.find((x) => x.label === label || x.variants?.some((v) => v.label === label))
-}

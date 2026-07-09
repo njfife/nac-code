@@ -214,6 +214,8 @@ function ProviderPage(props: {
               label={v.label}
               active={props.isActiveProvider && props.activeModel === v.label}
               disabled={!selectable}
+              gated={v.gated}
+              title={v.gated ? 'rejected for this account previously' : undefined}
               onClick={selectable ? () => props.onPick(p.id, v.label) : undefined}
             />
           ))

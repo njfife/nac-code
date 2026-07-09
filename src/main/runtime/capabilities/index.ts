@@ -43,3 +43,9 @@ export function getCapabilities(provider: string, refresh = false): Promise<Prov
   cache.set(provider, fetch)
   return fetch
 }
+
+/** Drop a provider's cached capabilities so the next getCapabilities re-fetches and re-merges the
+ * ledger. Called when a gated verdict is recorded, so the tint appears without a manual refresh. */
+export function invalidateCapabilities(provider: string): void {
+  cache.delete(provider)
+}

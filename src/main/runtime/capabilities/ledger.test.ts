@@ -25,4 +25,12 @@ describe('mergeLedger', () => {
   it('is a no-op without relevant entries', () => {
     expect(mergeLedger(STATIC_CAPABILITIES.claude, {})).toEqual(STATIC_CAPABILITIES.claude)
   })
+  it('stamps a gated verdict on a variant id onto that variant entry, not the parent model', () => {
+    const ledger: Ledger = { claude: { 'sonnet[1m]': { verdict: 'gated', at: 1 } } }
+    const merged = mergeLedger(STATIC_CAPABILITIES.claude, ledger)
+    const sonnet = merged.models.find((m) => m.id === 'sonnet')
+    expect(sonnet?.gated).toBeUndefined()
+    expect(sonnet?.variants?.find((v) => v.id === 'sonnet[1m]')?.gated).toBe(true)
+    expect(merged.source).toBe('static+learned')
+  })
 })
