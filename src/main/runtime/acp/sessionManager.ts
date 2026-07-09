@@ -1,14 +1,15 @@
 import type { AgentEvent } from '../../../shared/runtime'
-import { AcpSession } from './acpSession'
+import { AcpSession, type TransportSession, type PromptOpts } from './acpSession'
+import { CodexSession } from './codexSession'
 
-// One live ACP session per chat. Sessions are disposed on provider switch (promptViaAcp detects
-// this when the renderer sends no sessionId — see below), a dead child process being replaced on
-// the next prompt, app quit, or idle timeout.
+// One live transport session per chat — copilot ACP or codex app-server. Sessions are disposed on
+// provider switch (promptViaTransport detects this when the renderer sends no sessionId — see
+// below), a dead child process being replaced on the next prompt, app quit, or idle timeout.
 
 export const IDLE_MS = 15 * 60_000
 
 interface Entry {
-  session: AcpSession
+  session: TransportSession
   idleTimer: ReturnType<typeof setTimeout> | null
   // Mutable indirection so a reused session's event sink always points at the CURRENT caller's
   // onEvent, not the closure captured when the session was first created (Important 4).
@@ -38,14 +39,17 @@ function disposeChat(chatId: string, force = false): void {
   e.session.dispose()
 }
 
-/** Try the interactive path. Resolves { ok: false } when ACP is unavailable — caller falls back. */
-export async function promptViaAcp(opts: {
+/** Try the interactive path. Resolves { ok: false } when the transport is unavailable — caller falls back. */
+export async function promptViaTransport(opts: {
+  provider: 'copilot' | 'codex'
   chatId: string
   runId: string
   prompt: string
   cwd?: string
   yolo?: boolean
   sessionId?: string
+  model?: string
+  effort?: string
   onEvent: (e: AgentEvent) => void
 }): Promise<{ ok: boolean }> {
   let entry = byChat.get(opts.chatId)
@@ -60,8 +64,8 @@ export async function promptViaAcp(opts: {
   }
 
   // Important 5: no sessionId means the renderer built a replay prompt — it believes there's no
-  // native session (provider changed, or the session was otherwise dropped client-side). Any ACP
-  // session we're still holding for this chat is stale and must be disposed, per spec.
+  // native session (provider changed, or the session was otherwise dropped client-side). Any
+  // transport session we're still holding for this chat is stale and must be disposed, per spec.
   if (entry && opts.sessionId === undefined) {
     disposeChat(opts.chatId)
     entry = undefined
@@ -69,10 +73,12 @@ export async function promptViaAcp(opts: {
 
   if (!entry) {
     const ref = { onEvent: opts.onEvent }
-    const session = new AcpSession((e) => {
+    const sink = (e: AgentEvent): void => {
       if (e.type === 'run.completed' || e.type === 'run.errored') runToChat.delete(e.runId)
       ref.onEvent(e)
-    }, opts.yolo === true)
+    }
+    const session: TransportSession & { connect(cwd: string | undefined, id: string | undefined): Promise<string> } =
+      opts.provider === 'codex' ? new CodexSession(sink, opts.yolo === true) : new AcpSession(sink, opts.yolo === true)
     try {
       await session.connect(opts.cwd, opts.sessionId)
     } catch {
@@ -86,7 +92,8 @@ export async function promptViaAcp(opts: {
   }
   entry.session.setYolo(opts.yolo === true)
   runToChat.set(opts.runId, opts.chatId)
-  entry.session.prompt(opts.runId, opts.prompt)
+  const promptOpts: PromptOpts = { model: opts.model, effort: opts.effort }
+  entry.session.prompt(opts.runId, opts.prompt, promptOpts)
   touch(opts.chatId)
   return { ok: true }
 }

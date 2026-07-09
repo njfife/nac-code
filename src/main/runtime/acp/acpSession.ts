@@ -87,7 +87,7 @@ export class AcpSession implements TransportSession {
         // Re-throw: the caller sent a BARE message (renderer chose native continuity, no replay
         // text seeded). Falling through to session/new here would silently start an empty
         // session and drop the conversation — a hard context-preservation violation. Rejecting
-        // connect() instead makes promptViaAcp resolve { ok: false }, so ipc.ts falls back to the
+        // connect() instead makes promptViaTransport resolve { ok: false }, so ipc.ts falls back to the
         // one-shot startCopilotRun(sessionId) path, which uses --resume to preserve context.
         throw e instanceof Error ? e : new Error(String(e))
       } finally {

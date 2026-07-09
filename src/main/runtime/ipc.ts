@@ -12,7 +12,7 @@ import { probeProviders } from './registry'
 import { getCapabilities, invalidateCapabilities } from './capabilities'
 import { classifyModelRejection } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
-import { promptViaAcp, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
+import { promptViaTransport, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -73,14 +73,18 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
-    if (req.provider === 'copilot') {
-      // Interactive-first: persistent ACP session; on { ok: false } fall back to the one-shot path.
-      void promptViaAcp({ chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, onEvent: handler }).then(({ ok }) => {
+    if (req.provider === 'copilot' || req.provider === 'codex') {
+      // Interactive-first: persistent transport session; on { ok: false } fall back to the one-shot path.
+      void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, onEvent: handler }).then(({ ok }) => {
         if (!ok) {
-          // Render-only notice (a tool.updated row), NOT content.delta: a transport diagnostic must
-          // not enter turn.text, or buildReplayPrompt would replay it to the next provider as assistant speech.
+          // Render-only notice (never content.delta — replay must stay clean).
           handler({ type: 'tool.updated', runId, toolCallId: `fallback_${runId}`, title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
-          runs.set(runId, startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler))
+          runs.set(
+            runId,
+            req.provider === 'codex'
+              ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
+              : startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
+          )
         }
       })
       return { runId }
@@ -89,11 +93,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const run =
       req.provider === 'claude'
         ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
-        : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
-          : req.provider === 'opencode'
-            ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
-            : startHarnessRun(
+        : req.provider === 'opencode'
+          ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
+          : startHarnessRun(
             runId,
             {
               prompt: req.prompt,
