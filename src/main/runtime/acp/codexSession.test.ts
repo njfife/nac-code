@@ -12,6 +12,11 @@ describe('CodexSession constants', () => {
     expect(typeof CodexSession.prototype.cancel).toBe('function')
     expect(typeof CodexSession.prototype.dispose).toBe('function')
   })
+  // Rider 2 (inactivity watchdog): touchWatchdog() re-arms on every activity notification instead
+  // of only at turn/start, but the CEILING itself is unchanged — same PROMPT_TIMEOUT_MS as pillar 1.
+  it('rider 2 (inactivity watchdog) does not change the ceiling', () => {
+    expect(TURN_WATCHDOG_MS).toBe(PROMPT_TIMEOUT_MS)
+  })
 })
 
 describe('shouldFinishOnTurnCompleted', () => {
