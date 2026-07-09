@@ -68,7 +68,7 @@ export interface Chat {
   dirty: boolean
   compacting: boolean
   compacted: boolean
-  compactError?: string // transient inline error (M0-5 honesty sweep) — set when a compaction attempt fails; cleared on the next attempt or via clearCompactError
+  compactError?: string // transient inline error (M0-5 honesty sweep) — set when a compaction attempt fails; cleared on the next attempt, chat switch, or via clearCompactError
   contextK: number
   windowK: number
   contextLive?: boolean // context bar shows REAL harness-reported numbers (codex app-server); reset on hydrate/provider switch
@@ -182,7 +182,20 @@ export const useApp = create<AppState>()((set, get) => ({
   caps: { ...STATIC_CAPABILITIES },
   userItems: [],
 
-  selectChat: (id) => set({ activeChatId: id }),
+  selectChat: (id) =>
+    set((s) => {
+      // Clear compactError from the outgoing chat (if it exists) to enforce the spec lifecycle:
+      // compactError clears on next compact attempt OR chat switch
+      const prevId = s.activeChatId
+      const prevChat = s.chats[prevId]
+      if (prevChat?.compactError) {
+        return {
+          activeChatId: id,
+          chats: { ...s.chats, [prevId]: { ...prevChat, compactError: undefined } }
+        }
+      }
+      return { activeChatId: id }
+    }),
   toggleWorkspace: (wsId) => set((s) => ({ expanded: { ...s.expanded, [wsId]: !s.expanded[wsId] } })),
   addWorkspace: (name, path) =>
     set((s) => {
@@ -293,7 +306,16 @@ export const useApp = create<AppState>()((set, get) => ({
     const src = s.chats[s.activeChatId]
     const id = nextChatId()
     const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, compactError: undefined, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {}, seededAttachments: null }
-    set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
+    set((st) => {
+      const prevId = st.activeChatId
+      const prevChat = st.chats[prevId]
+      const chatsUpdate = { ...st.chats, [id]: branched }
+      // Clear compactError on the outgoing chat (same logic as selectChat)
+      if (prevChat?.compactError) {
+        chatsUpdate[prevId] = { ...prevChat, compactError: undefined }
+      }
+      return { chats: chatsUpdate, activeChatId: id, view: 'chat' }
+    })
   },
   newChat: (workspaceId) => {
     const s = get()
@@ -330,7 +352,16 @@ export const useApp = create<AppState>()((set, get) => ({
       usage: {},
       seededAttachments: null
     }
-    set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
+    set((st) => {
+      const prevId = st.activeChatId
+      const prevChat = st.chats[prevId]
+      const chatsUpdate = { ...st.chats, [id]: chat }
+      // Clear compactError on the outgoing chat (same logic as selectChat)
+      if (prevChat?.compactError) {
+        chatsUpdate[prevId] = { ...prevChat, compactError: undefined }
+      }
+      return { chats: chatsUpdate, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }
+    })
   },
   toggleYolo: () =>
     set((s) => {

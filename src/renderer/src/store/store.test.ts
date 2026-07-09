@@ -376,4 +376,24 @@ describe('app store — compaction failure (M0-5)', () => {
     await new Promise((resolve) => setImmediate(resolve))
     expect(useApp.getState().chats[id].compacted).toBe(true)
   })
+
+  it('compactError clears when switching away from the chat', async () => {
+    const s = useApp.getState()
+    s.newChat()
+    const chatAId = useApp.getState().activeChatId
+    s.pushTurn(chatAId, { id: 'u3', role: 'user', text: 'hello from chat A' })
+
+    // @ts-expect-error minimal window.nac.runs stub — trigger failure
+    globalThis.window = { nac: { runs: { summarize: async () => { throw new Error('boom') } } } }
+    useApp.getState().compactChat()
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(useApp.getState().chats[chatAId].compactError).toBe('Compaction failed — transcript unchanged')
+
+    // Create chat B (which also activates it) — the newChat call clears chat A's compactError
+    s.newChat()
+    const chatBId = useApp.getState().activeChatId
+
+    // Verify that chat A's compactError was cleared when we switched away from it
+    expect(useApp.getState().chats[chatAId].compactError).toBeUndefined() // cleared on chat switch
+  })
 })
