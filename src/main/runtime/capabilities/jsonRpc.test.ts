@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRpcLine, LineDecoder, classifyRpcMessage } from './jsonRpc'
+import { parseRpcLine, LineDecoder, classifyRpcMessage, JsonRpcClient } from './jsonRpc'
 
 describe('parseRpcLine', () => {
   it('parses codex-style responses that omit the jsonrpc field', () => {
@@ -38,5 +38,29 @@ describe('classifyRpcMessage', () => {
     expect(classifyRpcMessage({ id: 0, method: 'session/request_permission' })).toBe('server-request')
     expect(classifyRpcMessage({ method: 'session/update' })).toBe('notification')
     expect(classifyRpcMessage({ id: 1, error: { code: -32601 } })).toBe('response')
+  })
+})
+
+describe('JsonRpcClient close handling', () => {
+  it('invokes onClose handlers once the underlying child process exits', async () => {
+    // Real short-lived child (no mocking harness in this repo for spawn) — exits immediately,
+    // which is exactly the "server closed" signal onClose must surface.
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    const fired = await new Promise<boolean>((resolve) => {
+      client.onClose(() => resolve(true))
+    })
+    expect(fired).toBe(true)
+    expect(client.isClosed).toBe(true)
+  })
+
+  it('does not let a throwing onClose handler stop other handlers from running', async () => {
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    client.onClose(() => {
+      throw new Error('boom')
+    })
+    const fired = await new Promise<boolean>((resolve) => {
+      client.onClose(() => resolve(true))
+    })
+    expect(fired).toBe(true)
   })
 })

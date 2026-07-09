@@ -57,6 +57,7 @@ export class JsonRpcClient {
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
   private notificationHandlers = new Map<string, (params: unknown) => void>()
   private requestHandlers = new Map<string, (params: unknown) => Promise<unknown> | unknown>()
+  private closeHandlers: Array<() => void> = []
   private closed = false
 
   constructor(command: string, args: string[]) {
@@ -82,6 +83,13 @@ export class JsonRpcClient {
     this.child.on('close', () => {
       this.closed = true
       this.failAll(new Error('rpc server closed'))
+      for (const h of this.closeHandlers) {
+        try {
+          h()
+        } catch {
+          // a broken close handler must not crash the transport
+        }
+      }
     })
   }
 
@@ -116,6 +124,12 @@ export class JsonRpcClient {
 
   onRequest(method: string, handler: (params: unknown) => Promise<unknown> | unknown): void {
     this.requestHandlers.set(method, handler)
+  }
+
+  /** Fired when the child process exits — the only signal a transport gets that no more
+   *  notifications (e.g. turn/completed) are coming. Handlers run after pending requests are failed. */
+  onClose(handler: () => void): void {
+    this.closeHandlers.push(handler)
   }
 
   notify(method: string, params?: unknown): void {

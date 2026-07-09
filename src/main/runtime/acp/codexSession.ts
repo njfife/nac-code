@@ -12,6 +12,14 @@ import { codexTurnPolicy, mapCodexItem, mapCodexDelta, mapCodexApproval, mapCode
 export const TURN_WATCHDOG_MS = PROMPT_TIMEOUT_MS
 const HANDSHAKE_TIMEOUT_MS = 10_000
 
+/** Pure + exported for testing: a stray turn/completed for a PRIOR turn must not finish the current
+ *  one. Tolerates currentTurnId still being null (turn/start ack hasn't landed yet) and notifications
+ *  that carry no turn id — both proceed as before this guard existed. */
+export function shouldFinishOnTurnCompleted(currentTurnId: string | null, notifiedTurnId: string | null | undefined): boolean {
+  if (currentTurnId === null || notifiedTurnId == null) return true
+  return notifiedTurnId === currentTurnId
+}
+
 interface PendingApproval {
   resolve: (decision: unknown) => void
   decisions: Record<string, unknown>
@@ -56,6 +64,11 @@ export class CodexSession implements TransportSession {
     this.client.onNotification('turn/completed', (p) => this.onTurnCompleted(p))
     this.client.onRequest('item/commandExecution/requestApproval', (p) => this.handleApproval('item/commandExecution/requestApproval', p))
     this.client.onRequest('item/fileChange/requestApproval', (p) => this.handleApproval('item/fileChange/requestApproval', p))
+    // A dead child mid-turn means no turn/completed is ever coming — without this, the run would
+    // stay streaming until the watchdog ceiling and Stop would be a silent no-op.
+    this.client.onClose(() => {
+      if (this.currentRunId) this.finishRun({ kind: 'errored', message: 'codex app-server exited mid-turn' })
+    })
   }
 
   setYolo(y: boolean): void {
@@ -120,7 +133,8 @@ export class CodexSession implements TransportSession {
   }
 
   private onTurnCompleted(params: unknown): void {
-    const turn = (params as { turn?: { status?: string; error?: { message?: string } | null } } | null)?.turn
+    const turn = (params as { turn?: { id?: string; status?: string; error?: { message?: string } | null } } | null)?.turn
+    if (!shouldFinishOnTurnCompleted(this.currentTurnId, turn?.id)) return
     this.finishRun(mapCodexTurnStatus(turn?.status, turn?.error))
   }
 
