@@ -24,7 +24,7 @@ import {
 // without losing the process.
 
 export const RESUME_VERIFY_MS = 2000
-export const FRESH_VERIFY_MS = 500
+export const FRESH_VERIFY_MS = 1000
 
 /** Pure + exported for testing: only respawn when a session actually exists to `--resume` into AND
  *  a requested field is BOTH defined and different from what's currently spawned. An undefined

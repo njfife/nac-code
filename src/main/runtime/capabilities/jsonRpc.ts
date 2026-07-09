@@ -62,6 +62,7 @@ export class JsonRpcClient {
 
   constructor(command: string, args: string[]) {
     this.child = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'] })
+    this.child.stdin?.on('error', () => { /* EPIPE on a dying child must not crash the transport */ })
     this.child.stdout?.on('data', (chunk: Buffer) => {
       for (const line of this.lines.push(chunk)) {
         const msg = parseRpcLine(line)
@@ -108,10 +109,15 @@ export class JsonRpcClient {
     this.pending.clear()
   }
 
+  private write(payload: string): void {
+    if (this.closed) return
+    this.child.stdin?.write(payload + '\n')
+  }
+
   private answer(msg: RpcMessage): void {
     const handler = this.requestHandlers.get(msg.method!)
     const write = (body: object): void => {
-      this.child.stdin?.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, ...body }) + '\n')
+      this.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, ...body }))
     }
     if (!handler) {
       write({ error: { code: -32601, message: `unhandled: ${msg.method}` } })
@@ -147,7 +153,7 @@ export class JsonRpcClient {
   }
 
   notify(method: string, params?: unknown): void {
-    this.child.stdin?.write(JSON.stringify({ jsonrpc: '2.0', method, params: params ?? {} }) + '\n')
+    this.write(JSON.stringify({ jsonrpc: '2.0', method, params: params ?? {} }))
   }
 
   request(method: string, params?: unknown, timeoutMs = 5000): Promise<unknown> {
@@ -169,7 +175,7 @@ export class JsonRpcClient {
           reject(e)
         }
       })
-      this.child.stdin?.write(payload + '\n')
+      this.write(payload)
     })
   }
 
