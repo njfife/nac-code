@@ -17,4 +17,8 @@ describe('modelIdFor', () => {
     expect(PROVIDERS.find((p) => p.id === 'codex')?.modelsWired).toBe(false)
     expect(PROVIDERS.find((p) => p.id === 'copilot')?.modelsWired).toBe(false)
   })
+  it("'Account default' maps to no model id, so unwired providers never get --model", () => {
+    expect(modelIdFor('codex', 'Account default')).toBeUndefined()
+    expect(modelIdFor('copilot', 'Account default')).toBeUndefined()
+  })
 })

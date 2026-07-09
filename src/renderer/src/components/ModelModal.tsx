@@ -145,11 +145,21 @@ function ProviderPage(props: {
         </div>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+        {/* Unwired providers stay switchable via one actionable chip; modelIdFor returns undefined
+            for this label, so no --model is ever sent and the CLI runs its account default. */}
+        {!p.modelsWired && (
+          <Chip
+            label="Account default"
+            active={props.isActiveProvider && props.activeModel === 'Account default'}
+            onClick={() => props.onPick(p.id, 'Account default')}
+          />
+        )}
         {props.models.flatMap((m) => [
           <Chip
             key={m.id}
             label={m.label}
             active={props.isActiveProvider && props.activeModel === m.label}
+            disabled={!p.modelsWired}
             onClick={p.modelsWired ? () => props.onPick(p.id, m.label) : undefined}
           />,
           ...(m.variants ?? []).map((v) => (
@@ -157,6 +167,7 @@ function ProviderPage(props: {
               key={v.id}
               label={v.label}
               active={props.isActiveProvider && props.activeModel === v.label}
+              disabled={!p.modelsWired}
               onClick={p.modelsWired ? () => props.onPick(p.id, v.label) : undefined}
             />
           ))
@@ -185,11 +196,12 @@ function ProviderPage(props: {
   )
 }
 
-function Chip(props: { label: string; active: boolean; onClick?: () => void }) {
-  const disabled = !props.onClick
+function Chip(props: { label: string; active: boolean; onClick?: () => void; disabled?: boolean }) {
+  const disabled = props.disabled ?? !props.onClick
   return (
     <button
       onClick={props.onClick}
+      disabled={disabled}
       className="mono"
       style={{
         ...modelChip,
