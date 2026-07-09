@@ -1,0 +1,21 @@
+claude 2.1.181 stream-json frames, live-captured 2026-07-09
+
+// init (per turn)
+{"type":"system","subtype":"init","cwd":"/tmp/x","session_id":"dda93358-5ca5-4353-a3e4-7acb12f0d34c","tools":["Task","Bash"]}
+// token streaming
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"ello pillar three"}},"session_id":"s1","parent_tool_use_id":null}
+// message_start (usage → context metering)
+{"type":"stream_event","event":{"type":"message_start","message":{"model":"claude-opus-4-8","id":"msg_01","type":"message","role":"assistant","content":[],"usage":{"input_tokens":4133,"cache_creation_input_tokens":2049,"cache_read_input_tokens":15626,"output_tokens":3}}},"session_id":"s1"}
+// tool_use (assistant frame content block)
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_01RYD8QsoLTUUctSz6jY7sAx","name":"Bash","input":{"command":"echo 'x' > p3-perm-check.txt","description":"Create file with x content"}}]},"session_id":"s1"}
+// tool_result (user frame content block)
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"Output redirection was blocked. For security...","is_error":true,"tool_use_id":"toolu_01RYD8QsoLTUUctSz6jY7sAx"}]},"session_id":"s1"}
+// permission request (server→client)
+{"type":"control_request","request_id":"88d3f0f7-fd62-45b1-a054-af7ca4e068fa","request":{"subtype":"can_use_tool","tool_name":"Write","display_name":"Write","input":{"file_path":"/tmp/x/p3-can-use.txt","content":"y"},"description":"p3-can-use.txt","permission_suggestions":[{"type":"setMode","mode":"acceptEdits","destination":"session"}],"tool_use_id":"toolu_016S"}}
+// result success (usage + real cost)
+{"type":"result","subtype":"success","is_error":false,"num_turns":2,"result":"Created it.","stop_reason":"end_turn","session_id":"da2786b4","total_cost_usd":0.0946805,"usage":{"input_tokens":4481,"cache_creation_input_tokens":2100,"cache_read_input_tokens":15700,"output_tokens":50}}
+// result after OUR interrupt (cancel signature)
+{"type":"result","subtype":"error_during_execution","is_error":true,"num_turns":1,"result":null,"stop_reason":null,"session_id":"s1"}
+// thinking counter
+{"type":"system","subtype":"thinking_tokens","estimated_tokens":183,"estimated_tokens_delta":133,"session_id":"s1"}
+// noise (ignore): {"type":"rate_limit_event",...} {"type":"system","subtype":"status",...} {"type":"system","subtype":"post_turn_summary",...}
