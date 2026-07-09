@@ -1,7 +1,7 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { discoverModels } from './discovery'
 import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
@@ -9,6 +9,7 @@ import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
+import { probeProviders } from './registry'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -59,13 +60,13 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
     const run =
       req.provider === 'claude'
-        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model }, handler)
+        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.thinking, fast: req.fast }, handler)
         : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId }, handler)
+          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.thinking }, handler)
           : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId }, handler)
+            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.thinking }, handler)
             : req.provider === 'opencode'
-              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId }, handler)
+              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.thinking }, handler)
               : startHarnessRun(
             runId,
             {
@@ -102,6 +103,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Live model discovery (OpenCode only — reflects the account's real configured models).
   ipcMain.handle(DISCOVERY_CHANNELS.models, (_e, provider: string): Promise<string[]> => discoverModels(provider))
+
+  // Live CLI detection for the provider-first model picker (CliRegistry v0).
+  ipcMain.handle(REGISTRY_CHANNELS.providers, () => probeProviders())
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))

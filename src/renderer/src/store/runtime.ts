@@ -95,7 +95,9 @@ export async function sendMessage(text: string): Promise<void> {
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
       cwd,
       yolo: chat.yolo,
-      model: modelIdFor(chat.provider, chat.model)
+      model: modelIdFor(chat.provider, chat.model),
+      thinking: chat.thinking === 'none' ? undefined : chat.thinking, // 'none' = harness default
+      fast: chat.fast || undefined
     })
     runToChat[runId] = chatId
   } catch (e) {

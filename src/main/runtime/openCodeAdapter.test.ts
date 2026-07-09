@@ -37,4 +37,9 @@ describe('openCodeArgs', () => {
     expect(openCodeArgs('hi', 'opencode/x')).toEqual(['run', 'hi', '--format', 'json', '-m', 'opencode/x'])
     expect(openCodeArgs('hi', 'm', true, 'ses_1')).toEqual(['run', 'hi', '--format', 'json', '-m', 'm', '--dangerously-skip-permissions', '-s', 'ses_1'])
   })
+
+  it('passes the effort variant', () => {
+    expect(openCodeArgs('hi', undefined, false, undefined, 'high')).toEqual(expect.arrayContaining(['--variant', 'high']))
+    expect(openCodeArgs('hi')).not.toContain('--variant')
+  })
 })

@@ -138,4 +138,14 @@ describe('app store — per-chat spine', () => {
     useApp.getState().reseedContext('c1') // drops the session -> applies on next send
     expect(contextPending(useApp.getState().chats.c1)).toBe(false)
   })
+
+  it('toggleFast flips fast on the active chat only', () => {
+    const before = useApp.getState()
+    const id = before.activeChatId
+    expect(before.chats[id].fast).toBe(false)
+    before.toggleFast()
+    const after = useApp.getState()
+    expect(after.chats[id].fast).toBe(true)
+    for (const [cid, c] of Object.entries(after.chats)) if (cid !== id) expect(c.fast).toBe(false)
+  })
 })

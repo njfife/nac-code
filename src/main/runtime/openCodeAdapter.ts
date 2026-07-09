@@ -20,9 +20,10 @@ interface OCEvent {
 }
 
 /** Pure + exported for testing: build the opencode argv. model is `provider/model`; yolo skips permissions. */
-export function openCodeArgs(prompt: string, model?: string, yolo?: boolean, sessionId?: string): string[] {
+export function openCodeArgs(prompt: string, model?: string, yolo?: boolean, sessionId?: string, variant?: string): string[] {
   const args = ['run', prompt, '--format', 'json']
   if (model) args.push('-m', model)
+  if (variant) args.push('--variant', variant) // provider-specific reasoning effort
   if (yolo) args.push('--dangerously-skip-permissions')
   if (sessionId) args.push('-s', sessionId)
   return args
@@ -67,7 +68,7 @@ export function parseOpenCodeStepUsage(line: string): { inputTokens: number; out
 
 export function startOpenCodeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; model?: string; cwd?: string; yolo?: boolean; sessionId?: string },
+  req: { prompt: string; binPath?: string; model?: string; cwd?: string; yolo?: boolean; sessionId?: string; variant?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -77,7 +78,7 @@ export function startOpenCodeRun(
     onEvent(e)
   }
 
-  const args = openCodeArgs(req.prompt, req.model, req.yolo, req.sessionId)
+  const args = openCodeArgs(req.prompt, req.model, req.yolo, req.sessionId, req.variant)
 
   let child: ChildProcess
   try {
