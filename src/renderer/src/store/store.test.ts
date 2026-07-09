@@ -196,6 +196,18 @@ describe('app store — per-chat spine', () => {
     expect(turn.tools).toEqual([{ toolCallId: 't1', title: 'Run x', status: 'completed', detail: 'done' }])
   })
 
+  it('endTurn sweeps still-open tools to failed (interrupted turn leaves no live spinner)', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a8', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'r1', title: 'sleep 40', kind: 'execute', status: 'running' })
+    s.upsertTool(id, { toolCallId: 'r2', title: 'touch x', kind: 'execute', status: 'completed' })
+    s.endTurn(id)
+    const turn = useApp.getState().chats[id].messages.at(-1)!
+    expect(turn.tools?.find((t) => t.toolCallId === 'r1')?.status).toBe('failed')
+    expect(turn.tools?.find((t) => t.toolCallId === 'r2')?.status).toBe('completed')
+  })
+
   it('permission cards resolve in place', () => {
     const s = useApp.getState()
     const id = s.activeChatId

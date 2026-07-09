@@ -352,7 +352,16 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const messages = updateLast(c.messages, (t) => ({ ...t, streaming: false, error: Boolean(error), text: error ? `${t.text}\n[error] ${error}` : t.text }))
+      // Interrupted/errored turns can leave tool rows mid-flight (codex turn/interrupt never
+      // completes the open item) — same doctrine as the hydration sanitizer: nothing stays
+      // live-looking once the run is over.
+      const messages = updateLast(c.messages, (t) => ({
+        ...t,
+        streaming: false,
+        error: Boolean(error),
+        text: error ? `${t.text}\n[error] ${error}` : t.text,
+        tools: t.tools?.map((x) => (x.status === 'pending' || x.status === 'running' ? { ...x, status: 'failed' as const } : x))
+      }))
       return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
     }),
   setSession: (chatId, sessionId, provider) =>
