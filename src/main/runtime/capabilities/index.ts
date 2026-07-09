@@ -21,11 +21,11 @@ export async function resolveCapabilities(provider: string, strategy: Strategy, 
   return mergeLedger({ ...floor, fetchedAt: Date.now() }, ledger)
 }
 
-const cache = new Map<string, ProviderCapabilities>()
+// Coalesced per-provider fetches: concurrent callers share one promise; refresh replaces the
+// in-flight entry so a slower stale fetch can never overwrite a fresher refresh result.
+const cache = new Map<string, Promise<ProviderCapabilities>>()
 
-export async function getCapabilities(provider: string, refresh = false): Promise<ProviderCapabilities> {
-  if (!refresh && cache.has(provider)) return cache.get(provider)!
-  // Lazy-load the electron-backed ledger store so importing this module never requires electron.
+async function fetchCapabilities(provider: string): Promise<ProviderCapabilities> {
   const { readLedger } = await import('./ledgerStore')
   const ledger = readLedger()
   const strategies: Record<string, Strategy> = {
@@ -34,7 +34,12 @@ export async function getCapabilities(provider: string, refresh = false): Promis
     claude: async () => discoverClaude(ledger), // static+learned; never null
     opencode: discoverOpenCode
   }
-  const caps = await resolveCapabilities(provider, strategies[provider] ?? (async () => null), ledger)
-  cache.set(provider, caps)
-  return caps
+  return resolveCapabilities(provider, strategies[provider] ?? (async () => null), ledger)
+}
+
+export function getCapabilities(provider: string, refresh = false): Promise<ProviderCapabilities> {
+  if (!refresh && cache.has(provider)) return cache.get(provider)!
+  const fetch = fetchCapabilities(provider)
+  cache.set(provider, fetch)
+  return fetch
 }

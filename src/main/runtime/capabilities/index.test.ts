@@ -17,3 +17,6 @@ describe('resolveCapabilities (pure ladder)', () => {
     expect(caps.provider).toBe('nope')
   })
 })
+
+// getCapabilities is not unit-tested: it lazy-imports ledgerStore (electron-backed), which vitest cannot load.
+// In-flight promise coalescing and refresh semantics are integration-tested via the runtime's actual usage.
