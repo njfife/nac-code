@@ -28,6 +28,7 @@ interface ClaudeEvent {
   total_cost_usd?: number
   usage?: ClaudeUsage
   message?: { content?: ClaudeBlock[] }
+  result?: string
 }
 
 /** Pure + exported for testing: one stream-json line → 0..n AgentEvents. */
@@ -54,6 +55,10 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
       return out
     }
     case 'result': {
+      // A model rejection deserves a real error (message included) so the gating ledger can learn it.
+      if (m.is_error && typeof m.result === 'string' && /issue with the selected model/i.test(m.result)) {
+        return [{ type: 'run.errored', runId, message: m.result }]
+      }
       const u = m.usage
       const usage = u
         ? { inputTokens: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), outputTokens: u.output_tokens ?? 0, costUsd: m.total_cost_usd }

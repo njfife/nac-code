@@ -52,4 +52,11 @@ describe('parseClaudeLine', () => {
     expect(parseClaudeLine('r', '')).toEqual([])
     expect(parseClaudeLine('r', 'not json')).toEqual([])
   })
+
+  it('surfaces a model-rejection result as run.errored with the message', () => {
+    const line = JSON.stringify({ type: 'result', is_error: true, result: "There's an issue with the selected model (bogus). It may not exist or you may not have access to it." })
+    expect(parseClaudeLine('r', line)).toEqual([{ type: 'run.errored', runId: 'r', message: "There's an issue with the selected model (bogus). It may not exist or you may not have access to it." }])
+    // plain errors keep the existing completed/error mapping
+    expect(parseClaudeLine('r', '{"type":"result","is_error":true}')).toEqual([{ type: 'run.completed', runId: 'r', stopReason: 'error' }])
+  })
 })
