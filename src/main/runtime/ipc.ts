@@ -1,7 +1,7 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { discoverModels } from './discovery'
 import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
@@ -10,6 +10,9 @@ import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
+import { getCapabilities } from './capabilities'
+import { classifyModelRejection } from './capabilities/ledger'
+import { recordOutcome } from './capabilities/ledgerStore'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -55,6 +58,11 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
     const handler = (event: AgentEvent): void => {
       send(event)
+      // Gating ledger: learn per-account model verdicts from real outcomes (explicit model only).
+      if (req.model && req.provider) {
+        if (event.type === 'run.errored' && classifyModelRejection(event.message)) recordOutcome(req.provider, req.model, 'gated', event.message)
+        else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
+      }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
@@ -106,6 +114,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Live CLI detection for the provider-first model picker (CliRegistry v0).
   ipcMain.handle(REGISTRY_CHANNELS.providers, () => probeProviders())
+
+  // Per-account capability discovery (M4): live model/effort data with a static floor.
+  ipcMain.handle(CAPABILITIES_CHANNELS.get, (_e, provider: string, refresh?: boolean) => getCapabilities(provider, refresh === true))
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))
