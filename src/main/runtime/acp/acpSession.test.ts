@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { homedir } from 'os'
-import { pickAutoApprove, acpCwd } from './acpSession'
+import { pickAutoApprove, acpCwd, shouldAutoCancelPermission } from './acpSession'
 
 describe('pickAutoApprove', () => {
   it('picks the first allow-kind option', () => {
@@ -12,6 +12,17 @@ describe('pickAutoApprove', () => {
   })
   it('returns undefined when no allow option exists', () => {
     expect(pickAutoApprove([{ id: 'reject_once', label: 'Deny', kind: 'deny' }])).toBeUndefined()
+  })
+})
+
+describe('shouldAutoCancelPermission', () => {
+  it('auto-cancels when no run is active or during session/load replay (else the JSON-RPC request deadlocks)', () => {
+    expect(shouldAutoCancelPermission(false, null)).toBe(true) // no active run
+    expect(shouldAutoCancelPermission(true, 'run_1')).toBe(true) // replaying loaded history
+    expect(shouldAutoCancelPermission(true, null)).toBe(true)
+  })
+  it('surfaces the card only during a live, non-replaying run', () => {
+    expect(shouldAutoCancelPermission(false, 'run_1')).toBe(false)
   })
 })
 

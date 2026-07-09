@@ -18,6 +18,13 @@ export function pickAutoApprove(options: PermissionOption[]): PermissionOption |
   return options.find((o) => o.kind === 'allow' || o.kind === 'allow_always')
 }
 
+/** Pure + exported for testing: a permission request must be auto-cancelled (never queued as a card)
+ *  when no run is active or during session/load history replay — otherwise the pending permission
+ *  can never be resolved and the JSON-RPC request deadlocks the harness. */
+export function shouldAutoCancelPermission(replaying: boolean, currentRunId: string | null): boolean {
+  return replaying || !currentRunId
+}
+
 /** Pure + exported for testing: ACP session cwd. copilot's session/new rejects a non-absolute path
  *  (`-32603 "Directory path must be absolute"`), so a stored `~/…` workspace path MUST be expanded —
  *  the same resolveCwd every one-shot adapter uses. Falls back to process cwd when unset. */
@@ -90,7 +97,11 @@ export class AcpSession implements TransportSession {
   }
 
   private handlePermission(params: unknown): Promise<unknown> {
-    const runId = this.currentRunId ?? 'unknown'
+    // No active run, or session/load history replay: there is no UI turn to surface a card on, so a
+    // pending permission stored here could never be resolved and would deadlock the JSON-RPC request
+    // (blocking the harness). Auto-cancel instead. Mirrors the session/update notification guard above.
+    if (shouldAutoCancelPermission(this.replaying, this.currentRunId)) return Promise.resolve({ outcome: { outcome: 'cancelled' } })
+    const runId = this.currentRunId! // guard above guarantees non-null
     const requestId = `perm_${++this.permissionSeq}`
     const event = mapPermissionRequest(runId, requestId, params)
     if (!event) return Promise.resolve({ outcome: { outcome: 'cancelled' } }) // zero options: never hang
