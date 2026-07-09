@@ -11,6 +11,7 @@ export const IDLE_MS = 15 * 60_000
 interface Entry {
   session: TransportSession
   idleTimer: ReturnType<typeof setTimeout> | null
+  provider: 'copilot' | 'codex'
   // Mutable indirection so a reused session's event sink always points at the CURRENT caller's
   // onEvent, not the closure captured when the session was first created (Important 4).
   ref: { onEvent: (e: AgentEvent) => void }
@@ -63,6 +64,14 @@ export async function promptViaTransport(opts: {
     entry = undefined
   }
 
+  // Defense-in-depth: an entry from a different provider must never be reused, regardless of what
+  // sessionId the renderer sent — the renderer's single sessionProvider slot makes this unreachable
+  // today, but the invariant belongs here, self-enforced.
+  if (entry && entry.provider !== opts.provider) {
+    disposeChat(opts.chatId, true)
+    entry = undefined
+  }
+
   // Important 5: no sessionId means the renderer built a replay prompt — it believes there's no
   // native session (provider changed, or the session was otherwise dropped client-side). Any
   // transport session we're still holding for this chat is stale and must be disposed, per spec.
@@ -85,7 +94,7 @@ export async function promptViaTransport(opts: {
       session.dispose()
       return { ok: false }
     }
-    entry = { session, idleTimer: null, ref }
+    entry = { session, idleTimer: null, provider: opts.provider, ref }
     byChat.set(opts.chatId, entry)
   } else {
     entry.ref.onEvent = opts.onEvent
