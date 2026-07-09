@@ -219,6 +219,7 @@ export class AcpSession implements TransportSession {
       this.onEvent({ type: 'run.completed', runId, stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn', ...(usage ? { usage } : {}) })
     } catch (e) {
       this.expirePermissions()
+      this.closeThinkingRow()
       this.onEvent({ type: 'run.errored', runId, message: (e as Error).message })
     } finally {
       this.currentRunId = null
