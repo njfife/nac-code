@@ -27,7 +27,9 @@ export function discoverOpenCode(): Promise<ProviderCapabilities | null> {
       resolve(result)
     }
     try {
-      child = spawn('opencode', ['models'], { stdio: ['ignore', 'pipe', 'pipe'] })
+      // stderr is 'ignore', not 'pipe': it's never read here, and an undrained pipe can fill and
+      // block the child if the CLI is chatty on stderr.
+      child = spawn('opencode', ['models'], { stdio: ['ignore', 'pipe', 'ignore'] })
     } catch {
       resolve(null)
       return

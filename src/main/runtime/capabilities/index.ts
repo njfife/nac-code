@@ -27,7 +27,7 @@ const cache = new Map<string, Promise<ProviderCapabilities>>()
 
 async function fetchCapabilities(provider: string): Promise<ProviderCapabilities> {
   const { readLedger } = await import('./ledgerStore')
-  const ledger = readLedger()
+  const ledger = await readLedger()
   const strategies: Record<string, Strategy> = {
     codex: discoverCodex,
     copilot: discoverCopilot,

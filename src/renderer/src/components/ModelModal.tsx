@@ -164,7 +164,9 @@ function ProviderPage(props: {
   const p = props.provider
   const caps = props.caps
   const selectable = isSelectable(p.id, caps)
-  const showUnavailableNotice = caps.source !== 'protocol' && LIVE_STRATEGY_PROVIDERS.has(p.id)
+  // fetchedAt > 0 = a real fetch happened (the static SEED has fetchedAt 0) — never claim
+  // "unavailable" while the first discovery is still in flight.
+  const showUnavailableNotice = caps.source !== 'protocol' && caps.fetchedAt > 0 && LIVE_STRATEGY_PROVIDERS.has(p.id)
   const scale = effortScaleFor(caps, props.activeModel)
 
   return (
