@@ -21,11 +21,11 @@ function touch(chatId: string): void {
   e.idleTimer = setTimeout(() => disposeChat(chatId), IDLE_MS)
 }
 
-function disposeChat(chatId: string): void {
+function disposeChat(chatId: string, force = false): void {
   const e = byChat.get(chatId)
   if (!e) return
-  if (e.session.busy) {
-    // A turn can run up to 30 min (PROMPT_TIMEOUT_MS) — re-arm instead of killing mid-turn.
+  if (!force && e.session.busy) {
+    // Idle reaper path: a turn can run up to 30 min — re-arm instead of killing mid-turn.
     touch(chatId)
     return
   }
@@ -46,7 +46,10 @@ export async function promptViaAcp(opts: {
 }): Promise<{ ok: boolean }> {
   let entry = byChat.get(opts.chatId)
   if (!entry) {
-    const session = new AcpSession(opts.onEvent, opts.yolo === true)
+    const session = new AcpSession((e) => {
+      if (e.type === 'run.completed' || e.type === 'run.errored') runToChat.delete(e.runId)
+      opts.onEvent(e)
+    }, opts.yolo === true)
     try {
       await session.connect(opts.cwd, opts.sessionId)
     } catch {
@@ -80,5 +83,6 @@ export function cancelRun(runId: string): boolean {
 }
 
 export function disposeAll(): void {
-  for (const chatId of [...byChat.keys()]) disposeChat(chatId)
+  // App quit: force — a busy session must still be torn down (the process is exiting).
+  for (const chatId of [...byChat.keys()]) disposeChat(chatId, true)
 }
