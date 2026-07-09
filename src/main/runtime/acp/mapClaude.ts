@@ -60,7 +60,8 @@ function titleAndKind(b: ToolUseBlock): { title: string; kind?: 'execute' | 'edi
   if (b.name === 'Bash') return { title: s(input.command) ?? 'Bash', kind: 'execute' }
   if (b.name === 'Write' || b.name === 'Edit' || b.name === 'NotebookEdit') return { title: `Edit ${s(input.file_path) ?? ''}`.trim(), kind: 'edit' }
   const arg = s(input.file_path) ?? s(input.pattern) ?? s(input.path) ?? s(input.query)
-  return { title: arg ? `${b.name} ${arg}` : (b.name ?? 'tool') }
+  const name = b.name ?? 'tool' // partial frames must never render "undefined <arg>"
+  return { title: arg ? `${name} ${arg}` : name }
 }
 
 export function mapClaudeAssistant(runId: string, frame: Record<string, unknown>): AgentEvent[] {

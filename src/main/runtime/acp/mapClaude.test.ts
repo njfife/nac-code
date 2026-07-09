@@ -54,6 +54,10 @@ describe('mapClaudeAssistant / mapClaudeToolResult', () => {
     expect(mapClaudeToolResult('r', { type: 'user', message: { content: 42 } })).toEqual([])
     expect(mapClaudeToolResult('r', { type: 'user' })).toEqual([])
   })
+  it('never renders "undefined" in a title when a tool_use block lacks a name', () => {
+    const [e] = mapClaudeAssistant('r', { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'nx', input: { file_path: '/tmp/x' } }] } })
+    expect((e as { title: string }).title).toBe('tool /tmp/x')
+  })
   it('drops subagent tool_use rows (parent_tool_use_id a non-null string) — Task subagent tool calls must not spawn top-level rows', () => {
     const frame = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'tsub', name: 'Bash', input: { command: 'echo sub' } }] }, parent_tool_use_id: 'toolu_parent' }
     expect(mapClaudeAssistant('r', frame)).toEqual([])
