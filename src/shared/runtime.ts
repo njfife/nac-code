@@ -37,7 +37,7 @@ export interface PermissionOption {
 export type AgentEvent =
   | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
-  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage }
+  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage; modelMismatch?: boolean }
   | { type: 'run.errored'; runId: string; message: string }
   | { type: 'tool.updated'; runId: string; toolCallId: string; title: string; kind?: string; status: 'pending' | 'running' | 'completed' | 'failed'; detail?: string }
   | { type: 'permission.requested'; runId: string; requestId: string; title: string; detail?: string; options: PermissionOption[] }

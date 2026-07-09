@@ -8,3 +8,15 @@ opencode 1.17.11 ACP frames, live-captured 2026-07-09
 {"sessionUpdate":"usage_update","used":11524,"size":200000,"cost":{"amount":0,"currency":"USD"}}
 {"sessionUpdate":"available_commands_update","availableCommands":[]}
 {"stopReason":"end_turn","usage":{"inputTokens":196,"outputTokens":15,"totalTokens":11552,"thoughtTokens":13,"cachedReadTokens":11328}}
+
+Task 6 cost-semantics probe (2026-07-09): two consecutive session/prompt turns on the same session
+against `opencode/big-pickle` (the account's only non-lmstudio model, set via session/set_config_option)
+via a scratch ACP script (initialize -> session/new -> set_config_option -> 2x session/prompt). Every
+usage_update frame across both turns carried cost.amount: 0. This account has no paid/hosted-provider
+credentials (`opencode auth list` shows only LMStudio + lmstudio-remote; `opencode stats` shows
+$0.00 total cost across 38 sessions/21 days), so no genuinely billed model was reachable to observe a
+nonzero cost.amount, and therefore whether cost.amount is cumulative or per-turn could not be determined
+from real frames. Decision: left acpSession's `this.turnCost = cost` (last-value-wins, effectively
+per-turn as long as the harness resets/re-reports per turn) unchanged — no delta-fold bookkeeping added.
+If a paid opencode provider is later configured, re-run this probe and add the fold if amounts turn out
+to be cumulative across turns in one session.

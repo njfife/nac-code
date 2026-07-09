@@ -72,7 +72,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
         if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
           recordOutcome(req.provider, ledgerModel, 'gated', event.message)
           invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
-        } else if (event.type === 'run.completed' && isWorksEvidence(event.stopReason, event.usage)) recordOutcome(req.provider, ledgerModel, 'works')
+        } else if (event.type === 'run.completed' && isWorksEvidence(event.stopReason, event.usage, event.modelMismatch)) recordOutcome(req.provider, ledgerModel, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
