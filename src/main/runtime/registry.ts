@@ -10,7 +10,8 @@ export const ADAPTER_PROVIDERS = ['claude', 'codex', 'copilot', 'opencode'] as c
 export function parseVersionLine(stdout: string): string | undefined {
   const first = stdout.trim().split('\n')[0]?.trim()
   if (!first) return undefined
-  return first.match(/\d+\.\d+[\w.-]*/)?.[0] ?? first
+  // Trailing punctuation guard: `copilot --version` ends its sentence with a period ("… 1.0.69.").
+  return first.match(/\d+\.\d+[\w.-]*/)?.[0]?.replace(/[.-]+$/, '') ?? first
 }
 
 function probeOne(id: string, timeoutMs = 3000): Promise<ProviderProbe> {

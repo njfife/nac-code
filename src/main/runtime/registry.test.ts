@@ -6,6 +6,8 @@ describe('parseVersionLine', () => {
     expect(parseVersionLine('2.0.14 (Claude Code)')).toBe('2.0.14')
     expect(parseVersionLine('codex-cli 0.46.0')).toBe('0.46.0')
     expect(parseVersionLine('0.0.339\n')).toBe('0.0.339')
+    // copilot ends its --version sentence with a period; the token must not keep it.
+    expect(parseVersionLine('GitHub Copilot CLI 1.0.69.')).toBe('1.0.69')
   })
   it('falls back to the first line when no version token exists', () => {
     expect(parseVersionLine('dev build')).toBe('dev build')

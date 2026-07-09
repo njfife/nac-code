@@ -8,6 +8,12 @@ import type { ProviderProbe } from '../../../shared/runtime'
 // parseVersionLine can fall back to non-numeric strings (e.g. 'dev build') — only prefix real versions.
 const versionLabel = (v: string): string => (/^\d/.test(v) ? `v${v}` : v)
 
+// Selectable-entry count for a provider row (variants count — they're picked like models).
+const modelCount = (models: ModelDef[]): string => {
+  const n = models.reduce((a, m) => a + 1 + (m.variants?.length ?? 0), 0)
+  return `${n} ${n === 1 ? 'model' : 'models'}`
+}
+
 export default function ModelModal() {
   const active = useApp(selectActiveChat)
   const setModel = useApp((s) => s.setModel)
@@ -116,7 +122,7 @@ export default function ModelModal() {
                 {active.provider === p.id && <span className="mono" style={currentTag}>{active.model}</span>}
                 <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>
                   {probeFor(p.id)?.version ? `${versionLabel(probeFor(p.id)!.version!)} · ` : ''}
-                  {(discovered[p.id] ?? p.models).length} models ›
+                  {modelCount(discovered[p.id] ?? p.models)} ›
                 </span>
               </button>
             ))
@@ -250,7 +256,7 @@ const modalHeader: CSSProperties = { display: 'flex', alignItems: 'center', gap:
 const closeBtn: CSSProperties = { background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }
 const backBtn: CSSProperties = { background: 'var(--card)', color: 'var(--text-2)', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 9px', fontSize: 13, cursor: 'pointer' }
 const modelChip: CSSProperties = { border: '1px solid var(--line)', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }
-const providerRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'transparent', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', textAlign: 'left' }
+const providerRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'transparent', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }
 const currentTag: CSSProperties = { fontSize: 11, color: 'var(--accent-light)', background: 'var(--accent-tint-3)', borderRadius: 5, padding: '1px 7px' }
 const emptyState: CSSProperties = { padding: '28px 16px', textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', borderTop: '1px solid var(--line)' }
 const sectionLabel: CSSProperties = { fontSize: 10.5, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600, marginBottom: 8 }
