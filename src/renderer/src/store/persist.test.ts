@@ -12,4 +12,12 @@ describe('normalizeChat — thinking → effort migration', () => {
     expect(normalizeChat({ thinking: 'high', fast: false } as never, 'c3').effort).toBe('high')
     expect(normalizeChat({ effort: 'xhigh', fast: false } as never, 'c4').effort).toBe('xhigh')
   })
+
+  it('hydrates fast strictly from boolean true and treats malformed fast as pre-feature', () => {
+    const malformed = normalizeChat({ fast: null as unknown as boolean, thinking: 'medium' } as never, 'c_bad')
+    expect(malformed.effort).toBeNull() // non-boolean fast = pre-feature: cosmetic thinking dropped
+    expect(malformed.fast).toBe(false)
+    expect(normalizeChat({ fast: true } as never, 'c_t').fast).toBe(true)
+    expect(normalizeChat({} as never, 'c_none').fast).toBe(false)
+  })
 })
