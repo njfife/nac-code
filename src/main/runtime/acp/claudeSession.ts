@@ -122,6 +122,7 @@ export class ClaudeSession implements TransportSession {
         effort: requested.effort !== undefined ? requested.effort : this.spawned.effort
       }
       this.client = this.newClient(this.knownSessionId ?? undefined)
+      this.appliedYolo = false // fresh child is always spawned non-bypass — re-sync on the next check below
     }
     this.currentRunId = runId
     this.interrupted = false
@@ -140,15 +141,22 @@ export class ClaudeSession implements TransportSession {
     this.client.send({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } })
   }
 
+  /** Handlers registered here close over `this`, not the client they belong to — on respawn the OLD
+   *  client's close/frame events can still fire on a later tick after `this.client` already points at
+   *  the NEW child (Node's 'close' is never synchronous with kill()). Every handler must therefore
+   *  check it's still wired to the CURRENT client before touching session state; otherwise a stale
+   *  handler from a killed child can finish/error the run that replaced it. */
   private attach(client: StreamJsonClient): void {
-    client.onFrame('system', (frame) => this.handleSystem(frame))
-    client.onFrame('stream_event', (frame) => this.handleStreamEvent(frame))
-    client.onFrame('assistant', (frame) => this.handleAssistant(frame))
-    client.onFrame('user', (frame) => this.handleToolResult(frame))
-    client.onFrame('control_request', (frame) => this.handleControlRequest(frame))
-    client.onFrame('control_response', () => this.touchWatchdog()) // mode acks — nothing to do
-    client.onFrame('result', (frame) => this.handleResult(frame))
+    const current = (): boolean => this.client === client
+    client.onFrame('system', (frame) => { if (current()) this.handleSystem(frame) })
+    client.onFrame('stream_event', (frame) => { if (current()) this.handleStreamEvent(frame) })
+    client.onFrame('assistant', (frame) => { if (current()) this.handleAssistant(frame) })
+    client.onFrame('user', (frame) => { if (current()) this.handleToolResult(frame) })
+    client.onFrame('control_request', (frame) => { if (current()) this.handleControlRequest(frame) })
+    client.onFrame('control_response', () => { if (current()) this.touchWatchdog() }) // mode acks — nothing to do
+    client.onFrame('result', (frame) => { if (current()) this.handleResult(frame) })
     client.onClose(() => {
+      if (!current()) return
       if (this.currentRunId) this.finishRun({ kind: 'errored', message: 'claude exited mid-turn' })
     })
   }
