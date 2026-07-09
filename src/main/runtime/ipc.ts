@@ -1,7 +1,7 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { discoverModels } from './discovery'
 import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
@@ -9,6 +9,7 @@ import { startClaudeRun } from './claudeAdapter'
 import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
+import { probeProviders } from './registry'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -102,6 +103,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Live model discovery (OpenCode only — reflects the account's real configured models).
   ipcMain.handle(DISCOVERY_CHANNELS.models, (_e, provider: string): Promise<string[]> => discoverModels(provider))
+
+  // Live CLI detection for the provider-first model picker (CliRegistry v0).
+  ipcMain.handle(REGISTRY_CHANNELS.providers, () => probeProviders())
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))

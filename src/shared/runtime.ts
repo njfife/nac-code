@@ -62,6 +62,18 @@ export const CHANGES_CHANNELS = {
   diff: 'changes:diff'
 } as const
 
+export const REGISTRY_CHANNELS = {
+  providers: 'registry:providers'
+} as const
+
+// Live CLI detection (CliRegistry v0, starts M4): a provider is available only if NAC has an
+// adapter AND its binary responds to --version.
+export interface ProviderProbe {
+  id: string
+  installed: boolean
+  version?: string
+}
+
 // Real working-tree changes for a workspace (FR-12), read from git.
 export type FileStatus = 'added' | 'modified' | 'deleted'
 export interface ChangedFileInfo {
