@@ -74,6 +74,8 @@ export function windowKFor(provider: string, modelLabel: string, caps?: Provider
       if (v) return v.contextWindowK ?? m.contextWindowK ?? 200 // variants inherit the parent's window
     }
   }
+  // copilot: documented 128K; no live usage frames exist to correct an estimate
+  if (provider === 'copilot') return 128
   return 200
 }
 

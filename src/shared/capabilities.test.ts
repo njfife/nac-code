@@ -42,4 +42,7 @@ describe('windowKFor', () => {
     expect(windowKFor('codex', 'GPT-5.5', caps)).toBe(272)
     expect(windowKFor('codex', 'Mystery Model')).toBe(200)
   })
+  it('returns copilot documented 128K for Account default', () => {
+    expect(windowKFor('copilot', 'Account default')).toBe(128)
+  })
 })
