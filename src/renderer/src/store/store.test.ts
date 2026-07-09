@@ -148,4 +148,41 @@ describe('app store — per-chat spine', () => {
     expect(after.chats[id].fast).toBe(true)
     for (const [cid, c] of Object.entries(after.chats)) if (cid !== id) expect(c.fast).toBe(false)
   })
+
+  it('setEffort sets the active chat effort; provider switch resets it to null', () => {
+    const s = useApp.getState()
+    s.setEffort('xhigh')
+    expect(useApp.getState().chats[useApp.getState().activeChatId].effort).toBe('xhigh')
+    const chat = useApp.getState().chats[useApp.getState().activeChatId]
+    const otherProvider = chat.provider === 'claude' ? 'codex' : 'claude'
+    s.setModel(otherProvider, 'Account default')
+    expect(useApp.getState().chats[useApp.getState().activeChatId].effort).toBeNull()
+  })
+
+  it('same-provider model switch clamps effort to the new model scale', () => {
+    const s = useApp.getState()
+    const chat = s.chats[s.activeChatId]
+    // Seed caps: current model supports 'xhigh', the switch target does not.
+    useApp.setState({
+      caps: {
+        ...s.caps,
+        [chat.provider]: {
+          provider: chat.provider,
+          source: 'protocol',
+          efforts: ['low', 'medium', 'high'],
+          fetchedAt: 1,
+          models: [
+            { id: 'm1', label: chat.model, efforts: ['low', 'medium', 'high', 'xhigh'] },
+            { id: 'm2', label: 'Other Model', efforts: ['low', 'medium'] }
+          ]
+        }
+      }
+    })
+    s.setEffort('xhigh')
+    s.setModel(chat.provider, 'Other Model')
+    expect(useApp.getState().chats[s.activeChatId].effort).toBeNull() // xhigh not in m2's scale
+    s.setEffort('low')
+    s.setModel(chat.provider, chat.model)
+    expect(useApp.getState().chats[s.activeChatId].effort).toBe('low') // still valid → kept
+  })
 })

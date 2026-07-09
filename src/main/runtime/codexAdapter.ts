@@ -65,16 +65,17 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
 }
 
 /** Pure + exported for testing: build the codex argv. yolo → workspace-write; sessionId → resume that thread. */
-export function codexArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string): string[] {
+export function codexArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string, model?: string): string[] {
   // exec flags must precede the `resume` subcommand: `codex exec <flags> resume <id> <prompt>`.
   const base = ['exec', '--json', '--skip-git-repo-check', '-s', yolo ? 'workspace-write' : 'read-only']
+  if (model) base.push('-m', model)
   if (effort) base.push('-c', `model_reasoning_effort=${effort}`) // bare value: codex config parses it as a string
   return sessionId ? [...base, 'resume', sessionId, prompt] : [...base, prompt]
 }
 
 export function startCodexRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string; model?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -84,7 +85,7 @@ export function startCodexRun(
     onEvent(e)
   }
 
-  const args = codexArgs(req.prompt, req.yolo, req.sessionId, req.effort)
+  const args = codexArgs(req.prompt, req.yolo, req.sessionId, req.effort, req.model)
 
   let child: ChildProcess
   try {

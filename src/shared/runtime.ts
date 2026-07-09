@@ -8,7 +8,7 @@ export interface RunRequest {
   cwd?: string // working directory for the harness = the chat's workspace folder (agents act on real code)
   yolo?: boolean // autonomy: on = full file/command access; off (default) = restricted per harness (M0-2)
   model?: string // harness model id (e.g. opencode 'lmstudio/qwen/…'); passed as --model where supported
-  thinking?: string // universal effort level (low|medium|high); each adapter maps it to its own flag. Omitted = harness default
+  effort?: string // reasoning depth; omitted = harness default. Adapter maps to its flag
   fast?: boolean // Claude fast mode (research preview) — injected per-run via --settings
 }
 
@@ -55,10 +55,6 @@ export const FILES_CHANNELS = {
   read: 'files:read'
 } as const
 
-export const DISCOVERY_CHANNELS = {
-  models: 'discovery:models'
-} as const
-
 export const CHANGES_CHANNELS = {
   get: 'changes:get',
   diff: 'changes:diff'
@@ -74,6 +70,31 @@ export interface ProviderProbe {
   id: string
   installed: boolean
   version?: string
+}
+
+export const CAPABILITIES_CHANNELS = {
+  get: 'capabilities:get'
+} as const
+
+// Per-account model & capability discovery (M4 pillar one). One neutral shape for every provider.
+export interface DiscoveredModel {
+  id: string // harness model id (what --model / -m receives)
+  label: string // display name
+  isDefault?: boolean
+  efforts?: string[] // per-model scale (codex); absent = provider-wide scale applies
+  defaultEffort?: string
+  variants?: { id: string; label: string; gated?: boolean }[] // e.g. claude sonnet[1m]
+  gated?: boolean // learned: this account's harness rejected the id
+  note?: string // honest caveat (e.g. '9x usage', 'session-only')
+}
+
+export interface ProviderCapabilities {
+  provider: string
+  source: 'protocol' | 'static' | 'static+learned'
+  models: DiscoveredModel[]
+  efforts: string[] // provider-wide effort scale (fallback when models carry none)
+  effortNote?: string // honest caveat shown under the effort chips (e.g. claude session-only levels)
+  fetchedAt: number
 }
 
 // Real working-tree changes for a workspace (FR-12), read from git.

@@ -1,8 +1,7 @@
 import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { RUN_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
-import { discoverModels } from './discovery'
+import { RUN_CHANNELS, DIALOG_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
 import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
@@ -10,6 +9,9 @@ import { startCodexRun } from './codexAdapter'
 import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
+import { getCapabilities, invalidateCapabilities } from './capabilities'
+import { classifyModelRejection } from './capabilities/ledger'
+import { recordOutcome } from './capabilities/ledgerStore'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -55,18 +57,25 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
     const handler = (event: AgentEvent): void => {
       send(event)
+      // Gating ledger: learn per-account model verdicts from real outcomes (explicit model only).
+      if (req.model && req.provider) {
+        if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
+          recordOutcome(req.provider, req.model, 'gated', event.message)
+          invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
+        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
+      }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
     const run =
       req.provider === 'claude'
-        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.thinking, fast: req.fast }, handler)
+        ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
         : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.thinking }, handler)
+          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
           : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.thinking }, handler)
+            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
             : req.provider === 'opencode'
-              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.thinking }, handler)
+              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
               : startHarnessRun(
             runId,
             {
@@ -101,11 +110,11 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     return { path: res.filePaths[0], name: basename(res.filePaths[0]) }
   })
 
-  // Live model discovery (OpenCode only — reflects the account's real configured models).
-  ipcMain.handle(DISCOVERY_CHANNELS.models, (_e, provider: string): Promise<string[]> => discoverModels(provider))
-
   // Live CLI detection for the provider-first model picker (CliRegistry v0).
   ipcMain.handle(REGISTRY_CHANNELS.providers, () => probeProviders())
+
+  // Per-account capability discovery (M4): live model/effort data with a static floor.
+  ipcMain.handle(CAPABILITIES_CHANNELS.get, (_e, provider: string, refresh?: boolean) => getCapabilities(provider, refresh === true))
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))

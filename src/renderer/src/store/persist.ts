@@ -1,4 +1,4 @@
-import { useApp, type Chat, type Workspace, type Layout, type ThinkingLevel } from './store'
+import { useApp, type Chat, type Workspace, type Layout } from './store'
 import type { ContextItem } from '../data/context'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
@@ -24,10 +24,12 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     agent: c.agent ?? null,
     yolo: c.yolo ?? false,
     fast: c.fast === true,
-    // thinking was cosmetic before effort wiring landed (same change that introduced `fast`);
-    // reset pre-feature data to 'none' (= harness default) so runs don't silently gain flags.
-    // Gate on a real boolean so malformed values (e.g. fast: null) count as pre-feature too.
-    thinking: typeof c.fast === 'boolean' ? ((c.thinking as ThinkingLevel) ?? 'none') : 'none',
+    // effort (né thinking): null = harness default. Legacy: 'none' → null; pre-fast-era values were
+    // cosmetic → null; post-feature 'thinking' strings carry over; new 'effort' field wins when present.
+    effort:
+      typeof c.fast === 'boolean'
+        ? ((c as { effort?: string | null }).effort ?? ((c as { thinking?: string }).thinking === 'none' ? null : (c as { thinking?: string }).thinking ?? null))
+        : null,
     activeConfig: c.activeConfig ?? null,
     attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
     dirty: c.dirty ?? false,

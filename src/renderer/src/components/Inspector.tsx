@@ -78,8 +78,8 @@ export default function Inspector() {
             <span className="mono" style={val}>{active.model}</span>
           </Row>
           <Row>
-            <span style={lbl}>Thinking</span>
-            <span className="mono" style={val}>Medium</span>
+            <span style={lbl}>Effort</span>
+            <span className="mono" style={val}>{active.effort ?? 'default'}</span>
           </Row>
           <Row>
             <span style={lbl}>Working dir</span>

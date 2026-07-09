@@ -17,6 +17,11 @@ describe('copilotArgs (autonomy)', () => {
     expect(copilotArgs('hi', false, undefined, 'medium')).toEqual(expect.arrayContaining(['--reasoning-effort', 'medium']))
     expect(copilotArgs('hi')).not.toContain('--reasoning-effort')
   })
+
+  it('passes --model when set', () => {
+    expect(copilotArgs('hi', false, undefined, undefined, 'claude-sonnet-4.6')).toEqual(expect.arrayContaining(['--model', 'claude-sonnet-4.6']))
+    expect(copilotArgs('hi')).not.toContain('--model')
+  })
 })
 
 // Exercised against the real `copilot -p --output-format json` event shapes.

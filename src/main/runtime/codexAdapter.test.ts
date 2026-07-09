@@ -19,6 +19,13 @@ describe('codexArgs (autonomy)', () => {
     const resumed = codexArgs('hi', false, 's1', 'low')
     expect(resumed.indexOf('-c')).toBeLessThan(resumed.indexOf('resume'))
   })
+
+  it('passes -m before the resume subcommand and omits it without a model', () => {
+    const args = codexArgs('hi', false, 's1', undefined, 'gpt-5.5')
+    expect(args).toEqual(expect.arrayContaining(['-m', 'gpt-5.5']))
+    expect(args.indexOf('-m')).toBeLessThan(args.indexOf('resume'))
+    expect(codexArgs('hi')).not.toContain('-m')
+  })
 })
 
 // Exercised against the real `codex exec --json` event shapes.
