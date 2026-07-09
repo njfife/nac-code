@@ -47,6 +47,24 @@ export default function WorkspaceModal() {
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {/* Account default chip — always present (selectable even when no static models exist) */}
+                {(() => {
+                  const isDefault = d?.provider === p.id && d?.model === 'Account default'
+                  return (
+                    <button
+                      className="mono"
+                      onClick={() => setDefaults(wsId, { provider: p.id, model: 'Account default' })}
+                      style={{
+                        ...chip,
+                        background: isDefault ? 'var(--accent-tint-3)' : 'var(--card)',
+                        color: isDefault ? 'var(--text)' : 'var(--text-2)',
+                        borderColor: isDefault ? 'var(--accent)' : 'var(--line)'
+                      }}
+                    >
+                      Account default
+                    </button>
+                  )
+                })()}
                 {(STATIC_CAPABILITIES[p.id]?.models ?? []).map((m) => {
                   const isDefault = d?.provider === p.id && d?.model === m.label
                   return (
