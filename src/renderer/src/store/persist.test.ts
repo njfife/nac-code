@@ -45,6 +45,24 @@ describe('normalizeChat — never restore live-looking tool/permission state', (
 // Fresh-install sweep (Task 2): the old "≥1 chat or ignore the file" gate is gone — initPersistence
 // must hydrate whatever's on disk, including a genuinely empty chats object, rather than falling back
 // to (now nonexistent) demo chats.
+// Sweep (Task 3): `agent` is gone from Chat, and the fake catalog entries (ag-*, fl-*, content-less
+// skills) are gone from ITEMS_BY_ID — dead attachedIds referencing them must not survive hydration,
+// while ids that belong to hydrated user items (notes/files, `u_` prefix) are real and must survive.
+describe('normalizeChat — drops removed agent field and dead attachedIds', () => {
+  it('drops the removed agent field and dead attachedIds on hydrate', () => {
+    const raw = { agent: 'ag-nac', attachedIds: ['sk-tdd', 'ag-nac', 'fl-readme'] } as never
+    const c = normalizeChat(raw, 'c1')
+    expect(c).not.toHaveProperty('agent')
+    expect(c.attachedIds).toEqual(['sk-tdd'])
+  })
+
+  it('keeps attachedIds that belong to hydrated user items even though they are not in ITEMS_BY_ID', () => {
+    const raw = { attachedIds: ['sk-tdd', 'u_123_1', 'ag-nac'] } as never
+    const c = normalizeChat(raw, 'c2', new Set(['u_123_1']))
+    expect(c.attachedIds).toEqual(['sk-tdd', 'u_123_1'])
+  })
+})
+
 describe('initPersistence — empty-chats gate', () => {
   afterEach(() => {
     // @ts-expect-error test-only teardown of the minimal preload stub

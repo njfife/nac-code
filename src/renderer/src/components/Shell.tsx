@@ -4,7 +4,6 @@ import LeftRail from './LeftRail'
 import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
-import AgentModal from './AgentModal'
 import StatsModal from './StatsModal'
 import WorkspaceModal from './WorkspaceModal'
 import ContextLibrary from './ContextLibrary'
@@ -60,7 +59,6 @@ export default function Shell() {
       </div>
       <StatusBar />
       {modal === 'model' && <ModelModal />}
-      {modal === 'agent' && <AgentModal />}
       {modal === 'stats' && <StatsModal />}
       {modal === 'workspace' && <WorkspaceModal />}
       {palette && <CommandPalette />}

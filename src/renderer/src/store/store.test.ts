@@ -50,9 +50,9 @@ describe('app store — per-chat spine', () => {
 
   it('toggleAttach toggles membership and marks the chat dirty (FR-5.5 / FR-6.4)', () => {
     const id = useApp.getState().activeChatId
-    const had = useApp.getState().chats[id].attachedIds.includes('sk-review')
-    useApp.getState().toggleAttach('sk-review')
-    expect(useApp.getState().chats[id].attachedIds.includes('sk-review')).toBe(!had)
+    const had = useApp.getState().chats[id].attachedIds.includes('in-security')
+    useApp.getState().toggleAttach('in-security')
+    expect(useApp.getState().chats[id].attachedIds.includes('in-security')).toBe(!had)
     expect(useApp.getState().chats[id].dirty).toBe(true)
   })
 
@@ -132,22 +132,21 @@ describe('app store — per-chat spine', () => {
   it('newChat(workspaceId) inherits that workspace’s defaults over the active chat (M0-4)', () => {
     useApp.getState().addWorkspace('proj', '/p')
     const proj = useApp.getState().workspaces.find((w) => w.name === 'proj')!
-    useApp.getState().setWorkspaceDefaults(proj.id, { provider: 'codex', model: 'gpt-5-codex', agent: 'infra' })
+    useApp.getState().setWorkspaceDefaults(proj.id, { provider: 'codex', model: 'gpt-5-codex' })
     // the active chat (from beforeEach) is in a different workspace than the freshly-created 'proj'
     useApp.getState().newChat(proj.id)
     const active = useApp.getState().chats[useApp.getState().activeChatId]
     expect(active.workspaceId).toBe(proj.id)
     expect(active.provider).toBe('codex')
     expect(active.model).toBe('gpt-5-codex')
-    expect(active.agent).toBe('infra')
   })
 
   it('setWorkspaceDefaults merges partials and clears with null', () => {
     useApp.getState().addWorkspace('p2', '/p2')
     const p2 = useApp.getState().workspaces.find((w) => w.name === 'p2')!
-    useApp.getState().setWorkspaceDefaults(p2.id, { provider: 'claude', model: 'Opus 4.8' })
-    useApp.getState().setWorkspaceDefaults(p2.id, { agent: 'nac-code' })
-    expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toEqual({ provider: 'claude', model: 'Opus 4.8', agent: 'nac-code' })
+    useApp.getState().setWorkspaceDefaults(p2.id, { provider: 'claude' })
+    useApp.getState().setWorkspaceDefaults(p2.id, { model: 'Opus 4.8' })
+    expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toEqual({ provider: 'claude', model: 'Opus 4.8' })
     useApp.getState().setWorkspaceDefaults(p2.id, null)
     expect(useApp.getState().workspaces.find((w) => w.id === p2.id)!.defaults).toBeUndefined()
   })
@@ -183,7 +182,7 @@ describe('app store — per-chat spine', () => {
     useApp.getState().setSession(id, 'sess1', prov)
     useApp.getState().markSeeded(id, useApp.getState().chats[id].attachedIds)
     expect(contextPending(useApp.getState().chats[id])).toBe(false)
-    useApp.getState().toggleAttach('sk-brainstorm') // changes the attached set
+    useApp.getState().toggleAttach('in-security') // changes the attached set
     expect(contextPending(useApp.getState().chats[id])).toBe(true)
     useApp.getState().reseedContext(id) // drops the session -> applies on next send
     expect(contextPending(useApp.getState().chats[id])).toBe(false)

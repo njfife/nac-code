@@ -3,7 +3,7 @@ import { useApp, selectActiveChat, type Chat } from '../store/store'
 import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
 import { ITEMS_BY_ID, TYPE_META, type ItemType } from '../data/context'
 
-const TYPE_ORDER: ItemType[] = ['skill', 'agent', 'instruction', 'file']
+const TYPE_ORDER: ItemType[] = ['skill', 'instruction', 'file']
 
 // Live, present-tense session state (FR-10.x). Panels are independently collapsible.
 export default function Inspector() {

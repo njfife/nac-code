@@ -4,13 +4,12 @@ import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../
 import type { ContextItem } from '../data/context'
 import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
 
-// The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
+// The per-chat state spine (FR-4.1): every chat owns its own provider/model/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
 
 export interface WorkspaceDefaults {
   provider?: string
   model?: string
-  agent?: string | null
 }
 
 export interface Workspace {
@@ -61,7 +60,6 @@ export interface Chat {
   time: string
   provider: string // harness driver id (claude | codex | copilot | opencode)
   model: string
-  agent: string | null
   yolo: boolean
   fast: boolean // Claude fast mode (research preview); injected per-run via --settings
   effort: string | null // reasoning depth; null = harness default. Values come from discovered capabilities
@@ -85,7 +83,7 @@ export interface Chat {
 
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
-export type ModalKind = 'model' | 'agent' | 'stats' | 'workspace' | null
+export type ModalKind = 'model' | 'stats' | 'workspace' | null
 
 interface AppState {
   workspaces: Workspace[]
@@ -109,7 +107,6 @@ interface AppState {
   setLayout: (l: Layout) => void
   setView: (v: View) => void
   setModel: (provider: string, model: string) => void
-  setAgent: (agent: string | null) => void
   openModal: (m: ModalKind) => void
   closeModal: () => void
   toggleAttach: (itemId: string) => void
@@ -213,12 +210,6 @@ export const useApp = create<AppState>()((set, get) => ({
       const windowK = windowKFor(provider, model, s.caps[provider])
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort, contextLive, windowK } } }
     }),
-  setAgent: (agent) =>
-    set((s) => {
-      const chat = s.chats[s.activeChatId]
-      if (!chat) return {}
-      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, agent } } }
-    }),
   openModal: (m) => set({ modal: m }),
   closeModal: () => set({ modal: null, wsModalId: null }),
   openWorkspaceModal: (id) => set({ modal: 'workspace', wsModalId: id }),
@@ -302,7 +293,6 @@ export const useApp = create<AppState>()((set, get) => ({
       time: 'now',
       provider,
       model,
-      agent: wsDefaults?.agent !== undefined ? wsDefaults.agent : src?.agent ?? null,
       yolo: false,
       fast: false,
       effort: null,

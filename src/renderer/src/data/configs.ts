@@ -8,10 +8,8 @@ export interface Configuration {
 }
 
 export const CONFIGURATIONS: Configuration[] = [
-  { id: 'standard', name: 'Standard', itemIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'] },
-  { id: 'infra', name: 'Infra & Deploy', itemIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'] },
-  { id: 'review', name: 'Code Review', itemIds: ['sk-review', 'ag-reviewer', 'ag-frontend', 'in-style'] },
-  { id: 'db', name: 'DB Migration', itemIds: ['sk-tdd', 'in-security', 'fl-plan'] },
+  { id: 'standard', name: 'Standard', itemIds: ['sk-tdd', 'in-style'] },
+  { id: 'security', name: 'Security', itemIds: ['in-security', 'in-style'] },
   { id: 'minimal', name: 'Minimal', itemIds: ['in-style'] }
 ]
 

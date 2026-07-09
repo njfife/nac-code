@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat, contextPending } from '../store/store'
-import { CONTEXT_ITEMS, ITEMS_BY_ID, TYPE_META, WINDOW_TOKENS, budgetColor, type ItemType, type ContextItem } from '../data/context'
+import { CONTEXT_ITEMS, ITEMS_BY_ID, TYPE_META, budgetColor, type ItemType, type ContextItem } from '../data/context'
 
 type Category = 'attached' | ItemType
 
@@ -27,7 +27,8 @@ export default function ContextLibrary() {
 
   const attached = new Set(attachedIds)
   const attachedTokens = attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
-  const pct = Math.min(100, Math.round((attachedTokens / WINDOW_TOKENS) * 100))
+  const windowTokens = (active?.windowK ?? 128) * 1000
+  const pct = Math.min(100, Math.round((attachedTokens / windowTokens) * 100))
   const pending = active ? contextPending(active) : false
 
   const onAddFile = async (): Promise<void> => {
@@ -55,10 +56,10 @@ export default function ContextLibrary() {
         <div style={{ marginLeft: 'auto', width: 230 }}>
           <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
             <span>Context budget · {attachedIds.length} items</span>
-            <span>~{(attachedTokens / 1000).toFixed(1)}k / 128k tok</span>
+            <span>~{(attachedTokens / 1000).toFixed(1)}k / {(windowTokens / 1000).toFixed(0)}k tok</span>
           </div>
           <div style={{ height: 6, borderRadius: 3, background: 'var(--card-3)', overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: budgetColor(attachedTokens), transition: 'width .2s, background .2s' }} />
+            <div style={{ width: `${pct}%`, height: '100%', background: budgetColor(attachedTokens, windowTokens), transition: 'width .2s, background .2s' }} />
           </div>
         </div>
       </div>

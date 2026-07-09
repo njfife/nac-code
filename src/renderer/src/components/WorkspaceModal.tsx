@@ -2,11 +2,8 @@ import { useEffect, type CSSProperties } from 'react'
 import { useApp } from '../store/store'
 import { PROVIDERS } from '../data/providers'
 import { STATIC_CAPABILITIES } from '../../../shared/capabilities'
-import { CONTEXT_ITEMS } from '../data/context'
 
-const AGENTS = CONTEXT_ITEMS.filter((i) => i.type === 'agent')
-
-// Per-workspace defaults (M0-4): provider/model/agent that new chats in this workspace inherit.
+// Per-workspace defaults (M0-4): provider/model that new chats in this workspace inherit.
 export default function WorkspaceModal() {
   const wsId = useApp((s) => s.wsModalId)
   const ws = useApp((s) => s.workspaces.find((w) => w.id === s.wsModalId))
@@ -23,7 +20,7 @@ export default function WorkspaceModal() {
 
   if (!ws || !wsId) return null
   const d = ws.defaults
-  const hasDefaults = Boolean(d && (d.provider || d.agent !== undefined))
+  const hasDefaults = Boolean(d && d.provider)
 
   return (
     <div onClick={close} style={backdrop}>
@@ -87,12 +84,6 @@ export default function WorkspaceModal() {
             </div>
           ))}
 
-          <div style={sectionLabel}>Default agent</div>
-          <Row name="No agent" role="Default — no agent persona" active={d?.agent === null} onClick={() => setDefaults(wsId, { agent: null })} />
-          {AGENTS.map((a) => (
-            <Row key={a.id} name={a.name} role={a.description} active={d?.agent === a.name} onClick={() => setDefaults(wsId, { agent: a.name })} />
-          ))}
-
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
             <button onClick={() => setDefaults(wsId, null)} disabled={!hasDefaults} style={{ ...clearBtn, opacity: hasDefaults ? 1 : 0.4, cursor: hasDefaults ? 'pointer' : 'default' }}>
               Clear defaults — use active-chat inheritance
@@ -104,23 +95,10 @@ export default function WorkspaceModal() {
   )
 }
 
-function Row(props: { name: string; role: string; active: boolean; onClick: () => void }) {
-  return (
-    <button onClick={props.onClick} style={{ ...row, background: props.active ? 'var(--accent-tint)' : 'transparent' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: props.active ? 'var(--accent)' : 'var(--card-3)', marginTop: 5, flexShrink: 0 }} />
-      <span style={{ textAlign: 'left' }}>
-        <span className="mono" style={{ fontSize: 13, color: 'var(--text)', display: 'block' }}>{props.name}</span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{props.role}</span>
-      </span>
-    </button>
-  )
-}
-
 const backdrop: CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
 const card: CSSProperties = { width: 480, maxWidth: '90vw', maxHeight: '78vh', display: 'flex', flexDirection: 'column', background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 16, boxShadow: '0 30px 90px rgba(0,0,0,.6)', overflow: 'hidden' }
 const modalHeader: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }
 const sectionLabel: CSSProperties = { fontSize: 10.5, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600, padding: '12px 16px 4px' }
 const closeBtn: CSSProperties = { background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }
 const chip: CSSProperties = { border: '1px solid var(--line)', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }
-const row: CSSProperties = { display: 'flex', gap: 10, width: '100%', padding: '9px 16px', background: 'transparent', border: 'none', cursor: 'pointer' }
 const clearBtn: CSSProperties = { background: 'transparent', border: '1px dashed var(--line-2)', color: 'var(--text-2)', borderRadius: 8, padding: '8px 12px', fontSize: 12.5, width: '100%' }
