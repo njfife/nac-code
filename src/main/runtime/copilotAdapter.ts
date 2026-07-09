@@ -40,16 +40,17 @@ export function parseCopilotLine(runId: string, line: string): AgentEvent[] {
 }
 
 /** Pure + exported for testing: build the copilot argv. yolo → --yolo; sessionId → resume that session. */
-export function copilotArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string): string[] {
+export function copilotArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string, model?: string): string[] {
   const args = ['-p', prompt, '--output-format', 'json', yolo ? '--yolo' : '--allow-all-tools', '--no-ask-user', '--no-color', '--log-level', 'none']
   if (effort) args.push('--reasoning-effort', effort)
+  if (model) args.push('--model', model)
   if (sessionId) args.push(`--resume=${sessionId}`)
   return args
 }
 
 export function startCopilotRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string; model?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -61,7 +62,7 @@ export function startCopilotRun(
 
   // off = --allow-all-tools (tools auto-run, paths/URLs still verified); yolo = --yolo (all paths/URLs too).
   // --no-ask-user keeps it from blocking on questions; no --share so it never writes a session .md to the cwd.
-  const args = copilotArgs(req.prompt, req.yolo, req.sessionId, req.effort)
+  const args = copilotArgs(req.prompt, req.yolo, req.sessionId, req.effort, req.model)
 
   let child: ChildProcess
   try {

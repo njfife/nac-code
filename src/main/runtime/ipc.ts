@@ -70,9 +70,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       req.provider === 'claude'
         ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
         : req.provider === 'codex'
-          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort }, handler)
+          ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
           : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort }, handler)
+            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
             : req.provider === 'opencode'
               ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
               : startHarnessRun(
