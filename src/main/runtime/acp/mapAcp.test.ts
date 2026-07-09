@@ -24,6 +24,11 @@ describe('mapAcpUpdate', () => {
     const [e] = mapAcpUpdate('r', { sessionUpdate: 'tool_call_update', toolCallId: 'call_MHx', content: [{ type: 'content', content: { type: 'text', text: 'partial' } }] })
     expect(e).toMatchObject({ type: 'tool.updated', status: 'running', detail: 'partial' })
   })
+  it('never surfaces a non-string rawOutput.content as detail (Minor 6: React would crash on an object child)', () => {
+    const [e] = mapAcpUpdate('r', { sessionUpdate: 'tool_call_update', toolCallId: 'call_MHx', status: 'completed', rawOutput: { content: { type: 'image', data: 'base64...' } } })
+    expect(e).toMatchObject({ type: 'tool.updated', toolCallId: 'call_MHx', status: 'completed' })
+    expect((e as { detail?: unknown }).detail).toBeUndefined()
+  })
 })
 
 describe('mapPermissionRequest', () => {

@@ -57,6 +57,7 @@ export class JsonRpcClient {
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
   private notificationHandlers = new Map<string, (params: unknown) => void>()
   private requestHandlers = new Map<string, (params: unknown) => Promise<unknown> | unknown>()
+  private closed = false
 
   constructor(command: string, args: string[]) {
     this.child = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'] })
@@ -78,7 +79,15 @@ export class JsonRpcClient {
       }
     })
     this.child.on('error', (err) => this.failAll(err))
-    this.child.on('close', () => this.failAll(new Error('rpc server closed')))
+    this.child.on('close', () => {
+      this.closed = true
+      this.failAll(new Error('rpc server closed'))
+    })
+  }
+
+  /** True once the child process has exited — further requests would hang forever on a dead pipe. */
+  get isClosed(): boolean {
+    return this.closed
   }
 
   private failAll(err: Error): void {
@@ -114,6 +123,7 @@ export class JsonRpcClient {
   }
 
   request(method: string, params?: unknown, timeoutMs = 5000): Promise<unknown> {
+    if (this.closed) return Promise.reject(new Error('rpc: server closed'))
     const id = this.nextId++
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params: params ?? {} })
     return new Promise((resolve, reject) => {

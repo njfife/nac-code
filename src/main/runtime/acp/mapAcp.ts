@@ -13,11 +13,17 @@ interface AcpUpdate {
   kind?: string
   status?: string
   rawInput?: { command?: string }
-  rawOutput?: { content?: string }
+  rawOutput?: { content?: unknown }
   content?: AcpContentEntry[] | { text?: string }
 }
 
 const TOOL_STATUSES = new Set(['pending', 'running', 'completed', 'failed'])
+
+/** rawOutput.content / rawInput.command can be structured (non-string) — only strings are safe to
+ *  hand to React as event detail, so anything else is dropped rather than crashing the renderer. */
+function asStringDetail(x: unknown): string | undefined {
+  return typeof x === 'string' ? x : undefined
+}
 
 function contentText(u: AcpUpdate): string | undefined {
   if (Array.isArray(u.content)) {
@@ -40,7 +46,7 @@ export function mapAcpUpdate(runId: string, update: unknown): AgentEvent[] {
     case 'tool_call_update': {
       if (!u.toolCallId) return []
       const status = (u.status && TOOL_STATUSES.has(u.status) ? u.status : u.sessionUpdate === 'tool_call' ? 'pending' : 'running') as 'pending' | 'running' | 'completed' | 'failed'
-      const detail = u.rawOutput?.content ?? contentText(u) ?? u.rawInput?.command
+      const detail = asStringDetail(u.rawOutput?.content) ?? contentText(u) ?? u.rawInput?.command
       return [{ type: 'tool.updated', runId, toolCallId: u.toolCallId, title: u.title ?? u.toolCallId, kind: u.kind, status, ...(detail ? { detail } : {}) }]
     }
     default:
@@ -65,10 +71,11 @@ export function mapPermissionRequest(runId: string, requestId: string, params: u
     options.push({ id: o.optionId, label: o.name ?? o.optionId, kind: OPTION_KINDS[o.kind ?? ''] ?? 'deny' })
   }
   if (options.length === 0) return null
+  const detail = asStringDetail(p.toolCall?.rawInput?.command)
   return {
     type: 'permission.requested', runId, requestId,
     title: p.toolCall?.title ?? 'Permission request',
-    ...(p.toolCall?.rawInput?.command ? { detail: p.toolCall.rawInput.command } : {}),
+    ...(detail ? { detail } : {}),
     options
   }
 }

@@ -1,14 +1,18 @@
 import type { AgentEvent } from '../../../shared/runtime'
 import { AcpSession } from './acpSession'
 
-// One live ACP session per chat. Sessions die on provider switch (a new prompt for the same chat
-// with a different transport never reaches here), app quit, or idle timeout.
+// One live ACP session per chat. Sessions are disposed on provider switch (promptViaAcp detects
+// this when the renderer sends no sessionId — see below), a dead child process being replaced on
+// the next prompt, app quit, or idle timeout.
 
 export const IDLE_MS = 15 * 60_000
 
 interface Entry {
   session: AcpSession
   idleTimer: ReturnType<typeof setTimeout> | null
+  // Mutable indirection so a reused session's event sink always points at the CURRENT caller's
+  // onEvent, not the closure captured when the session was first created (Important 4).
+  ref: { onEvent: (e: AgentEvent) => void }
 }
 
 const byChat = new Map<string, Entry>()
@@ -45,10 +49,29 @@ export async function promptViaAcp(opts: {
   onEvent: (e: AgentEvent) => void
 }): Promise<{ ok: boolean }> {
   let entry = byChat.get(opts.chatId)
+
+  // Important 2: a dead child (process exited mid-lifetime) must never be reused — its stdin is
+  // gone, so a session/prompt against it would hang until the 30-min timeout with Stop a no-op.
+  if (entry && entry.session.dead) {
+    if (entry.idleTimer) clearTimeout(entry.idleTimer)
+    entry.session.dispose()
+    byChat.delete(opts.chatId)
+    entry = undefined
+  }
+
+  // Important 5: no sessionId means the renderer built a replay prompt — it believes there's no
+  // native session (provider changed, or the session was otherwise dropped client-side). Any ACP
+  // session we're still holding for this chat is stale and must be disposed, per spec.
+  if (entry && opts.sessionId === undefined) {
+    disposeChat(opts.chatId)
+    entry = undefined
+  }
+
   if (!entry) {
+    const ref = { onEvent: opts.onEvent }
     const session = new AcpSession((e) => {
       if (e.type === 'run.completed' || e.type === 'run.errored') runToChat.delete(e.runId)
-      opts.onEvent(e)
+      ref.onEvent(e)
     }, opts.yolo === true)
     try {
       await session.connect(opts.cwd, opts.sessionId)
@@ -56,8 +79,10 @@ export async function promptViaAcp(opts: {
       session.dispose()
       return { ok: false }
     }
-    entry = { session, idleTimer: null }
+    entry = { session, idleTimer: null, ref }
     byChat.set(opts.chatId, entry)
+  } else {
+    entry.ref.onEvent = opts.onEvent
   }
   entry.session.setYolo(opts.yolo === true)
   runToChat.set(opts.runId, opts.chatId)

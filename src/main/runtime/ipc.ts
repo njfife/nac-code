@@ -58,14 +58,18 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   ipcMain.handle(RUN_CHANNELS.start, (_e, req: RunRequest): { runId: string } => {
     const runId = `run_${++counter}`
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
+    // ACP runs the account-default model; don't attribute ledger verdicts to the picked model
+    // (pillar-1 limitation) — copilot never forwards the picker's model choice over ACP, and its
+    // headless fallback is also default-model in practice, so gate the ledger off for copilot entirely.
+    const ledgerModel = req.provider === 'copilot' ? undefined : req.model
     const handler = (event: AgentEvent): void => {
       send(event)
       // Gating ledger: learn per-account model verdicts from real outcomes (explicit model only).
-      if (req.model && req.provider) {
+      if (ledgerModel && req.provider) {
         if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
-          recordOutcome(req.provider, req.model, 'gated', event.message)
+          recordOutcome(req.provider, ledgerModel, 'gated', event.message)
           invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
-        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
+        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, ledgerModel, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }

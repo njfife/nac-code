@@ -27,6 +27,7 @@ export function acpCwd(cwd: string | undefined): string {
 
 interface PendingPermission {
   resolve: (optionId: string) => void
+  denyId: string
 }
 
 export class AcpSession implements TransportSession {
@@ -67,8 +68,13 @@ export class AcpSession implements TransportSession {
         await this.client.request('session/load', { sessionId: existingSessionId, cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)
         this.sessionId = existingSessionId
         return existingSessionId
-      } catch {
-        // fall through to a fresh session (caller seeds it with the replay prompt on the next send)
+      } catch (e) {
+        // Re-throw: the caller sent a BARE message (renderer chose native continuity, no replay
+        // text seeded). Falling through to session/new here would silently start an empty
+        // session and drop the conversation — a hard context-preservation violation. Rejecting
+        // connect() instead makes promptViaAcp resolve { ok: false }, so ipc.ts falls back to the
+        // one-shot startCopilotRun(sessionId) path, which uses --resume to preserve context.
+        throw e instanceof Error ? e : new Error(String(e))
       } finally {
         this.replaying = false
       }
@@ -93,8 +99,10 @@ export class AcpSession implements TransportSession {
       if (auto) return Promise.resolve({ outcome: { outcome: 'selected', optionId: auto.id } })
     }
     this.onEvent(event)
+    const denyId = event.options.find((o) => o.kind === 'deny')?.id ?? event.options[event.options.length - 1].id
     return new Promise((resolve) => {
       this.pendingPermissions.set(requestId, {
+        denyId,
         resolve: (optionId) => {
           this.onEvent({ type: 'permission.resolved', runId, requestId, optionId })
           resolve({ outcome: { outcome: 'selected', optionId } })
@@ -136,11 +144,17 @@ export class AcpSession implements TransportSession {
   }
 
   private expirePermissions(): void {
-    // A turn ended with cards still open (error/cancel): answer the protocol with a deny-equivalent.
+    // A turn ended with cards still open (error/cancel): answer the protocol with a deny-equivalent
+    // — the actual deny option id offered for that request, not a hardcoded guess.
     for (const [requestId, p] of this.pendingPermissions) {
       this.pendingPermissions.delete(requestId)
-      p.resolve('reject_once')
+      p.resolve(p.denyId)
     }
+  }
+
+  /** True once the underlying ACP child process has exited — the session can no longer be used. */
+  get dead(): boolean {
+    return this.client.isClosed
   }
 
   cancel(): void {
