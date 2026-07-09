@@ -1,6 +1,7 @@
 import { JsonRpcClient } from '../capabilities/jsonRpc'
 import type { AgentEvent, PermissionOption } from '../../../shared/runtime'
 import { mapAcpUpdate, mapPermissionRequest } from './mapAcp'
+import { resolveCwd } from '../paths'
 
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
 const HANDSHAKE_TIMEOUT_MS = 10_000
@@ -15,6 +16,13 @@ export interface TransportSession {
 /** Pure + exported for testing: YOLO auto-approval picks the first allow-ish option. */
 export function pickAutoApprove(options: PermissionOption[]): PermissionOption | undefined {
   return options.find((o) => o.kind === 'allow' || o.kind === 'allow_always')
+}
+
+/** Pure + exported for testing: ACP session cwd. copilot's session/new rejects a non-absolute path
+ *  (`-32603 "Directory path must be absolute"`), so a stored `~/…` workspace path MUST be expanded —
+ *  the same resolveCwd every one-shot adapter uses. Falls back to process cwd when unset. */
+export function acpCwd(cwd: string | undefined): string {
+  return resolveCwd(cwd) ?? process.cwd()
 }
 
 interface PendingPermission {
@@ -56,7 +64,7 @@ export class AcpSession implements TransportSession {
     if (existingSessionId) {
       try {
         this.replaying = true // session/load re-emits history as session/update — never re-append it
-        await this.client.request('session/load', { sessionId: existingSessionId, cwd: cwd ?? process.cwd(), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)
+        await this.client.request('session/load', { sessionId: existingSessionId, cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)
         this.sessionId = existingSessionId
         return existingSessionId
       } catch {
@@ -65,7 +73,7 @@ export class AcpSession implements TransportSession {
         this.replaying = false
       }
     }
-    const res = (await this.client.request('session/new', { cwd: cwd ?? process.cwd(), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)) as { sessionId?: string }
+    const res = (await this.client.request('session/new', { cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)) as { sessionId?: string }
     if (!res?.sessionId) throw new Error('acp: session/new returned no sessionId')
     this.sessionId = res.sessionId
     return res.sessionId
