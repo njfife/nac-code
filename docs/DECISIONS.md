@@ -40,18 +40,17 @@
 
 **✅ Context library v1** (`27e7e93`, `8c4d63f`): pillar 1 is real — authored **notes** (in-app form) + **file** attach (picker) become items with real content/path; attaching injects them as a leading context block on the non-native send path (seeds the session; resume turns inherit, re-seeded on switch/compaction). Persisted. Verified vs a real harness (an attached note's rule was followed). The "seeds once per session" behavior is **surfaced in the UI**: a "context changed · apply now" pill (composer) + banner (library) appear when attachments differ from what was seeded (`contextPending`); **Apply now** (`reseedContext`) drops the session so the next send re-seeds.
 
-**Next (follow-on options, the owner to prioritize):**
-- **Context library polish** — edit notes; mid-conversation re-seed on attachment change; per-harness-native injection (vs the universal prompt block).
-- **Thinking-level / agent wiring** — make those toggles real per harness (like YOLO/model); needs per-CLI flag verification (reasoning-effort, --agent), some account-gating risk.
-- **PRD multi-repo** workspace model; **packaging** (electron-builder) — *deferred (the owner: not worrying about real builds yet)*.
-
-**▶ Loop paused** — a very complete v1 is in (4 providers, cross-provider replay, compaction, workspace setup + defaults, real YOLO, Claude model selection). The model-discovery finding is a natural point for the owner to steer next priorities.
-- **Codex token-streaming** (item.updated deltas); **`--model` wiring** (selected model → harness `--model`).
-
-**▶ Loop paused** at the headline-goal milestone — awaiting the owner's GUI test (all 3 providers + compaction) and direction on the above.
+**Next — roadmap toward a daily-drivable app (owner-prioritized 2026-07-09):**
+1. **▶ IN PROGRESS: Interactive run transport (ACP/app-server)** — permission prompts ("can I edit this file?") + structured tool events replacing one-shot headless runs and flattened `[tool: X]` text. Builds on the M4 protocol clients (copilot ACP, codex app-server); unlocks codex token-streaming. The "wrapper, never a harness" thesis fully realized.
+2. **No-fake-pixels sweep** — remove seed demo chats on fresh state; real Inspector context-window/cost rows (contextK + $0.42 are fake); agent picker wiring (`--agent`); closes M0-5 error/empty states.
+3. **Context library polish** — edit notes; mid-conversation re-seed on attachment change; per-harness-native injection.
+4. **Packaging** (electron-builder) — after #1 makes daily-driving real. Known constraint: registry/adapters assume PATH access, which Finder-launched packaged apps don't inherit.
+- Riding small items: UTF-8 chunk fix for the four older adapters (spawnable chip exists); copilot session-store growth spot-check; modal component tests; **PRD multi-repo** still deferred.
+- ~~Thinking-level wiring~~ done (picker milestone); ~~codex `--model` wiring + model discovery~~ done (M4 pillar one); codex token-streaming folds into #1.
 
 ## Locked decisions (newest first)
 
+- **2026-07-09 — Roadmap order locked: interactive runs first.** The gap to a real daily-driver is interactive permission prompts + structured tool events over the ACP/app-server transports (which M4's discovery clients already speak), ahead of de-mocking, context-library polish, and packaging — in that order.
 - **2026-06-28 — v1 persistence = JSON file** (`userData/nac-state.json`, atomic temp+rename write) rather than SQLite — native-module-free and adequate for v1 data volumes; SQLite (better-sqlite3) stays the scale target. Implementation detail, not a functional divergence.
 - **2026-06-28 — Model/provider modal shows HARNESSES as providers** (claude/codex/cursor/opencode; local models under the OpenCode carrier) — reconciles the PRD's provider/model modal (FR-7) with the wrapper architecture. Not a functional divergence.
 - **2026-06-28 — Frontend state = Zustand** (chosen over Redux Toolkit — lighter, fits the per-chat store). Tooling: electron-vite + React + TS; vitest for tests.
