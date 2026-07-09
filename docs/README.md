@@ -6,5 +6,6 @@
 - **research/** — [carrier-harnesses.md](research/carrier-harnesses.md): OpenCode (v1 local carrier) and pi.dev evaluation, with config + wrapping details.
 - **reviews/** — [prd-handoff-review.md](reviews/prd-handoff-review.md): review of the original PRD + handoff.
 - **design/** — original design handoff: [PRD](design/NAC%20Code%20PRD.dc.html), [handoff README](design/README.md), interactive prototypes (`*.dc.html`), and `screenshots/`. Reference only — not production code.
+- **superpowers/** — specs and plans produced by the plan/task-brief workflow (e.g. [2026-07-08-provider-first-model-picker-design.md](superpowers/specs/2026-07-08-provider-first-model-picker-design.md), [plans/2026-07-08-provider-first-model-picker.md](superpowers/plans/2026-07-08-provider-first-model-picker.md)).
 
 _Conventions: `docs/DECISIONS.md` is the fast cross-device source of truth; the plan and specs hold the detail. Keep all three in sync as decisions land._
