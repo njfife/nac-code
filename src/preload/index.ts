@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, DISCOVERY_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent, type ChangesResult, type FileDiffResult, type ProviderProbe, type ProviderCapabilities } from '../shared/runtime'
+import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent, type ChangesResult, type FileDiffResult, type ProviderProbe, type ProviderCapabilities } from '../shared/runtime'
 
 // The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
 // allowlisted IPC channels — never raw Node access in the renderer.
@@ -27,9 +27,6 @@ const api = {
   },
   files: {
     read: (path: string): Promise<string> => ipcRenderer.invoke(FILES_CHANNELS.read, path)
-  },
-  models: {
-    discover: (provider: string): Promise<string[]> => ipcRenderer.invoke(DISCOVERY_CHANNELS.models, provider)
   },
   registry: {
     providers: (): Promise<ProviderProbe[]> => ipcRenderer.invoke(REGISTRY_CHANNELS.providers)

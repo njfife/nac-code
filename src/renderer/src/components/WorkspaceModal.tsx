@@ -1,6 +1,7 @@
 import { useEffect, type CSSProperties } from 'react'
 import { useApp } from '../store/store'
 import { PROVIDERS } from '../data/providers'
+import { STATIC_CAPABILITIES } from '../../../shared/capabilities'
 import { CONTEXT_ITEMS } from '../data/context'
 
 const AGENTS = CONTEXT_ITEMS.filter((i) => i.type === 'agent')
@@ -46,7 +47,7 @@ export default function WorkspaceModal() {
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {p.models.map((m) => {
+                {(STATIC_CAPABILITIES[p.id]?.models ?? []).map((m) => {
                   const isDefault = d?.provider === p.id && d?.model === m.label
                   return (
                     <button

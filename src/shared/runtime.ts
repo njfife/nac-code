@@ -55,10 +55,6 @@ export const FILES_CHANNELS = {
   read: 'files:read'
 } as const
 
-export const DISCOVERY_CHANNELS = {
-  models: 'discovery:models'
-} as const
-
 export const CHANGES_CHANNELS = {
   get: 'changes:get',
   diff: 'changes:diff'
