@@ -10,6 +10,8 @@ const api = {
     start: (req: RunRequest): Promise<{ runId: string }> => ipcRenderer.invoke(RUN_CHANNELS.start, req),
     cancel: (runId: string): Promise<void> => ipcRenderer.invoke(RUN_CHANNELS.cancel, runId),
     summarize: (req: SummarizeRequest): Promise<{ summary: string }> => ipcRenderer.invoke(RUN_CHANNELS.summarize, req),
+    respondPermission: (runId: string, requestId: string, optionId: string): Promise<void> =>
+      ipcRenderer.invoke(RUN_CHANNELS.respondPermission, runId, requestId, optionId),
     // Subscribe to streamed AgentEvents; returns an unsubscribe function.
     onEvent: (cb: (event: AgentEvent) => void): (() => void) => {
       const listener = (_e: unknown, event: AgentEvent): void => cb(event)

@@ -12,6 +12,7 @@ import { probeProviders } from './registry'
 import { getCapabilities, invalidateCapabilities } from './capabilities'
 import { classifyModelRejection } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
+import { promptViaAcp, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
 
 const runs = new Map<string, HarnessRun>()
 let counter = 0
@@ -52,19 +53,35 @@ function stubHarnessPath(): string {
  * (ACP / app-server / SDK) slots in behind the same AgentEvent stream later.
  */
 export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void {
+  app.on('will-quit', () => acpDisposeAll())
+
   ipcMain.handle(RUN_CHANNELS.start, (_e, req: RunRequest): { runId: string } => {
     const runId = `run_${++counter}`
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
+    // ACP runs the account-default model; don't attribute ledger verdicts to the picked model
+    // (pillar-1 limitation) — copilot never forwards the picker's model choice over ACP, and its
+    // headless fallback is also default-model in practice, so gate the ledger off for copilot entirely.
+    const ledgerModel = req.provider === 'copilot' ? undefined : req.model
     const handler = (event: AgentEvent): void => {
       send(event)
       // Gating ledger: learn per-account model verdicts from real outcomes (explicit model only).
-      if (req.model && req.provider) {
+      if (ledgerModel && req.provider) {
         if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
-          recordOutcome(req.provider, req.model, 'gated', event.message)
+          recordOutcome(req.provider, ledgerModel, 'gated', event.message)
           invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
-        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, req.model, 'works')
+        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, ledgerModel, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
+    }
+    if (req.provider === 'copilot') {
+      // Interactive-first: persistent ACP session; on { ok: false } fall back to the one-shot path.
+      void promptViaAcp({ chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, onEvent: handler }).then(({ ok }) => {
+        if (!ok) {
+          handler({ type: 'content.delta', runId, streamKind: 'assistant_text', text: '\n[interactive session unavailable — ran headless]\n' })
+          runs.set(runId, startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler))
+        }
+      })
+      return { runId }
     }
     // Real Claude adapter for provider 'claude'; the NDJSON stub for the rest (until those adapters land).
     const run =
@@ -72,11 +89,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
         ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
         : req.provider === 'codex'
           ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
-          : req.provider === 'copilot'
-            ? startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
-            : req.provider === 'opencode'
-              ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
-              : startHarnessRun(
+          : req.provider === 'opencode'
+            ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
+            : startHarnessRun(
             runId,
             {
               prompt: req.prompt,
@@ -92,9 +107,12 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
   })
 
   ipcMain.handle(RUN_CHANNELS.cancel, (_e, runId: string): void => {
+    if (acpCancelRun(runId)) return // live interactive session: protocol-level stop
     runs.get(runId)?.cancel()
     runs.delete(runId)
   })
+
+  ipcMain.handle(RUN_CHANNELS.respondPermission, (_e, runId: string, requestId: string, optionId: string) => acpRespondPermission(runId, requestId, optionId))
 
   ipcMain.handle(RUN_CHANNELS.summarize, async (_e, req: SummarizeRequest): Promise<{ summary: string }> => {
     const summary = await runOnce(req.provider, `${SUMMARIZE_INSTRUCTION}\n\n${req.text}`, req.model)

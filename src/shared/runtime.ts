@@ -4,6 +4,7 @@
 export interface RunRequest {
   prompt: string
   provider?: string // harness driver id; selects the adapter (e.g. 'claude' → real, else stub)
+  chatId?: string // session-affinity key for persistent transports
   sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)
   cwd?: string // working directory for the harness = the chat's workspace folder (agents act on real code)
   yolo?: boolean // autonomy: on = full file/command access; off (default) = restricted per harness (M0-2)
@@ -27,18 +28,28 @@ export interface TurnUsage {
   costUsd?: number
 }
 
+export interface PermissionOption {
+  id: string
+  label: string
+  kind: 'allow' | 'allow_always' | 'deny'
+}
+
 export type AgentEvent =
   | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
   | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage }
   | { type: 'run.errored'; runId: string; message: string }
+  | { type: 'tool.updated'; runId: string; toolCallId: string; title: string; kind?: string; status: 'pending' | 'running' | 'completed' | 'failed'; detail?: string }
+  | { type: 'permission.requested'; runId: string; requestId: string; title: string; detail?: string; options: PermissionOption[] }
+  | { type: 'permission.resolved'; runId: string; requestId: string; optionId: string }
 
 // IPC channel names shared by main and preload.
 export const RUN_CHANNELS = {
   start: 'run:start',
   cancel: 'run:cancel',
   event: 'run:event',
-  summarize: 'run:summarize'
+  summarize: 'run:summarize',
+  respondPermission: 'run:respondPermission'
 } as const
 
 export const STATE_CHANNELS = {

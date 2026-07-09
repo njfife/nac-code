@@ -21,3 +21,17 @@ describe('normalizeChat — thinking → effort migration', () => {
     expect(normalizeChat({} as never, 'c_none').fast).toBe(false)
   })
 })
+
+describe('normalizeChat — never restore live-looking tool/permission state', () => {
+  it('hydration never restores live-looking tool/permission state', () => {
+    const raw = { fast: false, messages: [{ id: 'a', role: 'assistant', text: 'x', tools: [{ toolCallId: 't', title: 'T', status: 'running' }], permissions: [{ requestId: 'p', title: 'P', options: [] }] }] } as never
+    const c = normalizeChat(raw, 'c_live')
+    expect(c.messages[0].tools?.[0].status).toBe('failed')
+    expect(c.messages[0].permissions?.[0].resolvedOptionId).toBe('stale')
+  })
+
+  it('never rehydrates a streaming flag', () => {
+    const raw = { fast: false, messages: [{ id: 'a', role: 'assistant', text: 'x', streaming: true }] } as never
+    expect(normalizeChat(raw, 'c_stream').messages[0].streaming).toBe(false)
+  })
+})

@@ -38,7 +38,15 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     contextK: c.contextK ?? 0,
     windowK: c.windowK ?? 200,
     branchedFrom: c.branchedFrom ?? null,
-    messages: Array.isArray(c.messages) ? c.messages : [],
+    messages: Array.isArray(c.messages)
+      ? c.messages.map((m) => ({
+          ...m,
+          // never restore live-looking state (the `compacting` doctrine)
+          streaming: false,
+          tools: m.tools?.map((t) => (t.status === 'pending' || t.status === 'running' ? { ...t, status: 'failed' as const } : t)),
+          permissions: m.permissions?.map((p) => (p.resolvedOptionId ? p : { ...p, resolvedOptionId: 'stale' }))
+        }))
+      : [],
     sessionId: c.sessionId ?? c.claudeSessionId ?? null, // migrate legacy claudeSessionId
     sessionProvider: c.sessionProvider ?? (c.claudeSessionId ? 'claude' : null),
     summary: c.summary ?? null,

@@ -185,4 +185,35 @@ describe('app store — per-chat spine', () => {
     s.setModel(chat.provider, chat.model)
     expect(useApp.getState().chats[s.activeChatId].effort).toBe('low') // still valid → kept
   })
+
+  it('upsertTool merges by toolCallId on the streaming turn', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a1', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 't1', title: 'Run x', status: 'pending', detail: 'x' })
+    s.upsertTool(id, { toolCallId: 't1', title: 'Run x', status: 'completed', detail: 'done' })
+    const turn = useApp.getState().chats[id].messages.at(-1)!
+    expect(turn.tools).toEqual([{ toolCallId: 't1', title: 'Run x', status: 'completed', detail: 'done' }])
+  })
+
+  it('permission cards resolve in place', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a2', role: 'assistant', text: '', streaming: true })
+    s.upsertPermission(id, { requestId: 'p1', title: 'Run x', options: [{ id: 'allow_once', label: 'Allow once', kind: 'allow' }] })
+    s.resolvePermission(id, 'p1', 'allow_once')
+    const turn = useApp.getState().chats[id].messages.at(-1)!
+    expect(turn.permissions?.[0].resolvedOptionId).toBe('allow_once')
+  })
+
+  it('tool/permission events after a new user turn still target the last assistant turn', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a9', role: 'assistant', text: 'done', streaming: false })
+    s.pushTurn(id, { id: 'u9', role: 'user', text: 'next question' })
+    s.upsertTool(id, { toolCallId: 'late', title: 'Late tool', status: 'completed' })
+    const msgs = useApp.getState().chats[id].messages
+    expect(msgs.at(-1)!.tools).toBeUndefined() // user turn untouched
+    expect(msgs.at(-2)!.tools?.[0].toolCallId).toBe('late')
+  })
 })
