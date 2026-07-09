@@ -18,4 +18,11 @@ describe('normalizeChat — thinking default migration', () => {
     expect(c.thinking).toBe('high')
     expect(c.fast).toBe(true)
   })
+
+  it('treats malformed `fast` (non-boolean, e.g. hand-edited null) as pre-feature', () => {
+    const raw = { title: 'Odd chat', provider: 'claude', model: 'Opus 4.8', fast: null as unknown as boolean, thinking: 'medium' as const }
+    const c = normalizeChat(raw, 'c_odd')
+    expect(c.thinking).toBe('none')
+    expect(c.fast).toBe(false)
+  })
 })

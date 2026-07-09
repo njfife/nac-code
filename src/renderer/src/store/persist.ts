@@ -23,10 +23,11 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     model: c.model ?? 'Opus 4.8',
     agent: c.agent ?? null,
     yolo: c.yolo ?? false,
-    fast: c.fast ?? false,
+    fast: c.fast === true,
     // thinking was cosmetic before effort wiring landed (same change that introduced `fast`);
     // reset pre-feature data to 'none' (= harness default) so runs don't silently gain flags.
-    thinking: c.fast !== undefined ? ((c.thinking as ThinkingLevel) ?? 'none') : 'none',
+    // Gate on a real boolean so malformed values (e.g. fast: null) count as pre-feature too.
+    thinking: typeof c.fast === 'boolean' ? ((c.thinking as ThinkingLevel) ?? 'none') : 'none',
     activeConfig: c.activeConfig ?? null,
     attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
     dirty: c.dirty ?? false,

@@ -5,6 +5,9 @@ import type { ProviderProbe } from '../../../shared/runtime'
 
 // Model & provider modal (FR-7.1), provider-first: page 1 lists DETECTED providers (live CLI probe,
 // CliRegistry v0); page 2 = one provider's models + options. Applies to the ACTIVE chat only (FR-7.4).
+// parseVersionLine can fall back to non-numeric strings (e.g. 'dev build') — only prefix real versions.
+const versionLabel = (v: string): string => (/^\d/.test(v) ? `v${v}` : v)
+
 export default function ModelModal() {
   const active = useApp(selectActiveChat)
   const setModel = useApp((s) => s.setModel)
@@ -29,8 +32,14 @@ export default function ModelModal() {
   // Live availability: adapter-backed CLIs probed fresh each time the modal opens.
   useEffect(() => {
     let live = true
-    window.nac?.registry
-      ?.providers()
+    const registry = window.nac?.registry
+    if (!registry) {
+      // No preload bridge (tests, stale preload) — degrade to "no providers detected", never stuck probing.
+      setProbes([])
+      return
+    }
+    registry
+      .providers()
       .then((r) => {
         if (live) setProbes(r)
       })
@@ -106,7 +115,7 @@ export default function ModelModal() {
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
                 {active.provider === p.id && <span className="mono" style={currentTag}>{active.model}</span>}
                 <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>
-                  {probeFor(p.id)?.version ? `v${probeFor(p.id)!.version} · ` : ''}
+                  {probeFor(p.id)?.version ? `${versionLabel(probeFor(p.id)!.version!)} · ` : ''}
                   {(discovered[p.id] ?? p.models).length} models ›
                 </span>
               </button>
@@ -135,7 +144,7 @@ function ProviderPage(props: {
     <div style={{ padding: '10px 16px 16px', borderTop: '1px solid var(--line)' }}>
       <div className="mono" style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 10 }}>
         {p.detail}
-        {props.version ? ` · v${props.version}` : ''}
+        {props.version ? ` · ${versionLabel(props.version)}` : ''}
       </div>
 
       <div style={sectionLabel}>Models</div>
