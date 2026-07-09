@@ -39,11 +39,14 @@ export async function discoverCodex(): Promise<ProviderCapabilities | null> {
     await client.request('initialize', { clientInfo: { name: 'nac-code', title: 'NAC Code', version: '0.1.0' } })
     const models: DiscoveredModel[] = []
     let cursor: string | null = null
-    do {
+    // Bounded pagination: the app-server is experimental — cap pages and bail if the cursor stops advancing.
+    for (let page = 0; page < 10; page++) {
       const res = (await client.request('model/list', cursor ? { cursor } : {})) as { data?: unknown[]; nextCursor?: string | null }
       models.push(...mapCodexModels(res?.data ?? []))
-      cursor = res?.nextCursor ?? null
-    } while (cursor)
+      const next = res?.nextCursor ?? null
+      if (!next || next === cursor) break
+      cursor = next
+    }
     if (models.length === 0) return null
     return { provider: 'codex', source: 'protocol', models, efforts: ['low', 'medium', 'high', 'xhigh'], fetchedAt: Date.now() }
   } catch {
