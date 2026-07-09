@@ -89,4 +89,18 @@ describe('JsonRpcClient close handling', () => {
     expect(client.isClosed).toBe(true)
     await expect(client.request('initialize', {}, 200)).rejects.toThrow()
   })
+
+  it('notify() after the child exited is a no-op (no write attempt on a dead stdin)', async () => {
+    const client = new JsonRpcClient(process.execPath, ['-e', 'process.exit(0)'])
+    await new Promise<void>((resolve) => client.onClose(resolve))
+    expect(() => client.notify('session/cancel', {})).not.toThrow()
+    expect(client.isClosed).toBe(true)
+  })
+
+  it('registers a stdin error listener (EPIPE while alive must not crash main)', () => {
+    const client = new JsonRpcClient(process.execPath, ['-e', 'setTimeout(()=>{},200)'])
+    // @ts-expect-error private child access for the assertion
+    expect(client.child.stdin.listenerCount('error')).toBeGreaterThan(0)
+    client.close()
+  })
 })

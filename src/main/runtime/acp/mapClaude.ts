@@ -84,7 +84,9 @@ export function mapClaudeToolResult(runId: string, frame: Record<string, unknown
   const out: AgentEvent[] = []
   for (const b of content) {
     if (b?.type !== 'tool_result' || typeof b.tool_use_id !== 'string') continue
-    const detail = s(b.content)
+    const detail = s(b.content) ?? (Array.isArray(b.content)
+      ? (b.content as { type?: string; text?: unknown }[]).map((c) => (c?.type === 'text' ? s(c.text) : undefined)).filter(Boolean).join('\n') || undefined
+      : undefined)
     // title '' — upsertTool merges by toolCallId, so the running row's title survives.
     out.push({ type: 'tool.updated', runId, toolCallId: b.tool_use_id, title: '', status: b.is_error === true ? 'failed' : 'completed', ...(detail ? { detail } : {}) })
   }

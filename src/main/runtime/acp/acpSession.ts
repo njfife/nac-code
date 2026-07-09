@@ -1,6 +1,6 @@
 import { JsonRpcClient } from '../capabilities/jsonRpc'
 import type { AgentEvent, PermissionOption } from '../../../shared/runtime'
-import { mapAcpUpdate, mapPermissionRequest } from './mapAcp'
+import { mapAcpUpdate, mapPermissionRequest, usageUpdateCost, THINKING_ROW_PREFIX } from './mapAcp'
 import { resolveCwd } from '../paths'
 
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
@@ -9,6 +9,22 @@ const HANDSHAKE_TIMEOUT_MS = 10_000
 export interface PromptOpts {
   model?: string
   effort?: string
+}
+
+export interface AcpProfile {
+  provider: 'copilot' | 'opencode'
+  command: string
+  args: string[]
+}
+
+export const COPILOT_PROFILE: AcpProfile = { provider: 'copilot', command: 'copilot', args: ['--acp'] }
+export const OPENCODE_PROFILE: AcpProfile = { provider: 'opencode', command: 'opencode', args: ['acp'] }
+
+/** Pure + exported for testing: the "model returned nothing" notice is opencode-only — it fires when
+ *  a turn produced no assistant text and zero output tokens and wasn't a user-initiated cancel (a
+ *  local model that silently no-ops looks identical to a cancel otherwise). */
+export function shouldEmitEmptyTurnNotice(provider: 'copilot' | 'opencode', hadText: boolean, outputTokens: number, interrupted: boolean): boolean {
+  return provider === 'opencode' && !hadText && outputTokens === 0 && !interrupted
 }
 
 export interface TransportSession {
@@ -54,17 +70,42 @@ export class AcpSession implements TransportSession {
   private pendingPermissions = new Map<string, PendingPermission>()
   private onEvent: (e: AgentEvent) => void
   private yolo: boolean
+  private profile: AcpProfile
+  private turnHadText = false
+  private turnCost: number | null = null
+  private thinkingOpen = false
+  private interrupted = false
+  private appliedModel: string | null = null
 
-  constructor(onEvent: (e: AgentEvent) => void, yolo: boolean) {
+  constructor(onEvent: (e: AgentEvent) => void, yolo: boolean, profile: AcpProfile = COPILOT_PROFILE) {
     this.onEvent = onEvent
     this.yolo = yolo
-    this.client = new JsonRpcClient('copilot', ['--acp'])
+    this.profile = profile
+    this.client = new JsonRpcClient(profile.command, profile.args)
     this.client.onNotification('session/update', (params) => {
       if (this.replaying || !this.currentRunId) return
       const update = (params as { update?: unknown } | null)?.update
-      for (const e of mapAcpUpdate(this.currentRunId, update)) this.onEvent(e)
+      const cost = usageUpdateCost(update)
+      if (cost !== null) this.turnCost = cost
+      for (const e of mapAcpUpdate(this.currentRunId, update, this.profile.provider)) {
+        if (e.type === 'content.delta') {
+          this.turnHadText = true
+          this.closeThinkingRow()
+        } else if (e.type === 'tool.updated' && e.kind === 'reasoning') {
+          this.thinkingOpen = true
+        } else if (e.type === 'tool.updated') {
+          this.closeThinkingRow()
+        }
+        this.onEvent(e)
+      }
     })
     this.client.onRequest('session/request_permission', (params) => this.handlePermission(params))
+  }
+
+  private closeThinkingRow(): void {
+    if (!this.thinkingOpen || !this.currentRunId) return
+    this.thinkingOpen = false
+    this.onEvent({ type: 'tool.updated', runId: this.currentRunId, toolCallId: `${THINKING_ROW_PREFIX}${this.currentRunId}`, title: 'Thinking…', kind: 'reasoning', status: 'completed' })
   }
 
   setYolo(y: boolean): void {
@@ -80,7 +121,8 @@ export class AcpSession implements TransportSession {
     if (existingSessionId) {
       try {
         this.replaying = true // session/load re-emits history as session/update — never re-append it
-        await this.client.request('session/load', { sessionId: existingSessionId, cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)
+        const res = (await this.client.request('session/load', { sessionId: existingSessionId, cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)) as { configOptions?: { id?: string; currentValue?: unknown }[] } | null
+        this.seedAppliedModel(res?.configOptions)
         this.sessionId = existingSessionId
         return existingSessionId
       } catch (e) {
@@ -94,10 +136,16 @@ export class AcpSession implements TransportSession {
         this.replaying = false
       }
     }
-    const res = (await this.client.request('session/new', { cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)) as { sessionId?: string }
+    const res = (await this.client.request('session/new', { cwd: acpCwd(cwd), mcpServers: [] }, HANDSHAKE_TIMEOUT_MS)) as { sessionId?: string; configOptions?: { id?: string; currentValue?: unknown }[] }
     if (!res?.sessionId) throw new Error('acp: session/new returned no sessionId')
     this.sessionId = res.sessionId
+    this.seedAppliedModel(res.configOptions)
     return res.sessionId
+  }
+
+  private seedAppliedModel(configOptions: { id?: string; currentValue?: unknown }[] | undefined): void {
+    const model = configOptions?.find((o) => o.id === 'model')?.currentValue
+    if (typeof model === 'string') this.appliedModel = model
   }
 
   get loadedSessionId(): string | null {
@@ -135,25 +183,47 @@ export class AcpSession implements TransportSession {
     return this.currentRunId !== null
   }
 
-  prompt(runId: string, text: string, _opts?: PromptOpts): void {
-    // pillar-1 limitation: copilot ACP runs the account-default model; opts are honored by CodexSession
+  prompt(runId: string, text: string, opts?: PromptOpts): void {
     if (!this.sessionId) throw new Error('acp: no session')
     this.currentRunId = runId
+    this.turnHadText = false
+    this.turnCost = null
+    this.thinkingOpen = false
+    this.interrupted = false
     this.onEvent({ type: 'run.started', runId, sessionId: this.sessionId })
-    this.client
-      .request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] }, PROMPT_TIMEOUT_MS)
-      .then((res) => {
-        const stop = (res as { stopReason?: string } | null)?.stopReason
-        this.expirePermissions() // resolve open cards BEFORE the terminal event unmaps the run (Critical 1: order matters)
-        this.onEvent({ type: 'run.completed', runId, stopReason: stop === 'cancelled' ? 'canceled' : 'end_turn' })
-      })
-      .catch((e: Error) => {
-        this.expirePermissions()
-        this.onEvent({ type: 'run.errored', runId, message: e.message })
-      })
-      .finally(() => {
-        this.currentRunId = null
-      })
+    void this.runTurn(runId, text, opts)
+  }
+
+  private async runTurn(runId: string, text: string, opts?: PromptOpts): Promise<void> {
+    try {
+      if (this.profile.provider === 'opencode' && opts?.model && opts.model !== this.appliedModel) {
+        try {
+          await this.client.request('session/set_config_option', { sessionId: this.sessionId, configId: 'model', value: opts.model }, HANDSHAKE_TIMEOUT_MS)
+          this.appliedModel = opts.model
+        } catch {
+          // fail-open: the harness keeps its current model; the ledger records real outcomes
+        }
+      }
+      const res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] }, PROMPT_TIMEOUT_MS)
+      const stop = (res as { stopReason?: string } | null)?.stopReason
+      const u = (res as { usage?: { inputTokens?: number; outputTokens?: number } } | null)?.usage
+      this.expirePermissions() // resolve open cards BEFORE the terminal event unmaps the run (Critical 1: order matters)
+      this.closeThinkingRow()
+      const outputTokens = typeof u?.outputTokens === 'number' ? u.outputTokens : 0
+      if (shouldEmitEmptyTurnNotice(this.profile.provider, this.turnHadText, outputTokens, this.interrupted)) {
+        this.onEvent({ type: 'tool.updated', runId, toolCallId: `empty_${runId}`, title: 'model returned nothing — is the local model loaded?', kind: 'notice', status: 'failed' })
+      }
+      const usage = this.profile.provider === 'opencode'
+        ? { inputTokens: typeof u?.inputTokens === 'number' ? u.inputTokens : 0, outputTokens, ...(this.turnCost !== null ? { costUsd: this.turnCost } : {}) }
+        : undefined
+      this.onEvent({ type: 'run.completed', runId, stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn', ...(usage ? { usage } : {}) })
+    } catch (e) {
+      this.expirePermissions()
+      this.closeThinkingRow()
+      this.onEvent({ type: 'run.errored', runId, message: (e as Error).message })
+    } finally {
+      this.currentRunId = null
+    }
   }
 
   respondPermission(requestId: string, optionId: string): void {
@@ -178,6 +248,7 @@ export class AcpSession implements TransportSession {
   }
 
   cancel(): void {
+    this.interrupted = true
     if (this.sessionId) this.client.notify('session/cancel', { sessionId: this.sessionId })
   }
 

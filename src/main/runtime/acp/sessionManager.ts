@@ -1,18 +1,18 @@
 import type { AgentEvent } from '../../../shared/runtime'
-import { AcpSession, type TransportSession, type PromptOpts } from './acpSession'
+import { AcpSession, type TransportSession, type PromptOpts, OPENCODE_PROFILE } from './acpSession'
 import { CodexSession } from './codexSession'
 import { ClaudeSession } from './claudeSession'
 
-// One live transport session per chat — copilot ACP or codex app-server. Sessions are disposed on
-// provider switch (promptViaTransport detects this when the renderer sends no sessionId — see
-// below), a dead child process being replaced on the next prompt, app quit, or idle timeout.
+// One live transport session per chat — copilot ACP, codex app-server, claude SDK, or opencode ACP.
+// Sessions are disposed on provider switch (promptViaTransport detects this when the renderer sends
+// no sessionId — see below), a dead child process being replaced on the next prompt, app quit, or idle timeout.
 
 export const IDLE_MS = 15 * 60_000
 
 interface Entry {
   session: TransportSession
   idleTimer: ReturnType<typeof setTimeout> | null
-  provider: 'copilot' | 'codex' | 'claude'
+  provider: 'copilot' | 'codex' | 'claude' | 'opencode'
   // Mutable indirection so a reused session's event sink always points at the CURRENT caller's
   // onEvent, not the closure captured when the session was first created (Important 4).
   ref: { onEvent: (e: AgentEvent) => void }
@@ -43,7 +43,7 @@ function disposeChat(chatId: string, force = false): void {
 
 /** Try the interactive path. Resolves { ok: false } when the transport is unavailable — caller falls back. */
 export async function promptViaTransport(opts: {
-  provider: 'copilot' | 'codex' | 'claude'
+  provider: 'copilot' | 'codex' | 'claude' | 'opencode'
   chatId: string
   runId: string
   prompt: string
@@ -92,7 +92,9 @@ export async function promptViaTransport(opts: {
         ? new CodexSession(sink, opts.yolo === true)
         : opts.provider === 'claude'
           ? new ClaudeSession(sink, opts.yolo === true, { model: opts.model, effort: opts.effort })
-          : new AcpSession(sink, opts.yolo === true)
+          : opts.provider === 'opencode'
+            ? new AcpSession(sink, opts.yolo === true, OPENCODE_PROFILE)
+            : new AcpSession(sink, opts.yolo === true)
     try {
       await session.connect(opts.cwd, opts.sessionId)
     } catch {

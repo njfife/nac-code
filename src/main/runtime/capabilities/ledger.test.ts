@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { classifyModelRejection, CLAUDE_MODEL_REJECTION, mergeLedger, type Ledger } from './ledger'
+import { classifyModelRejection, CLAUDE_MODEL_REJECTION, isWorksEvidence, mergeLedger, type Ledger } from './ledger'
 import { STATIC_CAPABILITIES } from '../../../shared/capabilities'
+
+describe('isWorksEvidence', () => {
+  it('zero-output completions are not evidence a model works', () => {
+    expect(isWorksEvidence('end_turn', { outputTokens: 0 })).toBe(false)
+    expect(isWorksEvidence('end_turn', { outputTokens: 15 })).toBe(true)
+    expect(isWorksEvidence('end_turn', undefined)).toBe(true)
+    expect(isWorksEvidence('canceled', { outputTokens: 15 })).toBe(false)
+  })
+})
 
 describe('classifyModelRejection', () => {
   it('recognizes the three verified rejection shapes', () => {

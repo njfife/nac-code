@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mapAcpUpdate, mapPermissionRequest } from './mapAcp'
+import { mapAcpUpdate, mapPermissionRequest, usageUpdateCost, THINKING_ROW_PREFIX } from './mapAcp'
 
 const TOOL_CALL = { sessionUpdate: 'tool_call', toolCallId: 'call_MHx', title: 'Run echo nac-probe-ok', kind: 'execute', status: 'pending', rawInput: { command: 'echo nac-probe-ok', description: 'Run echo nac-probe-ok', mode: 'sync' } }
 const TOOL_DONE = { sessionUpdate: 'tool_call_update', toolCallId: 'call_MHx', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'nac-probe-ok\n<shellId: 0 completed with exit code 0>' } }], rawOutput: { content: 'nac-probe-ok\n<shellId: 0 completed with exit code 0>' } }
@@ -47,5 +47,32 @@ describe('mapPermissionRequest', () => {
   it('returns null for junk', () => {
     expect(mapPermissionRequest('r', 'x', null)).toBeNull()
     expect(mapPermissionRequest('r', 'x', { options: [] })).toBeNull()
+  })
+})
+
+describe('opencode profile extensions', () => {
+  it('maps usage_update to usage.updated with real window size (opencode only)', () => {
+    const u = { sessionUpdate: 'usage_update', used: 11524, size: 200000, cost: { amount: 0, currency: 'USD' } }
+    expect(mapAcpUpdate('r', u, 'opencode')).toEqual([{ type: 'usage.updated', runId: 'r', inputTokens: 0, outputTokens: 0, contextUsedTokens: 11524, contextWindow: 200000 }])
+    expect(mapAcpUpdate('r', u)).toEqual([]) // copilot profile ignores it — bit-identical behavior
+  })
+  it('maps agent_thought_chunk to a running thinking row (opencode only)', () => {
+    const u = { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'The user wants me' } }
+    const [e] = mapAcpUpdate('r', u, 'opencode')
+    expect(e).toMatchObject({ type: 'tool.updated', toolCallId: 'thinking_r', title: 'Thinking…', kind: 'reasoning', status: 'running' })
+    expect(mapAcpUpdate('r', u)).toEqual([])
+  })
+  it('treats in_progress tool_call_update as running (fixture status not in the copilot set)', () => {
+    const u = { sessionUpdate: 'tool_call_update', toolCallId: 'call_1', status: 'in_progress', kind: 'edit', title: 'write', rawInput: { content: 'okra', filePath: '/tmp/x' } }
+    expect(mapAcpUpdate('r', u, 'opencode')[0]).toMatchObject({ status: 'running', title: 'write' })
+  })
+  it('usageUpdateCost extracts cost.amount, null otherwise', () => {
+    expect(usageUpdateCost({ sessionUpdate: 'usage_update', used: 1, size: 2, cost: { amount: 0.12, currency: 'USD' } })).toBe(0.12)
+    expect(usageUpdateCost({ sessionUpdate: 'usage_update', used: 1, size: 2 })).toBeNull()
+    expect(usageUpdateCost({ sessionUpdate: 'agent_message_chunk' })).toBeNull()
+    expect(usageUpdateCost(null)).toBeNull()
+  })
+  it('ignores available_commands_update in both profiles', () => {
+    expect(mapAcpUpdate('r', { sessionUpdate: 'available_commands_update', availableCommands: [] }, 'opencode')).toEqual([])
   })
 })

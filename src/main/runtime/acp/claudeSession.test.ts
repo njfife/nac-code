@@ -10,7 +10,7 @@ describe('ClaudeSession constants + respawn predicate', () => {
     expect(RESUME_VERIFY_MS).toBeLessThan(PROMPT_TIMEOUT_MS)
   })
   it('verifies a FRESH spawn inside a short window well under the resume window', () => {
-    expect(FRESH_VERIFY_MS).toBe(500)
+    expect(FRESH_VERIFY_MS).toBe(1000)
     expect(FRESH_VERIFY_MS).toBeLessThan(RESUME_VERIFY_MS)
   })
   it('needsRespawn: only when a known session exists and model/effort actually changed', () => {

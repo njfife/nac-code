@@ -54,6 +54,10 @@ describe('mapClaudeAssistant / mapClaudeToolResult', () => {
     expect(mapClaudeToolResult('r', { type: 'user', message: { content: 42 } })).toEqual([])
     expect(mapClaudeToolResult('r', { type: 'user' })).toEqual([])
   })
+  it('extracts detail from array-form tool_result content', () => {
+    const frame = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't9', is_error: false, content: [{ type: 'text', text: 'line one' }, { type: 'text', text: 'line two' }] }] } }
+    expect(mapClaudeToolResult('r', frame)[0]).toMatchObject({ status: 'completed', detail: 'line one\nline two' })
+  })
   it('never renders "undefined" in a title when a tool_use block lacks a name', () => {
     const [e] = mapClaudeAssistant('r', { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'nx', input: { file_path: '/tmp/x' } }] } })
     expect((e as { title: string }).title).toBe('tool /tmp/x')
