@@ -40,6 +40,9 @@ export function initRuntime(): void {
       case 'permission.resolved':
         s.resolvePermission(chatId, event.requestId, event.optionId)
         break
+      case 'usage.updated':
+        s.setLiveContext(chatId, event.contextUsedTokens ?? 0, event.contextWindow)
+        break
     }
   })
 }

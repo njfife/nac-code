@@ -216,4 +216,17 @@ describe('app store — per-chat spine', () => {
     expect(msgs.at(-1)!.tools).toBeUndefined() // user turn untouched
     expect(msgs.at(-2)!.tools?.[0].toolCallId).toBe('late')
   })
+
+  it('setLiveContext maps real tokens onto contextK/windowK and marks the chat live', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42305, 272000)
+    const c = useApp.getState().chats[id]
+    expect(c.contextK).toBe(42)
+    expect(c.windowK).toBe(272)
+    expect(c.contextLive).toBe(true)
+    s.setLiveContext(id, 61000) // window omitted: keep the previous window
+    expect(useApp.getState().chats[id].contextK).toBe(61)
+    expect(useApp.getState().chats[id].windowK).toBe(272)
+  })
 })

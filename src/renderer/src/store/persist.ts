@@ -35,6 +35,7 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     dirty: c.dirty ?? false,
     compacting: false, // never restore a stuck in-progress state
     compacted: c.compacted ?? false,
+    contextLive: false, // never restore live state
     contextK: c.contextK ?? 0,
     windowK: c.windowK ?? 200,
     branchedFrom: c.branchedFrom ?? null,
