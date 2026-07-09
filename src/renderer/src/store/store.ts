@@ -124,7 +124,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
-const base = { yolo: false, fast: false, thinking: 'medium' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
+const base = { yolo: false, fast: false, thinking: 'none' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -260,7 +260,7 @@ export const useApp = create<AppState>()((set, get) => ({
       agent: wsDefaults?.agent !== undefined ? wsDefaults.agent : src?.agent ?? null,
       yolo: false,
       fast: false,
-      thinking: 'medium',
+      thinking: 'none',
       activeConfig: 'standard',
       attachedIds: [...(cfg?.itemIds ?? [])],
       dirty: false,

@@ -11,4 +11,10 @@ describe('modelIdFor', () => {
   it('has no cursor provider until an adapter exists', () => {
     expect(PROVIDERS.find((p) => p.id === 'cursor')).toBeUndefined()
   })
+  it('marks model selection as wired only where -m/--model is actually sent (honest-disable, M4)', () => {
+    expect(PROVIDERS.find((p) => p.id === 'claude')?.modelsWired).toBe(true)
+    expect(PROVIDERS.find((p) => p.id === 'opencode')?.modelsWired).toBe(true)
+    expect(PROVIDERS.find((p) => p.id === 'codex')?.modelsWired).toBe(false)
+    expect(PROVIDERS.find((p) => p.id === 'copilot')?.modelsWired).toBe(false)
+  })
 })

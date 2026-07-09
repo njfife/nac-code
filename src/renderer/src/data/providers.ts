@@ -34,6 +34,8 @@ export interface ProviderDef {
   status: ConnStatus
   models: ModelDef[]
   options: OptionDef[]
+  // false = the CLI runs its account default; chips are display-only until real per-account model discovery (M4).
+  modelsWired: boolean
 }
 
 const EFFORT: OptionDef = { id: 'effort', label: 'Effort', kind: 'enum', values: ['none', 'low', 'medium', 'high'] }
@@ -53,7 +55,8 @@ export const PROVIDERS: ProviderDef[] = [
     options: [
       { ...EFFORT, note: '--effort' },
       { id: 'fast', label: 'Fast mode', kind: 'toggle', note: 'research preview · Opus' }
-    ]
+    ],
+    modelsWired: true
   },
   {
     id: 'codex',
@@ -62,7 +65,8 @@ export const PROVIDERS: ProviderDef[] = [
     dot: '#10a37f',
     status: 'authenticated',
     models: [{ id: 'gpt-5-codex', label: 'gpt-5-codex' }],
-    options: [{ ...EFFORT, note: 'model_reasoning_effort' }]
+    options: [{ ...EFFORT, note: 'model_reasoning_effort' }],
+    modelsWired: false
   },
   {
     id: 'copilot',
@@ -75,7 +79,8 @@ export const PROVIDERS: ProviderDef[] = [
       { id: 'gpt-5.4', label: 'GPT-5.4' },
       { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' }
     ],
-    options: [{ ...EFFORT, note: '--reasoning-effort · plan-gated models fail with the real error' }]
+    options: [{ ...EFFORT, note: '--reasoning-effort' }],
+    modelsWired: false
   },
   {
     id: 'opencode',
@@ -88,7 +93,8 @@ export const PROVIDERS: ProviderDef[] = [
       { id: 'lmstudio/qwen/qwen3-coder-30b', label: 'Qwen3 Coder 30B (local)' },
       { id: 'lmstudio-remote/qwen/qwen3.6-27b', label: 'qwen3.6-27b (remote)' }
     ],
-    options: [{ ...EFFORT, note: '--variant · model-dependent' }]
+    options: [{ ...EFFORT, note: '--variant · model-dependent' }],
+    modelsWired: true
   }
 ]
 

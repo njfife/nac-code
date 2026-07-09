@@ -139,11 +139,26 @@ function ProviderPage(props: {
       </div>
 
       <div style={sectionLabel}>Models</div>
+      {!p.modelsWired && (
+        <div style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 8 }}>
+          account default runs · model selection needs real discovery (M4)
+        </div>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
         {props.models.flatMap((m) => [
-          <Chip key={m.id} label={m.label} active={props.isActiveProvider && props.activeModel === m.label} onClick={() => props.onPick(p.id, m.label)} />,
+          <Chip
+            key={m.id}
+            label={m.label}
+            active={props.isActiveProvider && props.activeModel === m.label}
+            onClick={p.modelsWired ? () => props.onPick(p.id, m.label) : undefined}
+          />,
           ...(m.variants ?? []).map((v) => (
-            <Chip key={v.id} label={v.label} active={props.isActiveProvider && props.activeModel === v.label} onClick={() => props.onPick(p.id, v.label)} />
+            <Chip
+              key={v.id}
+              label={v.label}
+              active={props.isActiveProvider && props.activeModel === v.label}
+              onClick={p.modelsWired ? () => props.onPick(p.id, v.label) : undefined}
+            />
           ))
         ])}
       </div>
@@ -170,7 +185,8 @@ function ProviderPage(props: {
   )
 }
 
-function Chip(props: { label: string; active: boolean; onClick: () => void }) {
+function Chip(props: { label: string; active: boolean; onClick?: () => void }) {
+  const disabled = !props.onClick
   return (
     <button
       onClick={props.onClick}
@@ -179,7 +195,8 @@ function Chip(props: { label: string; active: boolean; onClick: () => void }) {
         ...modelChip,
         background: props.active ? 'var(--accent-tint-3)' : 'var(--card)',
         color: props.active ? 'var(--text)' : 'var(--text-2)',
-        borderColor: props.active ? 'var(--accent)' : 'var(--line)'
+        borderColor: props.active ? 'var(--accent)' : 'var(--line)',
+        ...(disabled ? { opacity: 0.45, cursor: 'default' } : null)
       }}
     >
       {props.label}

@@ -13,7 +13,7 @@ interface PersistedState {
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
 // nac-state.json can never crash the app. Add new Chat fields here with a default when introduced.
-function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, id: string): Chat {
+export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, id: string): Chat {
   return {
     id,
     workspaceId: c.workspaceId ?? 'ws_nac',
@@ -24,7 +24,9 @@ function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, i
     agent: c.agent ?? null,
     yolo: c.yolo ?? false,
     fast: c.fast ?? false,
-    thinking: (c.thinking as ThinkingLevel) ?? 'medium',
+    // thinking was cosmetic before effort wiring landed (same change that introduced `fast`);
+    // reset pre-feature data to 'none' (= harness default) so runs don't silently gain flags.
+    thinking: c.fast !== undefined ? ((c.thinking as ThinkingLevel) ?? 'none') : 'none',
     activeConfig: c.activeConfig ?? null,
     attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
     dirty: c.dirty ?? false,
