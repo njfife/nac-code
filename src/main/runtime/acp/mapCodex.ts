@@ -29,7 +29,7 @@ export function mapCodexItem(runId: string, phase: 'started' | 'completed', raw:
   const item = raw as CodexItem | null
   if (!item || typeof item !== 'object' || !item.id || !item.type) return []
   const status: 'running' | 'completed' | 'failed' =
-    phase === 'started' ? 'running' : item.status === 'failed' ? 'failed' : 'completed'
+    phase === 'started' ? 'running' : item.status === 'failed' || item.status === 'declined' ? 'failed' : 'completed'
   switch (item.type) {
     case 'commandExecution': {
       const cmd = item.command ? readableCommand(item.command) : item.id

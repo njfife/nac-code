@@ -23,6 +23,9 @@ describe('mapCodexItem', () => {
   it('maps a failed commandExecution to failed', () => {
     expect(mapCodexItem('r', 'completed', { ...CMD_ITEM, status: 'failed' })[0]).toMatchObject({ status: 'failed' })
   })
+  it('maps a DECLINED commandExecution to failed (denied commands must not render ✓)', () => {
+    expect(mapCodexItem('r', 'completed', { ...CMD_ITEM, status: 'declined' })[0]).toMatchObject({ status: 'failed' })
+  })
   it('maps fileChange to an edit row carrying the diff and skips agentMessage/userMessage/empty reasoning', () => {
     const [fc] = mapCodexItem('r', 'completed', { type: 'fileChange', id: 'fc1', changes: [{ path: 'a.ts' }], diff: '--- a.ts\n+++ a.ts\n+x' })
     expect(fc).toMatchObject({ type: 'tool.updated', kind: 'edit', status: 'completed' })
