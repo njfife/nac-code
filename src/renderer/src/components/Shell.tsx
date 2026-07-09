@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp, selectActiveChat, workspaceName, type Layout } from '../store/store'
 import LeftRail from './LeftRail'
 import ChatView from './ChatView'
@@ -9,8 +9,6 @@ import WorkspaceModal from './WorkspaceModal'
 import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
-
-const ACCOUNT = '@you'
 
 // The persistent application frame: top bar (46) / body (left rail · center · inspector) / status bar (28).
 // 1180px min-width with horizontal scroll — panes never collapse (FR-1.5 / NFR-4). Focus layout hides the inspector.
@@ -142,9 +140,6 @@ function TopBar() {
             </button>
           ))}
         </div>
-        <span className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {ACCOUNT}
-        </span>
       </div>
     </header>
   )
@@ -152,6 +147,15 @@ function TopBar() {
 
 function StatusBar() {
   const active = useApp(selectActiveChat)
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    window.nac?.app
+      ?.version()
+      .then(setVersion)
+      .catch(() => {})
+  }, [])
+
   return (
     <footer
       className="mono"
@@ -168,14 +172,10 @@ function StatusBar() {
         color: 'var(--muted)'
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }} /> {ACCOUNT}
-      </span>
-      <span>MCP not checked</span>
       <span style={{ marginLeft: 'auto' }}>
-        {active ? `${active.attachedIds.length} attached · ~${active.contextK}k / ${active.windowK}K tokens` : 'no active chat'}
+        {active ? `${active.attachedIds.length} attached · ${active.contextLive ? '' : '~'}${active.contextK}k / ${active.windowK}K tokens` : 'no active chat'}
       </span>
-      <span>Version 0.10.0</span>
+      {version && <span>Version {version}</span>}
     </footer>
   )
 }

@@ -68,7 +68,7 @@ export default function StatsModal() {
           </Section>
 
           <p style={{ fontSize: 11.5, color: 'var(--muted-2)', lineHeight: 1.5, marginTop: 4 }}>
-            Metered from each harness's real completion data — Claude reports $ + tokens, Codex/OpenCode report tokens (OpenCode also $; local models are free), Copilot bills in premium requests (no token/$ breakdown via the CLI).
+            Metered from each harness's real completion data — Claude reports $ + tokens, Codex/OpenCode report tokens (OpenCode also $; local models are free), copilot reports cost via ACP usage frames.
           </p>
         </div>
       </div>

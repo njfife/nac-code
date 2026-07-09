@@ -6,6 +6,9 @@ import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, CHANGES_CHANNELS, FILES_
 // allowlisted IPC channels — never raw Node access in the renderer.
 const api = {
   version: (): string => process.versions.electron,
+  app: {
+    version: (): Promise<string> => ipcRenderer.invoke('app:version')
+  },
   runs: {
     start: (req: RunRequest): Promise<{ runId: string }> => ipcRenderer.invoke(RUN_CHANNELS.start, req),
     cancel: (runId: string): Promise<void> => ipcRenderer.invoke(RUN_CHANNELS.cancel, runId),

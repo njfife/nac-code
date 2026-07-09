@@ -213,10 +213,8 @@ export class AcpSession implements TransportSession {
       if (shouldEmitEmptyTurnNotice(this.profile.provider, this.turnHadText, outputTokens, this.interrupted)) {
         this.onEvent({ type: 'tool.updated', runId, toolCallId: `empty_${runId}`, title: 'model returned nothing — is the local model loaded?', kind: 'notice', status: 'failed' })
       }
-      const usage = this.profile.provider === 'opencode'
-        ? { inputTokens: typeof u?.inputTokens === 'number' ? u.inputTokens : 0, outputTokens, ...(this.turnCost !== null ? { costUsd: this.turnCost } : {}) }
-        : undefined
-      this.onEvent({ type: 'run.completed', runId, stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn', ...(usage ? { usage } : {}) })
+      const usage = { inputTokens: typeof u?.inputTokens === 'number' ? u.inputTokens : 0, outputTokens, ...(this.turnCost !== null ? { costUsd: this.turnCost } : {}) }
+      this.onEvent({ type: 'run.completed', runId, stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn', usage })
     } catch (e) {
       this.expirePermissions()
       this.closeThinkingRow()

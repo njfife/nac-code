@@ -55,6 +55,9 @@ function stubHarnessPath(): string {
 export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void {
   app.on('will-quit', () => acpDisposeAll())
 
+  // Real app version for the status bar (was a hardcoded string) — same value electron-builder stamps.
+  ipcMain.handle('app:version', () => app.getVersion())
+
   ipcMain.handle(RUN_CHANNELS.start, (_e, req: RunRequest): { runId: string } => {
     const runId = `run_${++counter}`
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)

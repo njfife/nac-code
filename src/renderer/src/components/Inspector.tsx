@@ -1,13 +1,15 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { useApp, selectActiveChat, type Chat } from '../store/store'
+import { useApp, selectActiveChat } from '../store/store'
 import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
 import { ITEMS_BY_ID, TYPE_META, type ItemType } from '../data/context'
+import { costLabel } from '../data/format'
 
 const TYPE_ORDER: ItemType[] = ['skill', 'instruction', 'file']
 
 // Live, present-tense session state (FR-10.x). Panels are independently collapsible.
 export default function Inspector() {
   const active = useApp(selectActiveChat)
+  const workspaces = useApp((s) => s.workspaces)
   const setView = useApp((s) => s.setView)
   const openModal = useApp((s) => s.openModal)
   const [reauthed, setReauthed] = useState<Record<string, boolean>>({})
@@ -33,6 +35,7 @@ export default function Inspector() {
   }
 
   const pct = Math.min(100, Math.round((active.contextK / active.windowK) * 100))
+  const workspacePath = workspaces.find((w) => w.id === active.workspaceId)?.path
 
   const counts: Record<ItemType, number> = { skill: 0, agent: 0, instruction: 0, file: 0 }
   for (const id of active.attachedIds) {
@@ -89,7 +92,7 @@ export default function Inspector() {
           </Row>
           <Row>
             <span style={lbl}>Cost</span>
-            <span className="mono" style={val}>{costFor(active)}</span>
+            <span className="mono" style={val}>{costLabel(active)}</span>
           </Row>
         </Panel>
 
@@ -104,7 +107,7 @@ export default function Inspector() {
           </Row>
           <Row>
             <span style={lbl}>Working dir</span>
-            <span className="mono" style={{ ...val, fontSize: 11 }}>~/Code/nac-code</span>
+            <span className="mono" style={{ ...val, fontSize: 11 }}>{workspacePath || '(no folder)'}</span>
           </Row>
           <div style={{ padding: '6px 2px 2px' }}>
             <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
@@ -154,12 +157,6 @@ function Row(props: { children: ReactNode }) {
       {props.children}
     </div>
   )
-}
-
-function costFor(chat: Chat): string {
-  if (chat.provider === 'opencode') return 'free · local'
-  const real = Object.values(chat.usage).reduce((sum, u) => sum + (u.costUsd ?? 0), 0)
-  return real > 0 ? `$${real.toFixed(2)}` : '$0.42'
 }
 
 const eyebrow: CSSProperties = { fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
