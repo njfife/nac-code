@@ -116,10 +116,10 @@ export default function ModelModal() {
               provider={provider}
               version={probeFor(provider.id)?.version}
               caps={caps[provider.id] ?? STATIC_CAPABILITIES[provider.id]}
-              isActiveProvider={active.provider === provider.id}
-              activeModel={active.model}
-              effort={active.effort}
-              fast={active.fast}
+              isActiveProvider={active?.provider === provider.id}
+              activeModel={active?.model ?? ''}
+              effort={active?.effort ?? null}
+              fast={active?.fast ?? false}
               onPick={pick}
               onEffort={setEffort}
               onFast={toggleFast}
@@ -134,7 +134,7 @@ export default function ModelModal() {
               <button key={p.id} onClick={() => setPage(p.id)} style={providerRow}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.dot, flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
-                {active.provider === p.id && <span className="mono" style={currentTag}>{active.model}</span>}
+                {active?.provider === p.id && <span className="mono" style={currentTag}>{active?.model}</span>}
                 <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>
                   {probeFor(p.id)?.version ? `${versionLabel(probeFor(p.id)!.version!)} · ` : ''}
                   {modelCount((caps[p.id] ?? STATIC_CAPABILITIES[p.id]).models)} ›

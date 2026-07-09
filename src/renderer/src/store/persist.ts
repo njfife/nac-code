@@ -64,10 +64,12 @@ export async function initPersistence(): Promise<void> {
   if (!window.nac?.state) return // preload bridge unavailable — run in-memory
   try {
     const loaded = (await window.nac.state.load()) as PersistedState | null
-    if (loaded?.chats && Object.keys(loaded.chats).length > 0) {
+    // Hydrate whatever is on disk, including a genuinely empty chat set (fresh-install boots empty —
+    // there is no ≥1-chat special case anymore). Only skip hydration when there's no file at all.
+    if (loaded?.chats) {
       const chats: Record<string, Chat> = {}
       for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id)
-      const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : Object.keys(chats)[0]
+      const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
       const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({ id: w.id, name: w.name, path: w.path ?? '', defaults: w.defaults }))
       useApp.setState({
         chats,

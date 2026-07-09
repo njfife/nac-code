@@ -11,6 +11,27 @@ export default function Inspector() {
   const setView = useApp((s) => s.setView)
   const openModal = useApp((s) => s.openModal)
   const [reauthed, setReauthed] = useState<Record<string, boolean>>({})
+
+  if (!active) {
+    return (
+      <aside
+        style={{
+          width: 'var(--inspector-w)',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--panel-2)',
+          borderLeft: '1px solid var(--line)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
+          <span style={eyebrow}>Inspector</span>
+        </div>
+        <div style={{ padding: '16px 14px', fontSize: 12.5, color: 'var(--muted)' }}>No active chat</div>
+      </aside>
+    )
+  }
+
   const pct = Math.min(100, Math.round((active.contextK / active.windowK) * 100))
 
   const counts: Record<ItemType, number> = { skill: 0, agent: 0, instruction: 0, file: 0 }

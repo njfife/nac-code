@@ -100,6 +100,9 @@ function TopBar() {
   const active = useApp(selectActiveChat)
   const layout = useApp((s) => s.layout)
   const setLayout = useApp((s) => s.setLayout)
+  // No active chat yet (fresh install / all chats cleared): fall back to the first workspace's name
+  // rather than crashing on active.workspaceId.
+  const wsLabel = active ? workspaceName(workspaces, active.workspaceId) : workspaces[0]?.name ?? 'Workspace'
 
   return (
     <header
@@ -119,7 +122,7 @@ function TopBar() {
         ))}
       </div>
       <div style={{ flex: 1, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
-        NAC Code <span style={{ color: 'var(--faint)' }}>/ {workspaceName(workspaces, active.workspaceId)}</span>
+        NAC Code <span style={{ color: 'var(--faint)' }}>/ {wsLabel}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ display: 'flex', background: 'var(--card)', borderRadius: 8, padding: 2, border: '1px solid var(--line)' }}>
@@ -172,7 +175,7 @@ function StatusBar() {
       </span>
       <span>MCP not checked</span>
       <span style={{ marginLeft: 'auto' }}>
-        {active.attachedIds.length} attached · ~{active.contextK}k / {active.windowK}K tokens
+        {active ? `${active.attachedIds.length} attached · ~${active.contextK}k / ${active.windowK}K tokens` : 'no active chat'}
       </span>
       <span>Version 0.10.0</span>
     </footer>

@@ -82,6 +82,7 @@ export default function LeftRail() {
                   {ws.path}
                 </div>
               )}
+              {open && list.length === 0 && <div style={emptyCopy}>No chats yet</div>}
               {open &&
                 list.map((c) => (
                   <ChatRow key={c.id} chat={c} active={c.id === activeChatId} onSelect={() => selectChat(c.id)} />
@@ -176,6 +177,11 @@ const wsPath: CSSProperties = {
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis'
+}
+const emptyCopy: CSSProperties = {
+  padding: '4px 10px 8px 26px',
+  fontSize: 12,
+  color: 'var(--muted)'
 }
 const countPill: CSSProperties = {
   marginLeft: 'auto',

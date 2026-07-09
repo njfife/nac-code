@@ -17,7 +17,7 @@ export default function StatsModal() {
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
 
-  const usage = active.usage ?? {}
+  const usage = active?.usage ?? {}
   const providers = Object.entries(usage)
   const totalTurns = providers.reduce((s, [, u]) => s + u.turns, 0)
   const totalIn = providers.reduce((s, [, u]) => s + u.inputTokens, 0)
@@ -34,7 +34,7 @@ export default function StatsModal() {
         </div>
         <div style={{ overflow: 'auto', padding: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
-            <Stat label="Messages" value={`${active.messages?.length ?? 0}`} />
+            <Stat label="Messages" value={`${active?.messages?.length ?? 0}`} />
             <Stat label="Turns" value={`${totalTurns}`} />
             <Stat label="Tokens" value={fmtTok(totalIn + totalOut)} />
             <Stat label="Cost" value={totalCost > 0 ? fmtCost(totalCost) : 'free'} accent={totalCost > 0 ? undefined : 'var(--success)'} />

@@ -32,9 +32,9 @@ export default function AgentModal() {
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted)' }}>applies to this chat only</span>
         </div>
         <div style={{ overflow: 'auto' }}>
-          <Row name="No agent" role="Default — no agent persona" active={active.agent === null} onClick={() => pick(null)} />
+          <Row name="No agent" role="Default — no agent persona" active={(active?.agent ?? null) === null} onClick={() => pick(null)} />
           {AGENTS.map((a) => (
-            <Row key={a.id} name={a.name} role={a.description} active={active.agent === a.name} onClick={() => pick(a.name)} />
+            <Row key={a.id} name={a.name} role={a.description} active={active?.agent === a.name} onClick={() => pick(a.name)} />
           ))}
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
             <button

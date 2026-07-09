@@ -17,17 +17,18 @@ export default function ContextLibrary() {
 
   const allItems: ContextItem[] = [...userItems, ...CONTEXT_ITEMS]
   const byId = (id: string): ContextItem | undefined => userItems.find((u) => u.id === id) ?? ITEMS_BY_ID[id]
+  const attachedIds = active?.attachedIds ?? [] // tolerate no active chat (empty install, or reached via ⌘K/cockpit rail)
 
   const [category, setCategory] = useState<Category>('attached')
   const [query, setQuery] = useState('')
   const [attachedOnly, setAttachedOnly] = useState(false)
-  const [selectedId, setSelectedId] = useState<string>(active.attachedIds[0] ?? CONTEXT_ITEMS[0].id)
+  const [selectedId, setSelectedId] = useState<string>(attachedIds[0] ?? CONTEXT_ITEMS[0].id)
   const [noteForm, setNoteForm] = useState<{ name: string; content: string } | null>(null)
 
-  const attached = new Set(active.attachedIds)
-  const attachedTokens = active.attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
+  const attached = new Set(attachedIds)
+  const attachedTokens = attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
   const pct = Math.min(100, Math.round((attachedTokens / WINDOW_TOKENS) * 100))
-  const pending = contextPending(active)
+  const pending = active ? contextPending(active) : false
 
   const onAddFile = async (): Promise<void> => {
     const picked = await window.nac?.dialog?.pickFile()
@@ -53,7 +54,7 @@ export default function ContextLibrary() {
         <span style={{ fontSize: 14, fontWeight: 600 }}>Context Library</span>
         <div style={{ marginLeft: 'auto', width: 230 }}>
           <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
-            <span>Context budget · {active.attachedIds.length} items</span>
+            <span>Context budget · {attachedIds.length} items</span>
             <span>~{(attachedTokens / 1000).toFixed(1)}k / 128k tok</span>
           </div>
           <div style={{ height: 6, borderRadius: 3, background: 'var(--card-3)', overflow: 'hidden' }}>
@@ -65,14 +66,14 @@ export default function ContextLibrary() {
       {pending && (
         <div style={pendingBanner}>
           <span>⚠ Attached context changed — it applies on your next message in this chat (sessions are seeded once for speed).</span>
-          <button onClick={() => reseedContext(active.id)} style={pendingApply}>Apply now</button>
+          <button onClick={() => active && reseedContext(active.id)} style={pendingApply}>Apply now</button>
         </div>
       )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Category nav */}
         <nav style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--line)', padding: 8, display: 'flex', flexDirection: 'column' }}>
-          <CatBtn label="★ Attached to chat" active={category === 'attached'} count={active.attachedIds.length} onClick={() => setCategory('attached')} />
+          <CatBtn label="★ Attached to chat" active={category === 'attached'} count={attachedIds.length} onClick={() => setCategory('attached')} />
           {(['skill', 'agent', 'instruction', 'file'] as ItemType[]).map((t) => (
             <CatBtn key={t} label={`${TYPE_META[t].label}s`} active={category === t} count={typeCount(t)} onClick={() => setCategory(t)} />
           ))}

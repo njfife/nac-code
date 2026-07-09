@@ -142,17 +142,9 @@ interface AppState {
   reseedContext: (chatId: string) => void
 }
 
-const workspaces: Workspace[] = [
-  { id: 'ws_nac', name: 'nac-code', path: '~/Code/nac-code' },
-  { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
-]
-
-const base = { yolo: false, fast: false, effort: null as string | null, compacting: false, compacted: false, contextLive: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
-const seedChats: Chat[] = [
-  { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
-  { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
-  { id: 'c3', workspaceId: 'ws_infra', title: 'Deploy pipeline review', time: '3h', provider: 'codex', model: 'gpt-5-codex', agent: 'infra', activeConfig: 'infra', attachedIds: ['sk-tdd', 'ag-infra', 'in-security', 'fl-deploy'], dirty: false, ...base, contextK: 41, windowK: 128, branchedFrom: null, messages: [] }
-]
+// Fresh installs boot empty: one unbound workspace, no chats — nothing on screen that isn't real
+// (the empty-state UX in LeftRail/ChatView/Shell/Inspector covers the rest).
+const workspaces: Workspace[] = [{ id: 'ws_default', name: 'Workspace', path: '' }]
 
 const updateLast = (msgs: Turn[], patch: (t: Turn) => Turn): Turn[] => {
   if (msgs.length === 0) return msgs
@@ -180,11 +172,11 @@ const nextChatId = (): string => `c_${Date.now()}_${++chatSeq}`
 
 export const useApp = create<AppState>()((set, get) => ({
   workspaces,
-  chats: Object.fromEntries(seedChats.map((c) => [c.id, c])),
-  activeChatId: 'c1',
+  chats: {},
+  activeChatId: '',
   view: 'chat',
   layout: 'studio',
-  expanded: { ws_nac: true, ws_infra: false },
+  expanded: { ws_default: true },
   modal: null,
   wsModalId: null,
   palette: false,
@@ -213,6 +205,7 @@ export const useApp = create<AppState>()((set, get) => ({
   setModel: (provider, model) =>
     set((s) => {
       const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
       const scale = effortScaleFor(s.caps[provider], model)
       // Effort scales aren't portable: reset on provider switch, and clamp to the new model's scale.
       const effort = provider !== chat.provider ? null : chat.effort && !scale.includes(chat.effort) ? null : chat.effort
@@ -221,7 +214,11 @@ export const useApp = create<AppState>()((set, get) => ({
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort, contextLive, windowK } } }
     }),
   setAgent: (agent) =>
-    set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, agent } } }
+    }),
   openModal: (m) => set({ modal: m }),
   closeModal: () => set({ modal: null, wsModalId: null }),
   openWorkspaceModal: (id) => set({ modal: 'workspace', wsModalId: id }),
@@ -234,6 +231,7 @@ export const useApp = create<AppState>()((set, get) => ({
   toggleAttach: (itemId) =>
     set((s) => {
       const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
       const has = chat.attachedIds.includes(itemId)
       const attachedIds = has ? chat.attachedIds.filter((id) => id !== itemId) : [...chat.attachedIds, itemId]
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds, dirty: true } } }
@@ -241,8 +239,8 @@ export const useApp = create<AppState>()((set, get) => ({
   applyConfig: (configId) =>
     set((s) => {
       const cfg = CONFIGS_BY_ID[configId]
-      if (!cfg) return {}
       const chat = s.chats[s.activeChatId]
+      if (!cfg || !chat) return {}
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds: [...cfg.itemIds], activeConfig: configId, dirty: false } } }
     }),
   setPalette: (b) => set({ palette: b }),
@@ -326,9 +324,24 @@ export const useApp = create<AppState>()((set, get) => ({
     }
     set((st) => ({ chats: { ...st.chats, [id]: chat }, activeChatId: id, view: 'chat', expanded: { ...st.expanded, [wsId]: true } }))
   },
-  toggleYolo: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], yolo: !s.chats[s.activeChatId].yolo } } })),
-  toggleFast: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], fast: !s.chats[s.activeChatId].fast } } })),
-  setEffort: (e) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], effort: e } } })),
+  toggleYolo: () =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, yolo: !chat.yolo } } }
+    }),
+  toggleFast: () =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, fast: !chat.fast } } }
+    }),
+  setEffort: (e) =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, effort: e } } }
+    }),
   loadCaps: async (provider, refresh) => {
     if (!window.nac?.capabilities) return
     try {
@@ -472,7 +485,7 @@ export const useApp = create<AppState>()((set, get) => ({
 }))
 
 // --- selectors / helpers ---
-export const selectActiveChat = (s: AppState): Chat => s.chats[s.activeChatId]
+export const selectActiveChat = (s: AppState): Chat | undefined => s.chats[s.activeChatId]
 // True when attachments changed since the live session was seeded — they apply on the next re-seed (FR-5).
 export function contextPending(chat: Chat): boolean {
   if (!chat.sessionId || chat.sessionProvider !== chat.provider || chat.seededAttachments === null) return false
