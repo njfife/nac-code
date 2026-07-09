@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat, contextPending } from '../store/store'
 import { sendMessage, isStreaming } from '../store/runtime'
 import { CONFIGURATIONS, CONFIGS_BY_ID, configTokens } from '../data/configs'
+import { effortScaleFor } from '../../../shared/capabilities'
 
 // Center pane: chat header · thread · composer. Send drives a real run (Claude adapter) or the stub;
 // streamed AgentEvents land in the chat's transcript via the run controller.
@@ -13,7 +14,8 @@ export default function ChatView() {
   const newFromCompacted = useApp((s) => s.newFromCompacted)
   const applyConfig = useApp((s) => s.applyConfig)
   const toggleYolo = useApp((s) => s.toggleYolo)
-  const setThinking = useApp((s) => s.setThinking)
+  const setEffort = useApp((s) => s.setEffort)
+  const caps = useApp((s) => s.caps)
   const reseedContext = useApp((s) => s.reseedContext)
 
   const [prompt, setPrompt] = useState('')
@@ -151,11 +153,12 @@ export default function ChatView() {
               <span
                 style={toolbarItem}
                 onClick={() => {
-                  const order = ['none', 'low', 'medium', 'high'] as const
-                  setThinking(order[(order.indexOf(active.thinking) + 1) % order.length])
+                  const scale = [null, ...effortScaleFor(caps[active.provider], active.model)]
+                  const idx = scale.indexOf(active.effort)
+                  setEffort(scale[(idx + 1) % scale.length])
                 }}
               >
-                Thinking: {active.thinking[0].toUpperCase() + active.thinking.slice(1)}
+                Effort: {active.effort ?? 'default'}
               </span>
               <span onClick={() => toggleYolo()} style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}>
                 YOLO{active.yolo ? ' ●' : ''}

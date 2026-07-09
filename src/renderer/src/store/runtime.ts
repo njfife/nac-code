@@ -1,5 +1,5 @@
 import { useApp, type Chat, type Turn } from './store'
-import { modelIdFor } from '../data/providers'
+import { modelIdFor } from '../../../shared/capabilities'
 import { ITEMS_BY_ID, type ContextItem } from '../data/context'
 
 // Renderer-side run controller: maps each run's AgentEvent stream onto the owning chat's transcript,
@@ -95,8 +95,8 @@ export async function sendMessage(text: string): Promise<void> {
       sessionId: useNative ? chat.sessionId ?? undefined : undefined,
       cwd,
       yolo: chat.yolo,
-      model: modelIdFor(chat.provider, chat.model),
-      thinking: chat.thinking === 'none' ? undefined : chat.thinking, // 'none' = harness default
+      model: modelIdFor(chat.provider, chat.model, s.caps[chat.provider]),
+      effort: chat.effort ?? undefined,
       fast: chat.fast || undefined
     })
     runToChat[runId] = chatId

@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
-import { modelIdFor } from '../data/providers'
+import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor } from '../../../shared/capabilities'
 import type { ContextItem } from '../data/context'
-import type { TurnUsage } from '../../../shared/runtime'
+import type { TurnUsage, ProviderCapabilities } from '../../../shared/runtime'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/agent/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
@@ -47,7 +47,7 @@ export interface Chat {
   agent: string | null
   yolo: boolean
   fast: boolean // Claude fast mode (research preview); injected per-run via --settings
-  thinking: ThinkingLevel
+  effort: string | null // reasoning depth; null = harness default. Values come from discovered capabilities
   activeConfig: string | null
   attachedIds: string[]
   dirty: boolean
@@ -68,7 +68,6 @@ export interface Chat {
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
 export type ModalKind = 'model' | 'agent' | 'stats' | 'workspace' | null
-export type ThinkingLevel = 'none' | 'low' | 'medium' | 'high'
 
 interface AppState {
   workspaces: Workspace[]
@@ -80,6 +79,7 @@ interface AppState {
   modal: ModalKind
   wsModalId: string | null // workspace targeted by the 'workspace' defaults modal
   palette: boolean
+  caps: Record<string, ProviderCapabilities>
 
   selectChat: (id: string) => void
   toggleWorkspace: (wsId: string) => void
@@ -103,7 +103,8 @@ interface AppState {
   newChat: (workspaceId?: string) => void
   toggleYolo: () => void
   toggleFast: () => void
-  setThinking: (t: ThinkingLevel) => void
+  setEffort: (e: string | null) => void
+  loadCaps: (provider: string, refresh?: boolean) => Promise<void>
   // transcript / run lifecycle (driven by AgentEvents) — by chatId so background runs route correctly
   pushTurn: (chatId: string, turn: Turn) => void
   appendDelta: (chatId: string, text: string) => void
@@ -124,7 +125,7 @@ const workspaces: Workspace[] = [
   { id: 'ws_infra', name: 'infra', path: '~/Code/infra' }
 ]
 
-const base = { yolo: false, fast: false, thinking: 'none' as ThinkingLevel, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
+const base = { yolo: false, fast: false, effort: null as string | null, compacting: false, compacted: false, sessionId: null as string | null, sessionProvider: null as string | null, summary: null as string | null, summarizedThrough: 0, usage: {} as Record<string, ProviderUsage>, seededAttachments: null as string[] | null }
 const seedChats: Chat[] = [
   { id: 'c1', workspaceId: 'ws_nac', title: 'M0-7 scaffold + tracer', time: 'now', provider: 'claude', model: 'Opus 4.8', agent: 'nac-code', activeConfig: 'standard', attachedIds: ['sk-tdd', 'sk-debug', 'ag-nac', 'in-style', 'fl-readme'], dirty: false, ...base, contextK: 12, windowK: 200, branchedFrom: null, messages: [] },
   { id: 'c2', workspaceId: 'ws_nac', title: 'Cross-provider spike', time: '1h', provider: 'opencode', model: 'qwen3.6-27b (remote)', agent: null, activeConfig: null, attachedIds: ['sk-tdd', 'fl-spec'], dirty: true, ...base, contextK: 8, windowK: 32, branchedFrom: null, messages: [] },
@@ -152,6 +153,7 @@ export const useApp = create<AppState>()((set, get) => ({
   modal: null,
   wsModalId: null,
   palette: false,
+  caps: { ...STATIC_CAPABILITIES },
   userItems: [],
 
   selectChat: (id) => set({ activeChatId: id }),
@@ -174,7 +176,13 @@ export const useApp = create<AppState>()((set, get) => ({
   setLayout: (l) => set({ layout: l }),
   setView: (v) => set({ view: v }),
   setModel: (provider, model) =>
-    set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], provider, model } } })),
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      const scale = effortScaleFor(s.caps[provider], model)
+      // Effort scales aren't portable: reset on provider switch, and clamp to the new model's scale.
+      const effort = provider !== chat.provider ? null : chat.effort && !scale.includes(chat.effort) ? null : chat.effort
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort } } }
+    }),
   setAgent: (agent) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
   openModal: (m) => set({ modal: m }),
@@ -232,7 +240,7 @@ export const useApp = create<AppState>()((set, get) => ({
       return
     }
     void window.nac.runs
-      .summarize({ text: context, provider: chat.provider, model: modelIdFor(chat.provider, chat.model) })
+      .summarize({ text: context, provider: chat.provider, model: modelIdFor(chat.provider, chat.model, get().caps[chat.provider]) })
       .then((r) => finish(r?.summary?.trim() ? r.summary.trim() : null))
       .catch(() => finish(null))
   },
@@ -260,7 +268,7 @@ export const useApp = create<AppState>()((set, get) => ({
       agent: wsDefaults?.agent !== undefined ? wsDefaults.agent : src?.agent ?? null,
       yolo: false,
       fast: false,
-      thinking: 'none',
+      effort: null,
       activeConfig: 'standard',
       attachedIds: [...(cfg?.itemIds ?? [])],
       dirty: false,
@@ -281,7 +289,16 @@ export const useApp = create<AppState>()((set, get) => ({
   },
   toggleYolo: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], yolo: !s.chats[s.activeChatId].yolo } } })),
   toggleFast: () => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], fast: !s.chats[s.activeChatId].fast } } })),
-  setThinking: (t) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], thinking: t } } })),
+  setEffort: (e) => set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], effort: e } } })),
+  loadCaps: async (provider, refresh) => {
+    if (!window.nac?.capabilities) return
+    try {
+      const caps = await window.nac.capabilities.get(provider, refresh)
+      set((s) => ({ caps: { ...s.caps, [provider]: caps } }))
+    } catch {
+      // keep the current (static) entry
+    }
+  },
 
   pushTurn: (chatId, turn) =>
     set((s) => {

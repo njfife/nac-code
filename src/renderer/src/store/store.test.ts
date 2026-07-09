@@ -148,4 +148,14 @@ describe('app store — per-chat spine', () => {
     expect(after.chats[id].fast).toBe(true)
     for (const [cid, c] of Object.entries(after.chats)) if (cid !== id) expect(c.fast).toBe(false)
   })
+
+  it('setEffort sets the active chat effort; provider switch resets it to null', () => {
+    const s = useApp.getState()
+    s.setEffort('xhigh')
+    expect(useApp.getState().chats[useApp.getState().activeChatId].effort).toBe('xhigh')
+    const chat = useApp.getState().chats[useApp.getState().activeChatId]
+    const otherProvider = chat.provider === 'claude' ? 'codex' : 'claude'
+    s.setModel(otherProvider, 'Account default')
+    expect(useApp.getState().chats[useApp.getState().activeChatId].effort).toBeNull()
+  })
 })

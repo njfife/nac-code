@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { useApp, selectActiveChat, type ThinkingLevel } from '../store/store'
+import { useApp, selectActiveChat } from '../store/store'
 import { PROVIDERS, type ModelDef, type ProviderDef } from '../data/providers'
 import type { ProviderProbe } from '../../../shared/runtime'
 
@@ -17,7 +17,7 @@ const modelCount = (models: ModelDef[]): string => {
 export default function ModelModal() {
   const active = useApp(selectActiveChat)
   const setModel = useApp((s) => s.setModel)
-  const setThinking = useApp((s) => s.setThinking)
+  const setEffort = useApp((s) => s.setEffort)
   const toggleFast = useApp((s) => s.toggleFast)
   const close = useApp((s) => s.closeModal)
   const [page, setPage] = useState<string | null>(null) // null = provider list, else a provider id
@@ -104,10 +104,10 @@ export default function ModelModal() {
               models={discovered[provider.id] ?? provider.models}
               isActiveProvider={active.provider === provider.id}
               activeModel={active.model}
-              thinking={active.thinking}
+              effort={active.effort}
               fast={active.fast}
               onPick={pick}
-              onThinking={setThinking}
+              onEffort={setEffort}
               onFast={toggleFast}
             />
           ) : probes === null ? (
@@ -139,10 +139,10 @@ function ProviderPage(props: {
   models: ModelDef[]
   isActiveProvider: boolean
   activeModel: string
-  thinking: ThinkingLevel
+  effort: string | null
   fast: boolean
   onPick: (provider: string, model: string) => void
-  onThinking: (t: ThinkingLevel) => void
+  onEffort: (e: string | null) => void
   onFast: () => void
 }) {
   const p = props.provider
@@ -199,7 +199,12 @@ function ProviderPage(props: {
           {opt.kind === 'enum' ? (
             <div style={{ display: 'flex', gap: 6 }}>
               {(opt.values ?? []).map((v) => (
-                <Chip key={v} label={v} active={props.thinking === v} onClick={() => props.onThinking(v as ThinkingLevel)} />
+                <Chip
+                  key={v}
+                  label={v}
+                  active={props.effort === (v === 'none' ? null : v)}
+                  onClick={() => props.onEffort(v === 'none' ? null : v)}
+                />
               ))}
             </div>
           ) : (

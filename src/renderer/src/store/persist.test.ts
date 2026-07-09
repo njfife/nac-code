@@ -2,27 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { normalizeChat } from './persist'
 
 // Guards the effort-default migration: `thinking` was cosmetic before effort wiring landed (the
-// same change that introduced `fast`), so leftover 'medium' from pre-feature persisted data must
-// not silently start sending real flags. Post-feature data (which has `fast`) is preserved as-is.
-describe('normalizeChat — thinking default migration', () => {
-  it('resets pre-feature data (no `fast` key) to thinking: none regardless of stored value', () => {
-    const raw = { title: 'Old chat', provider: 'claude', model: 'Opus 4.8', thinking: 'medium' as const }
-    const c = normalizeChat(raw, 'c_old')
-    expect(c.thinking).toBe('none')
-    expect(c.fast).toBe(false)
-  })
-
-  it('preserves post-feature data (has `fast`) as-is', () => {
-    const raw = { title: 'New chat', provider: 'claude', model: 'Opus 4.8', fast: true, thinking: 'high' as const }
-    const c = normalizeChat(raw, 'c_new')
-    expect(c.thinking).toBe('high')
-    expect(c.fast).toBe(true)
-  })
-
-  it('treats malformed `fast` (non-boolean, e.g. hand-edited null) as pre-feature', () => {
-    const raw = { title: 'Odd chat', provider: 'claude', model: 'Opus 4.8', fast: null as unknown as boolean, thinking: 'medium' as const }
-    const c = normalizeChat(raw, 'c_odd')
-    expect(c.thinking).toBe('none')
-    expect(c.fast).toBe(false)
+// same change that introduced `fast`), so leftover pre-feature values must not silently start
+// sending real flags. Post-feature data (which has `fast`) is preserved as-is; the new `effort`
+// field wins when present.
+describe('normalizeChat — thinking → effort migration', () => {
+  it("migrates legacy thinking: 'none' to effort null and drops pre-feature values", () => {
+    expect(normalizeChat({ thinking: 'none', fast: true } as never, 'c1').effort).toBeNull()
+    expect(normalizeChat({ thinking: 'medium' } as never, 'c2').effort).toBeNull() // pre-fast era: cosmetic
+    expect(normalizeChat({ thinking: 'high', fast: false } as never, 'c3').effort).toBe('high')
+    expect(normalizeChat({ effort: 'xhigh', fast: false } as never, 'c4').effort).toBe('xhigh')
   })
 })

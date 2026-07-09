@@ -16,8 +16,8 @@ export interface ModelDef {
   variants?: ModelVariant[] // e.g. Sonnet 1M context — selected like a model, maps to its own id
 }
 
-// A per-provider capability the UI can set on the active chat. `effort` binds to chat.thinking
-// (universal scale; 'none' = harness default); `fast` binds to chat.fast (Claude-only in v1).
+// A per-provider capability the UI can set on the active chat. `effort` binds to chat.effort
+// (provider-real scale; null = harness default); `fast` binds to chat.fast (Claude-only in v1).
 export interface OptionDef {
   id: 'effort' | 'fast'
   label: string
