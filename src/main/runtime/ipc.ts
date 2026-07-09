@@ -73,7 +73,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
-    if (req.provider === 'copilot' || req.provider === 'codex' || req.provider === 'claude') {
+    if (req.provider === 'copilot' || req.provider === 'codex' || req.provider === 'claude' || req.provider === 'opencode') {
       // Interactive-first: persistent transport session; on { ok: false } fall back to the one-shot path.
       void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, onEvent: handler }).then(({ ok }) => {
         if (!ok) {
@@ -85,28 +85,27 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
               ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
               : req.provider === 'claude'
                 ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
-                : startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
+                : req.provider === 'opencode'
+                  ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
+                  : startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
           )
         }
       })
       return { runId }
     }
-    // Provider 'claude' is handled above (interactive-first, with one-shot fallback); opencode
-    // dispatches its own adapter; the NDJSON stub covers the rest (until those adapters land).
-    const run =
-      req.provider === 'opencode'
-        ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
-        : startHarnessRun(
-          runId,
-          {
-            prompt: req.prompt,
-            command: process.execPath,
-            args: [stubHarnessPath(), req.prompt],
-            env: { ELECTRON_RUN_AS_NODE: '1' }, // run the .mjs with Electron's bundled Node
-            cwd: req.cwd
-          },
-          handler
-        )
+    // Providers copilot, codex, claude, and opencode are handled above (interactive-first, with one-shot
+    // fallback); the NDJSON stub covers the rest (until those adapters land).
+    const run = startHarnessRun(
+      runId,
+      {
+        prompt: req.prompt,
+        command: process.execPath,
+        args: [stubHarnessPath(), req.prompt],
+        env: { ELECTRON_RUN_AS_NODE: '1' }, // run the .mjs with Electron's bundled Node
+        cwd: req.cwd
+      },
+      handler
+    )
     runs.set(runId, run)
     return { runId }
   })
