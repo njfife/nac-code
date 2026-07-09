@@ -42,6 +42,7 @@ export type AgentEvent =
   | { type: 'tool.updated'; runId: string; toolCallId: string; title: string; kind?: string; status: 'pending' | 'running' | 'completed' | 'failed'; detail?: string }
   | { type: 'permission.requested'; runId: string; requestId: string; title: string; detail?: string; options: PermissionOption[] }
   | { type: 'permission.resolved'; runId: string; requestId: string; optionId: string }
+  | { type: 'usage.updated'; runId: string; inputTokens: number; cachedInputTokens?: number; outputTokens: number; reasoningOutputTokens?: number; contextUsedTokens?: number; contextWindow?: number } // live token metering (codex app-server thread/tokenUsage); contextWindow/contextUsedTokens drive the Inspector bar
 
 // IPC channel names shared by main and preload.
 export const RUN_CHANNELS = {

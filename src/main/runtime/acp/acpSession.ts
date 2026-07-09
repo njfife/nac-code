@@ -6,8 +6,16 @@ import { resolveCwd } from '../paths'
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
 const HANDSHAKE_TIMEOUT_MS = 10_000
 
+export interface PromptOpts {
+  model?: string
+  effort?: string
+}
+
 export interface TransportSession {
-  prompt(runId: string, text: string): void
+  readonly busy: boolean
+  readonly dead: boolean
+  setYolo(y: boolean): void
+  prompt(runId: string, text: string, opts?: PromptOpts): void
   respondPermission(requestId: string, optionId: string): void
   cancel(): void
   dispose(): void
@@ -127,7 +135,8 @@ export class AcpSession implements TransportSession {
     return this.currentRunId !== null
   }
 
-  prompt(runId: string, text: string): void {
+  prompt(runId: string, text: string, _opts?: PromptOpts): void {
+    // pillar-1 limitation: copilot ACP runs the account-default model; opts are honored by CodexSession
     if (!this.sessionId) throw new Error('acp: no session')
     this.currentRunId = runId
     this.onEvent({ type: 'run.started', runId, sessionId: this.sessionId })
