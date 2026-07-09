@@ -205,4 +205,15 @@ describe('app store — per-chat spine', () => {
     const turn = useApp.getState().chats[id].messages.at(-1)!
     expect(turn.permissions?.[0].resolvedOptionId).toBe('allow_once')
   })
+
+  it('tool/permission events after a new user turn still target the last assistant turn', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a9', role: 'assistant', text: 'done', streaming: false })
+    s.pushTurn(id, { id: 'u9', role: 'user', text: 'next question' })
+    s.upsertTool(id, { toolCallId: 'late', title: 'Late tool', status: 'completed' })
+    const msgs = useApp.getState().chats[id].messages
+    expect(msgs.at(-1)!.tools).toBeUndefined() // user turn untouched
+    expect(msgs.at(-2)!.tools?.[0].toolCallId).toBe('late')
+  })
 })

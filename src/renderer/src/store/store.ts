@@ -159,6 +159,19 @@ const updateLast = (msgs: Turn[], patch: (t: Turn) => Turn): Turn[] => {
   return copy
 }
 
+// Tool/permission events may arrive after endTurn (expiry fires post-completion) or after the user's
+// next message — target the last ASSISTANT turn, never whatever happens to be last.
+const updateLastAssistant = (msgs: Turn[], patch: (t: Turn) => Turn): Turn[] => {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'assistant') {
+      const copy = msgs.slice()
+      copy[i] = patch(copy[i])
+      return copy
+    }
+  }
+  return msgs
+}
+
 // Collision-proof chat id (Date.now() alone collides on rapid creates within the same ms).
 let chatSeq = 0
 const nextChatId = (): string => `c_${Date.now()}_${++chatSeq}`
@@ -362,7 +375,7 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const messages = updateLast(c.messages, (t) => {
+      const messages = updateLastAssistant(c.messages, (t) => {
         const tools = t.tools ? [...t.tools] : []
         const i = tools.findIndex((x) => x.toolCallId === row.toolCallId)
         if (i >= 0) tools[i] = { ...tools[i], ...row }
@@ -375,7 +388,7 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const messages = updateLast(c.messages, (t) => {
+      const messages = updateLastAssistant(c.messages, (t) => {
         const permissions = t.permissions ? [...t.permissions] : []
         const i = permissions.findIndex((x) => x.requestId === card.requestId)
         if (i >= 0) permissions[i] = { ...permissions[i], ...card }
@@ -388,7 +401,7 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => {
       const c = s.chats[chatId]
       if (!c) return {}
-      const messages = updateLast(c.messages, (t) => ({
+      const messages = updateLastAssistant(c.messages, (t) => ({
         ...t,
         permissions: (t.permissions ?? []).map((p) => (p.requestId === requestId ? { ...p, resolvedOptionId: optionId } : p))
       }))
