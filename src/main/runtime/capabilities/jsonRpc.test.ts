@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRpcLine, LineDecoder } from './jsonRpc'
+import { parseRpcLine, LineDecoder, classifyRpcMessage } from './jsonRpc'
 
 describe('parseRpcLine', () => {
   it('parses codex-style responses that omit the jsonrpc field', () => {
@@ -28,5 +28,15 @@ describe('LineDecoder', () => {
     const d = new LineDecoder()
     expect(d.push(Buffer.from('{"id":', 'utf8'))).toEqual([])
     expect(d.push(Buffer.from('1}\n{"id":2}\n', 'utf8'))).toEqual(['{"id":1}', '{"id":2}'])
+  })
+})
+
+describe('classifyRpcMessage', () => {
+  it('separates responses, server requests, and notifications', () => {
+    expect(classifyRpcMessage({ id: 3, result: { stopReason: 'end_turn' } })).toBe('response')
+    // Real captured frame: copilot's permission request arrived with id 0 — a server REQUEST has method+id.
+    expect(classifyRpcMessage({ id: 0, method: 'session/request_permission' })).toBe('server-request')
+    expect(classifyRpcMessage({ method: 'session/update' })).toBe('notification')
+    expect(classifyRpcMessage({ id: 1, error: { code: -32601 } })).toBe('response')
   })
 })
