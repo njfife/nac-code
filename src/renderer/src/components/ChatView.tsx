@@ -78,6 +78,7 @@ export default function ChatView() {
               'Compact'
             )}
           </span>
+          {active.compactError && <span style={compactErrorText}>{active.compactError}</span>}
           {active.compacted && (
             <span style={headerAction} onClick={() => newFromCompacted()}>
               New from compacted
@@ -260,6 +261,7 @@ function Message(props: { turn: Turn; runId?: string }) {
 
 const pill: CSSProperties = { fontSize: 11, padding: '2px 8px', borderRadius: 5, background: 'var(--accent-tint)', color: 'var(--accent-light)' }
 const headerAction: CSSProperties = { fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--text-2)', cursor: 'pointer' }
+const compactErrorText: CSSProperties = { fontSize: 11, color: 'var(--error)', alignSelf: 'center' }
 const toolbarItem: CSSProperties = { fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }
 const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }
 const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }

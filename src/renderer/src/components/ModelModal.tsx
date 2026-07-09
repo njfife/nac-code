@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
 import { PROVIDERS, type ProviderDef } from '../data/providers'
+import { useProviderProbe } from '../hooks/useProviderProbe'
 import { STATIC_CAPABILITIES, effortScaleFor } from '../../../shared/capabilities'
 import type { ProviderProbe, ProviderCapabilities, DiscoveredModel } from '../../../shared/runtime'
 
@@ -39,7 +40,9 @@ export default function ModelModal() {
   const loadCaps = useApp((s) => s.loadCaps)
   const close = useApp((s) => s.closeModal)
   const [page, setPage] = useState<string | null>(null) // null = provider list, else a provider id
-  const [probes, setProbes] = useState<ProviderProbe[] | null>(null) // null = probing
+  // Live availability: adapter-backed CLIs probed fresh each time the modal opens (shared with the
+  // Inspector's CLI Connections panel — see hooks/useProviderProbe.ts).
+  const { providers: probes } = useProviderProbe()
 
   // Escape backs out of a provider page first, then closes.
   useEffect(() => {
@@ -51,28 +54,6 @@ export default function ModelModal() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close, page])
-
-  // Live availability: adapter-backed CLIs probed fresh each time the modal opens.
-  useEffect(() => {
-    let live = true
-    const registry = window.nac?.registry
-    if (!registry) {
-      // No preload bridge (tests, stale preload) — degrade to "no providers detected", never stuck probing.
-      setProbes([])
-      return
-    }
-    registry
-      .providers()
-      .then((r) => {
-        if (live) setProbes(r)
-      })
-      .catch(() => {
-        if (live) setProbes([])
-      })
-    return () => {
-      live = false
-    }
-  }, [])
 
   // Capability discovery (M4): fetch every provider on mount so page-1 model counts are live, not just
   // the static floor. loadCaps caches per provider, so this is free once a provider's already loaded.

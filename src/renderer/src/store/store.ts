@@ -68,6 +68,7 @@ export interface Chat {
   dirty: boolean
   compacting: boolean
   compacted: boolean
+  compactError?: string // transient inline error (M0-5 honesty sweep) — set when a compaction attempt fails; cleared on the next attempt or via clearCompactError
   contextK: number
   windowK: number
   contextLive?: boolean // context bar shows REAL harness-reported numbers (codex app-server); reset on hydrate/provider switch
@@ -114,6 +115,7 @@ interface AppState {
   setPalette: (b: boolean) => void
   togglePalette: () => void
   compactChat: () => void
+  clearCompactError: (chatId: string) => void
   newFromCompacted: () => void
   newChat: (workspaceId?: string) => void
   toggleYolo: () => void
@@ -248,7 +250,8 @@ export const useApp = create<AppState>()((set, get) => ({
     const context = [chat.summary ? `Summary so far:\n${chat.summary}` : '', ...tail.map((t) => `${t.role === 'user' ? 'User' : 'Assistant'}: ${t.text}`)]
       .filter(Boolean)
       .join('\n\n')
-    set((s) => ({ chats: { ...s.chats, [id]: { ...s.chats[id], compacting: true } } }))
+    // A fresh attempt always clears any stale error from a prior failed attempt (M0-5 honesty sweep).
+    set((s) => ({ chats: { ...s.chats, [id]: { ...s.chats[id], compacting: true, compactError: undefined } } }))
     const finish = (summary: string | null): void =>
       set((s) => {
         const c = s.chats[id]
@@ -261,6 +264,15 @@ export const useApp = create<AppState>()((set, get) => ({
           }
         }
       })
+    // Real failure (the summarize IPC rejected): say so inline instead of silently reverting to "Compact"
+    // as if nothing happened — the transcript is untouched either way, but the user asked for something
+    // and it didn't happen.
+    const fail = (): void =>
+      set((s) => {
+        const c = s.chats[id]
+        if (!c) return {}
+        return { chats: { ...s.chats, [id]: { ...c, compacting: false, compactError: 'Compaction failed — transcript unchanged' } } }
+      })
     if (!context || !window.nac?.runs?.summarize) {
       finish(null)
       return
@@ -268,13 +280,19 @@ export const useApp = create<AppState>()((set, get) => ({
     void window.nac.runs
       .summarize({ text: context, provider: chat.provider, model: modelIdFor(chat.provider, chat.model, get().caps[chat.provider]) })
       .then((r) => finish(r?.summary?.trim() ? r.summary.trim() : null))
-      .catch(() => finish(null))
+      .catch(() => fail())
   },
+  clearCompactError: (chatId) =>
+    set((s) => {
+      const c = s.chats[chatId]
+      if (!c) return {}
+      return { chats: { ...s.chats, [chatId]: { ...c, compactError: undefined } } }
+    }),
   newFromCompacted: () => {
     const s = get()
     const src = s.chats[s.activeChatId]
     const id = nextChatId()
-    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {}, seededAttachments: null }
+    const branched: Chat = { ...src, id, title: `Compacted · ${src.title}`, time: 'now', dirty: false, compacting: false, compacted: true, compactError: undefined, branchedFrom: src.id, messages: [...src.messages], sessionId: null, sessionProvider: null, usage: {}, seededAttachments: null }
     set((st) => ({ chats: { ...st.chats, [id]: branched }, activeChatId: id, view: 'chat' }))
   },
   newChat: (workspaceId) => {

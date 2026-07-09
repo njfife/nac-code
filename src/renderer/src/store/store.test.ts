@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useApp, chatsForWorkspace, contextPending } from './store'
 
 // Fresh-install empty state (sweep Task 2): no demo workspaces/chats ship — the store boots with one
@@ -322,5 +322,58 @@ describe('app store — per-chat spine', () => {
     s.pushTurn(id, { id: 'a21', role: 'assistant', text: 'done', streaming: true })
     s.endTurn(id)
     expect(useApp.getState().chats[id].contextLive).toBe(true)
+  })
+})
+
+// M0-5 honesty sweep: a failed compaction attempt used to revert silently to "Compact" as if nothing
+// had happened — the transcript survived, but the user got no signal their click did anything. Real
+// failure (the summarize IPC rejects) now surfaces a transient inline error on the chat.
+describe('app store — compaction failure (M0-5)', () => {
+  afterEach(() => {
+    // @ts-expect-error test-only teardown of the minimal preload stub (follows persist.test.ts's pattern)
+    delete globalThis.window
+  })
+
+  it('compaction failure sets a transient inline error and leaves the transcript intact', async () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.pushTurn(id, { id: 'u1', role: 'user', text: 'hello there' })
+    const messagesBefore = useApp.getState().chats[id].messages
+
+    // @ts-expect-error minimal window.nac.runs stub — only what compactChat reads
+    globalThis.window = { nac: { runs: { summarize: async () => { throw new Error('boom') } } } }
+
+    useApp.getState().compactChat()
+    expect(useApp.getState().chats[id].compacting).toBe(true) // set synchronously before the IPC settles
+    await new Promise((resolve) => setImmediate(resolve)) // flush the rejected summarize promise chain
+
+    const afterFailure = useApp.getState().chats[id]
+    expect(afterFailure.compacting).toBe(false)
+    expect(afterFailure.compactError).toBe('Compaction failed — transcript unchanged')
+    expect(afterFailure.messages).toEqual(messagesBefore) // transcript untouched
+
+    useApp.getState().clearCompactError(id)
+    expect(useApp.getState().chats[id].compactError).toBeUndefined()
+  })
+
+  it('a fresh compaction attempt clears a stale error from a prior failure', async () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.pushTurn(id, { id: 'u2', role: 'user', text: 'hello again' })
+
+    // @ts-expect-error minimal window.nac.runs stub — only what compactChat reads
+    globalThis.window = { nac: { runs: { summarize: async () => { throw new Error('boom') } } } }
+    useApp.getState().compactChat()
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(useApp.getState().chats[id].compactError).toBe('Compaction failed — transcript unchanged')
+
+    // @ts-expect-error minimal window.nac.runs stub — this attempt succeeds
+    globalThis.window = { nac: { runs: { summarize: async () => ({ summary: 'a real summary' }) } } }
+    useApp.getState().compactChat()
+    expect(useApp.getState().chats[id].compactError).toBeUndefined() // cleared as soon as the new attempt starts
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(useApp.getState().chats[id].compacted).toBe(true)
   })
 })

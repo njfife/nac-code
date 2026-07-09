@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useApp, selectActiveChat } from '../store/store'
-import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
+import { PROVIDERS, STATUS_LABEL, STATUS_COLOR, type ConnStatus } from '../data/providers'
+import { useProviderProbe } from '../hooks/useProviderProbe'
 import { ITEMS_BY_ID, TYPE_META, type ItemType } from '../data/context'
 import { costLabel } from '../data/format'
 
@@ -12,7 +13,7 @@ export default function Inspector() {
   const workspaces = useApp((s) => s.workspaces)
   const setView = useApp((s) => s.setView)
   const openModal = useApp((s) => s.openModal)
-  const [reauthed, setReauthed] = useState<Record<string, boolean>>({})
+  const { providers: probes, refresh } = useProviderProbe()
 
   if (!active) {
     return (
@@ -60,22 +61,33 @@ export default function Inspector() {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
-        <Panel title="CLI Connections" defaultOpen>
+        <Panel
+          title="CLI Connections"
+          defaultOpen
+          headerAction={
+            <button style={refreshIconBtn} onClick={(e) => { e.stopPropagation(); refresh() }} aria-label="Refresh" title="Re-probe CLIs">
+              ⟳
+            </button>
+          }
+        >
           {PROVIDERS.map((p) => {
-            const status = p.status === 'expired' && reauthed[p.id] ? 'authenticated' : p.status
+            const probe = probes?.find((x) => x.id === p.id)
+            // Mirrors ModelModal's interpretation of the real CliRegistry probe (M0-5 honesty sweep —
+            // no static/fake statuses). `probes === null` = still probing (never claim a status yet).
+            // Once resolved: found + installed = authenticated; found + not installed = not installed;
+            // NOT found in a resolved list = the probe subsystem itself couldn't run for this id (no
+            // preload bridge / probe failure) — that's a real error, not a false "not installed".
+            const status: ConnStatus | null = probes === null ? null : probe?.installed ? 'authenticated' : probe ? 'not-installed' : 'error'
+            const title = status === 'error' ? 'Provider probe unavailable — try refresh' : probe?.version ? `v${probe.version}` : undefined
             return (
               <Row key={p.id}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLOR[status] }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: status ? STATUS_COLOR[status] : 'var(--faint)' }} />
                   <span className="mono" style={{ color: 'var(--text-2)' }}>{p.id}</span>
                 </span>
-                {status === 'expired' ? (
-                  <button style={miniBtn} onClick={() => setReauthed((r) => ({ ...r, [p.id]: true }))}>
-                    Re-auth
-                  </button>
-                ) : (
-                  <span style={{ fontSize: 11, color: STATUS_COLOR[status] }}>{STATUS_LABEL[status]}</span>
-                )}
+                <span style={{ fontSize: 11, color: status ? STATUS_COLOR[status] : 'var(--faint)' }} title={title}>
+                  {status ? STATUS_LABEL[status] : 'probing…'}
+                </span>
               </Row>
             )
           })}
@@ -138,14 +150,19 @@ export default function Inspector() {
   )
 }
 
-function Panel(props: { title: string; defaultOpen?: boolean; children: ReactNode }) {
+function Panel(props: { title: string; defaultOpen?: boolean; headerAction?: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(props.defaultOpen ?? false)
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, margin: '4px 0' }}>
-      <button onClick={() => setOpen(!open)} style={panelHeader}>
-        <span style={eyebrowSm}>{props.title}</span>
-        <span style={{ color: 'var(--faint)' }}>{open ? '▾' : '▸'}</span>
-      </button>
+      <div style={panelHeader}>
+        {/* Not nested inside `headerAction` — a button-in-button is invalid HTML/a11y, so the toggle
+            and any header action (e.g. the CLI Connections refresh ⟳) are siblings. */}
+        <button onClick={() => setOpen(!open)} style={panelToggleBtn}>
+          <span style={eyebrowSm}>{props.title}</span>
+          <span style={{ color: 'var(--faint)', marginLeft: 8 }}>{open ? '▾' : '▸'}</span>
+        </button>
+        {props.headerAction}
+      </div>
       {open && <div style={{ padding: '0 12px 8px' }}>{props.children}</div>}
     </div>
   )
@@ -162,8 +179,9 @@ function Row(props: { children: ReactNode }) {
 const eyebrow: CSSProperties = { fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
 const eyebrowSm: CSSProperties = { fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
 const ghostBtn: CSSProperties = { background: 'var(--card)', color: 'var(--text-2)', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }
-const panelHeader: CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer' }
-const miniBtn: CSSProperties = { background: 'var(--accent-tint-3)', color: 'var(--accent-light)', border: 'none', borderRadius: 5, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }
+const panelHeader: CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }
+const panelToggleBtn: CSSProperties = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', font: 'inherit', color: 'inherit' }
+const refreshIconBtn: CSSProperties = { background: 'transparent', border: 'none', color: 'var(--faint)', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1, marginLeft: 8 }
 const attachRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }
 const tile: CSSProperties = { width: 14, height: 14, borderRadius: 4, color: '#0c0c0f', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const lbl: CSSProperties = { color: 'var(--muted)' }
