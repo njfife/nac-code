@@ -35,8 +35,8 @@ scroll of model chips. Three problems (owner feedback, 2026-07-08):
 |---|---|---|---|---|
 | Effort/thinking | `--effort low\|medium\|high\|xhigh\|max` | `-c model_reasoning_effort=<v>` | `--effort/--reasoning-effort <level>` | `--variant <v>` |
 | Model | `--model` alias or full name | `-m` (400s on ChatGPT accounts — gated) | `--model` (plan-gated) | `-m provider/model` |
-| Fast mode | **no flag visible in `--help`** — verify during impl | n/a | n/a | n/a |
-| 1M context | `[1m]` model-id syntax — **verify during impl** | n/a | n/a | n/a |
+| Fast mode | no `--fast` flag; **verified 2026-07-08:** per-run injection via `--settings '{"fastMode":true}'` works headless | n/a | n/a | n/a |
+| 1M context | `sonnet[1m]` model-id syntax — **verified working headless 2026-07-08** (docs: model-config) | n/a | n/a | n/a |
 
 ## Design
 
@@ -73,6 +73,7 @@ interface OptionDef {
 - `thinking` (existing `none|low|medium|high`) becomes the real, universal effort level.
   `none` = omit the flag (harness default). Adapters map/clamp to their own scale.
 - New `chat.fast: boolean` (default false; Claude-only in v1). Persisted like `yolo`.
+  Wired via per-run `--settings '{"fastMode":true}'` (verified; no --fast flag exists).
 - 1M context selection is just a model id — no new field.
 
 **Run plumbing:** `RunRequest` gains `thinking?: string` and `fast?: boolean`.
@@ -109,9 +110,9 @@ translates: claude `--effort <v>`, codex `-c model_reasoning_effort="<v>"`, copi
   modal list filtering by probe results.
 - **Live verification (project standard, vs real binaries):**
   1. each effort flag accepted end-to-end (one run per provider);
-  2. `[1m]` variant: works → keep; rejected → drop the variant chip and record why;
-  3. fast mode headless: find the mechanism (flag/env/setting) or ship the toggle
-     disabled with an "interactive-only" note. Either way the verdict is recorded.
+  2. `[1m]` variant end-to-end in the GUI (mechanism already verified headless);
+  3. fast mode end-to-end in the GUI (mechanism already verified: `--settings
+     '{"fastMode":true}'`; owner confirmed 2026-07-08 the toggle ships enabled).
 - **Docs:** dated `docs/DECISIONS.md` entry in the same change (this also closes the
   "thinking-level wiring" item from the next-options list); update `docs/README.md`
   if this spec directory is new.
