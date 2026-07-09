@@ -4,11 +4,14 @@ import type { ProviderCapabilities } from '../../../shared/runtime'
 
 export type Ledger = Record<string, Record<string, { verdict: 'gated' | 'works'; at: number; message?: string }>>
 
+/** Claude's model-rejection text (structured 404 result). Shared with the claude adapter. */
+export const CLAUDE_MODEL_REJECTION = /issue with the selected model/i
+
 // One rejection matcher per verified harness error shape (see spec's probed ground truth).
 const REJECTION_PATTERNS = [
   /model is not supported when using Codex/i, // codex 400
   /Model "[^"]+" from --model flag is not available/i, // copilot
-  /issue with the selected model/i // claude structured 404 result text
+  CLAUDE_MODEL_REJECTION // claude structured 404 result text
 ]
 
 /** Pure + exported for testing. */

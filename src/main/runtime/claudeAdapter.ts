@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'child_process'
 import type { AgentEvent } from '../../shared/runtime'
 import type { HarnessRun } from './harnessRunner'
 import { resolveCwd } from './paths'
+import { CLAUDE_MODEL_REJECTION } from './capabilities/ledger'
 
 // Real adapter for Claude Code (`claude -p … --output-format stream-json --verbose`).
 // Maps Claude's stream-json events to the canonical AgentEvent union — the first REAL harness (M5),
@@ -56,7 +57,7 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
     }
     case 'result': {
       // A model rejection deserves a real error (message included) so the gating ledger can learn it.
-      if (m.is_error && typeof m.result === 'string' && /issue with the selected model/i.test(m.result)) {
+      if (m.is_error && typeof m.result === 'string' && CLAUDE_MODEL_REJECTION.test(m.result)) {
         return [{ type: 'run.errored', runId, message: m.result }]
       }
       const u = m.usage

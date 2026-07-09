@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyModelRejection, mergeLedger, type Ledger } from './ledger'
+import { classifyModelRejection, CLAUDE_MODEL_REJECTION, mergeLedger, type Ledger } from './ledger'
 import { STATIC_CAPABILITIES } from '../../../shared/capabilities'
 
 describe('classifyModelRejection', () => {
@@ -8,6 +8,9 @@ describe('classifyModelRejection', () => {
     expect(classifyModelRejection('Error: Model "totally-bogus" from --model flag is not available.')).toBe(true)
     expect(classifyModelRejection("There's an issue with the selected model (totally-bogus-model). It may not exist or you may not have access to it.")).toBe(true)
     expect(classifyModelRejection('harness exited with code 1')).toBe(false)
+  })
+  it('CLAUDE_MODEL_REJECTION matches the expected pattern', () => {
+    expect(CLAUDE_MODEL_REJECTION.test("There's an issue with the selected model (x).")).toBe(true)
   })
 })
 
