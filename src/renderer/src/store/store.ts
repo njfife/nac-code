@@ -409,7 +409,9 @@ export const useApp = create<AppState>()((set, get) => ({
       const messages = updateLastAssistant(c.messages, (t) => {
         const tools = t.tools ? [...t.tools] : []
         const i = tools.findIndex((x) => x.toolCallId === row.toolCallId)
-        if (i >= 0) tools[i] = { ...tools[i], ...row }
+        // Completion events may carry no title (claude tool_result frames) — never let an empty
+        // title clobber the running row's.
+        if (i >= 0) tools[i] = { ...tools[i], ...row, title: row.title || tools[i].title }
         else tools.push(row)
         return { ...t, tools }
       })

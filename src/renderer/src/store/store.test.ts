@@ -208,6 +208,19 @@ describe('app store — per-chat spine', () => {
     expect(turn.tools?.find((t) => t.toolCallId === 'r2')?.status).toBe('completed')
   })
 
+  it('upsertTool keeps the existing title when a completion arrives with an empty one', () => {
+    // claude tool_result completions carry no title (mapClaudeToolResult sends '') — the running
+    // row's title must survive the merge.
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a7', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'w1', title: 'Edit /tmp/a.txt', kind: 'edit', status: 'running' })
+    s.upsertTool(id, { toolCallId: 'w1', title: '', status: 'completed', detail: 'ok' })
+    const row = useApp.getState().chats[id].messages.at(-1)!.tools![0]
+    expect(row.title).toBe('Edit /tmp/a.txt')
+    expect(row.status).toBe('completed')
+  })
+
   it('permission cards resolve in place', () => {
     const s = useApp.getState()
     const id = s.activeChatId
