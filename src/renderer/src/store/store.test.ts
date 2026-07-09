@@ -241,4 +241,24 @@ describe('app store — per-chat spine', () => {
     expect(useApp.getState().chats[id].contextK).toBe(61)
     expect(useApp.getState().chats[id].windowK).toBe(272)
   })
+
+  it('endTurn drops contextLive when the turn fell back to one-shot (fallback notice row)', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42000, 200000)
+    expect(useApp.getState().chats[id].contextLive).toBe(true)
+    s.pushTurn(id, { id: 'a20', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'fallback_run9', title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
+    s.endTurn(id)
+    expect(useApp.getState().chats[id].contextLive).toBe(false) // stale live numbers get the ~ back
+  })
+
+  it('endTurn keeps contextLive on a normal interactive turn', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42000, 200000)
+    s.pushTurn(id, { id: 'a21', role: 'assistant', text: 'done', streaming: true })
+    s.endTurn(id)
+    expect(useApp.getState().chats[id].contextLive).toBe(true)
+  })
 })
