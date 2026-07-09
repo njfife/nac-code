@@ -17,10 +17,14 @@ describe('claudeSessionArgs', () => {
 
 describe('mapClaudeStreamEvent', () => {
   it('maps text_delta to content.delta and ignores other SSE noise', () => {
-    const frame = { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'ello pillar three' } } }
+    const frame = { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'ello pillar three' } }, parent_tool_use_id: null }
     expect(mapClaudeStreamEvent('r', frame)).toEqual([{ type: 'content.delta', runId: 'r', streamKind: 'assistant_text', text: 'ello pillar three' }])
     expect(mapClaudeStreamEvent('r', { type: 'stream_event', event: { type: 'content_block_stop', index: 0 } })).toEqual([])
     expect(mapClaudeStreamEvent('r', { type: 'stream_event' })).toEqual([])
+  })
+  it('drops subagent frames (parent_tool_use_id a non-null string) — Task subagent text must never leak into the main transcript', () => {
+    const frame = { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'subagent chatter' } }, parent_tool_use_id: 'toolu_parent' }
+    expect(mapClaudeStreamEvent('r', frame)).toEqual([])
   })
   it('maps message_start usage to usage.updated with context = input + cache tokens', () => {
     const frame = { type: 'stream_event', event: { type: 'message_start', message: { usage: { input_tokens: 4133, cache_creation_input_tokens: 2049, cache_read_input_tokens: 15626, output_tokens: 3 } } } }
@@ -31,14 +35,14 @@ describe('mapClaudeStreamEvent', () => {
 
 describe('mapClaudeAssistant / mapClaudeToolResult', () => {
   it('maps Bash tool_use to an execute row titled by the command, Write to an edit row', () => {
-    const bash = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: "echo 'x' > f.txt", description: 'd' } }] } }
+    const bash = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: "echo 'x' > f.txt", description: 'd' } }] }, parent_tool_use_id: null }
     expect(mapClaudeAssistant('r', bash)).toEqual([{ type: 'tool.updated', runId: 'r', toolCallId: 't1', title: "echo 'x' > f.txt", kind: 'execute', status: 'running' }])
     const write = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't2', name: 'Write', input: { file_path: '/tmp/a.txt', content: 'y' } }] } }
     expect(mapClaudeAssistant('r', write)).toEqual([{ type: 'tool.updated', runId: 'r', toolCallId: 't2', title: 'Edit /tmp/a.txt', kind: 'edit', status: 'running' }])
     expect(mapClaudeAssistant('r', { type: 'assistant', message: { content: [{ type: 'text', text: 'hi' }] } })).toEqual([])
   })
   it('completes rows from tool_result; is_error → failed; string content → detail', () => {
-    const frame = { type: 'user', message: { content: [{ type: 'tool_result', content: 'blocked', is_error: true, tool_use_id: 't1' }] } }
+    const frame = { type: 'user', message: { content: [{ type: 'tool_result', content: 'blocked', is_error: true, tool_use_id: 't1' }] }, parent_tool_use_id: null }
     expect(mapClaudeToolResult('r', frame)).toEqual([{ type: 'tool.updated', runId: 'r', toolCallId: 't1', title: '', status: 'failed', detail: 'blocked' }])
     const ok = { type: 'user', message: { content: [{ type: 'tool_result', content: 'done', is_error: false, tool_use_id: 't2' }] } }
     expect(mapClaudeToolResult('r', ok)[0]).toMatchObject({ status: 'completed', detail: 'done' })
@@ -49,6 +53,14 @@ describe('mapClaudeAssistant / mapClaudeToolResult', () => {
     expect(mapClaudeAssistant('r', { type: 'assistant', message: { content: {} } })).toEqual([])
     expect(mapClaudeToolResult('r', { type: 'user', message: { content: 42 } })).toEqual([])
     expect(mapClaudeToolResult('r', { type: 'user' })).toEqual([])
+  })
+  it('drops subagent tool_use rows (parent_tool_use_id a non-null string) — Task subagent tool calls must not spawn top-level rows', () => {
+    const frame = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'tsub', name: 'Bash', input: { command: 'echo sub' } }] }, parent_tool_use_id: 'toolu_parent' }
+    expect(mapClaudeAssistant('r', frame)).toEqual([])
+  })
+  it('drops subagent tool_result rows (parent_tool_use_id a non-null string)', () => {
+    const frame = { type: 'user', message: { content: [{ type: 'tool_result', content: 'sub done', is_error: false, tool_use_id: 'tsub' }] }, parent_tool_use_id: 'toolu_parent' }
+    expect(mapClaudeToolResult('r', frame)).toEqual([])
   })
 })
 

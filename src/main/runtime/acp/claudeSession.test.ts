@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeSession, RESUME_VERIFY_MS, needsRespawn } from './claudeSession'
+import { ClaudeSession, RESUME_VERIFY_MS, FRESH_VERIFY_MS, needsRespawn } from './claudeSession'
 import { StreamJsonClient } from './streamJson'
 import { PROMPT_TIMEOUT_MS } from './acpSession'
 import type { AgentEvent } from '../../../shared/runtime'
@@ -8,6 +8,10 @@ describe('ClaudeSession constants + respawn predicate', () => {
   it('verifies resume inside a window well under the prompt ceiling', () => {
     expect(RESUME_VERIFY_MS).toBe(2000)
     expect(RESUME_VERIFY_MS).toBeLessThan(PROMPT_TIMEOUT_MS)
+  })
+  it('verifies a FRESH spawn inside a short window well under the resume window', () => {
+    expect(FRESH_VERIFY_MS).toBe(500)
+    expect(FRESH_VERIFY_MS).toBeLessThan(RESUME_VERIFY_MS)
   })
   it('needsRespawn: only when a known session exists and model/effort actually changed', () => {
     expect(needsRespawn({ model: 'a', effort: 'high' }, { model: 'a', effort: 'high' }, 'sid')).toBe(false)
@@ -89,5 +93,33 @@ describe('ClaudeSession respawn re-syncs permission mode to the new child', () =
     const modeFrames = sent.filter((f) => (f.request as Record<string, unknown> | undefined)?.subtype === 'set_permission_mode')
     expect(modeFrames).toHaveLength(1)
     expect(session.appliedYolo).toBe(true)
+  })
+})
+
+describe('ClaudeSession fresh-session connect races the close window too (Finding 2)', () => {
+  // newClient() hardcodes spawning the real `claude` binary, so — same seam as the respawn test
+  // above — swap only the child-spawning mechanism via a fake child (process.execPath), leaving
+  // connect()'s real race/throw logic under test.
+  it('throws when a FRESH spawn exits inside the verify window (missing binary / flag-rejecting older CLI)', async () => {
+    const session = new ClaudeSession(() => {}, false, {}) as Peek
+    session.newClient = () => {
+      const c = fakeChild('process.exit(1)') // mirrors a flag-rejecting claude: exits almost instantly
+      session.attach(c)
+      return c
+    }
+    await expect(session.connect(undefined, undefined)).rejects.toThrow()
+  })
+
+  it('resolves "" when a FRESH spawn survives the verify window (the normal, healthy path)', async () => {
+    const session = new ClaudeSession(() => {}, false, {}) as Peek
+    let client: StreamJsonClient | undefined
+    session.newClient = () => {
+      client = fakeChild('setInterval(() => {}, 1000)')
+      session.attach(client)
+      return client
+    }
+    const id = await session.connect(undefined, undefined)
+    expect(id).toBe('')
+    client?.close()
   })
 })

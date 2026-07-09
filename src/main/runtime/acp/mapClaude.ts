@@ -19,6 +19,12 @@ export function claudeSessionArgs(o: { yolo: boolean; model?: string; effort?: s
 const s = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
 const n = (v: unknown): number => (typeof v === 'number' ? v : 0)
 
+// claude Task subagents emit stream_event/assistant/user frames on the SAME stream, distinguished
+// only by a non-null string `parent_tool_use_id`. Their text deltas must never feed the main turn's
+// text (buildReplayPrompt replay pollution) and their tool_use/tool_result blocks must never spawn
+// top-level rows — so every frame-consuming mapper checks this first and bails to [].
+const isSubagentFrame = (frame: Record<string, unknown>): boolean => typeof frame.parent_tool_use_id === 'string'
+
 interface Usage {
   input_tokens?: unknown
   cache_creation_input_tokens?: unknown
@@ -28,6 +34,7 @@ interface Usage {
 const contextOf = (u: Usage): number => n(u.input_tokens) + n(u.cache_creation_input_tokens) + n(u.cache_read_input_tokens)
 
 export function mapClaudeStreamEvent(runId: string, frame: Record<string, unknown>): AgentEvent[] {
+  if (isSubagentFrame(frame)) return []
   const ev = frame.event as { type?: string; delta?: { type?: string; text?: unknown }; message?: { usage?: Usage } } | undefined
   if (!ev) return []
   if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
@@ -57,6 +64,7 @@ function titleAndKind(b: ToolUseBlock): { title: string; kind?: 'execute' | 'edi
 }
 
 export function mapClaudeAssistant(runId: string, frame: Record<string, unknown>): AgentEvent[] {
+  if (isSubagentFrame(frame)) return []
   const raw = (frame.message as { content?: unknown } | undefined)?.content
   const content = Array.isArray(raw) ? (raw as ToolUseBlock[]) : []
   const out: AgentEvent[] = []
@@ -69,6 +77,7 @@ export function mapClaudeAssistant(runId: string, frame: Record<string, unknown>
 }
 
 export function mapClaudeToolResult(runId: string, frame: Record<string, unknown>): AgentEvent[] {
+  if (isSubagentFrame(frame)) return []
   const raw = (frame.message as { content?: unknown } | undefined)?.content
   const content = Array.isArray(raw) ? (raw as { type?: string; content?: unknown; is_error?: unknown; tool_use_id?: unknown }[]) : []
   const out: AgentEvent[] = []

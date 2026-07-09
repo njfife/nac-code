@@ -24,6 +24,7 @@ import {
 // without losing the process.
 
 export const RESUME_VERIFY_MS = 2000
+export const FRESH_VERIFY_MS = 500
 
 /** Pure + exported for testing: only respawn when a session actually exists to `--resume` into AND
  *  a requested field is BOTH defined and different from what's currently spawned. An undefined
@@ -85,24 +86,32 @@ export class ClaudeSession implements TransportSession {
     return client
   }
 
-  /** claude has no handshake: spawns the child directly. Fresh sessions resolve immediately with ''
-   *  — the real id arrives on the first `system/init` frame. A resumed session is VERIFIED by
-   *  racing RESUME_VERIFY_MS against onClose: a bogus/expired --resume id exits almost immediately,
-   *  well under the ceiling, so a close in that window means the resume failed — throw so the caller
-   *  falls back to a one-shot resume (context-preservation doctrine, pillar 1). */
+  /** Races the close window against a timer: resolves true if the child closes before `ms` elapses
+   *  (verification failed — the child died almost instantly), false once the timer wins (the child
+   *  is alive and well past startup). Shared by both connect() branches below. */
+  private raceClose(ms: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms)
+      this.client.onClose(() => {
+        clearTimeout(timer)
+        resolve(true)
+      })
+    })
+  }
+
+  /** claude has no handshake: spawns the child directly. BOTH fresh and resumed sessions are
+   *  VERIFIED by racing a close window against onClose — a missing binary or a flag-rejecting older
+   *  CLI (fresh) and a bogus/expired --resume id (resume) all exit almost immediately, well under
+   *  their respective ceilings, so a close in that window means spawn/resume failed — throw so the
+   *  caller falls back to the one-shot floor (context-preservation doctrine, pillar 1). A fresh
+   *  session that survives resolves '' — the real id arrives later on the first `system/init` frame. */
   async connect(cwd: string | undefined, existingSessionId: string | undefined): Promise<string> {
     this.cwd = acpCwd(cwd)
     this.client = this.newClient(existingSessionId)
     if (existingSessionId) {
       this.replaying = true
       try {
-        const closedEarly = await new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => resolve(false), RESUME_VERIFY_MS)
-          this.client.onClose(() => {
-            clearTimeout(timer)
-            resolve(true)
-          })
-        })
+        const closedEarly = await this.raceClose(RESUME_VERIFY_MS)
         if (closedEarly) throw new Error('claude: resume verification failed — session exited before the verify window elapsed')
         this.knownSessionId = existingSessionId
         return existingSessionId
@@ -110,6 +119,8 @@ export class ClaudeSession implements TransportSession {
         this.replaying = false
       }
     }
+    const closedEarly = await this.raceClose(FRESH_VERIFY_MS)
+    if (closedEarly) throw new Error('claude: fresh spawn verification failed — process exited before the verify window elapsed')
     return ''
   }
 

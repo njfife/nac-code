@@ -14,6 +14,11 @@ export class StreamJsonClient {
 
   constructor(command: string, args: string[], cwd?: string) {
     this.child = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'], ...(cwd ? { cwd } : {}) })
+    // EPIPE-while-alive insurance: if the child dies between us writing and the OS tearing the pipe
+    // down, stdin can emit 'error' asynchronously. An unlistened 'error' event throws in Node
+    // (uncaught exception) and would crash the Electron main process — swallow it here; handleClose
+    // (via the child's own 'error'/'close' events) is what actually reacts to the child dying.
+    this.child.stdin?.on('error', () => {})
     this.child.stdout?.on('data', (chunk: Buffer) => {
       for (const line of this.lines.push(chunk)) {
         let frame: unknown
@@ -64,6 +69,7 @@ export class StreamJsonClient {
   }
 
   send(frame: object): void {
+    if (this.closed) return // dead child: writing to a torn-down stdin is at best a no-op, at worst a crash
     this.child.stdin?.write(JSON.stringify(frame) + '\n')
   }
 
