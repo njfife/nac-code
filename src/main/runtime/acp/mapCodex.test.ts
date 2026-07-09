@@ -26,10 +26,26 @@ describe('mapCodexItem', () => {
   it('maps a DECLINED commandExecution to failed (denied commands must not render ✓)', () => {
     expect(mapCodexItem('r', 'completed', { ...CMD_ITEM, status: 'declined' })[0]).toMatchObject({ status: 'failed' })
   })
-  it('maps fileChange to an edit row carrying the diff and skips agentMessage/userMessage/empty reasoning', () => {
-    const [fc] = mapCodexItem('r', 'completed', { type: 'fileChange', id: 'fc1', changes: [{ path: 'a.ts' }], diff: '--- a.ts\n+++ a.ts\n+x' })
-    expect(fc).toMatchObject({ type: 'tool.updated', kind: 'edit', status: 'completed' })
-    expect((fc as { detail?: string }).detail).toContain('+++')
+  it('maps fileChange to an edit row carrying the per-change diffs and skips agentMessage/userMessage/empty reasoning', () => {
+    // Live-captured 0.142.3 frame: the diff lives on each entry of changes[], not on the item.
+    const [fc] = mapCodexItem('r', 'completed', {
+      type: 'fileChange',
+      id: 'fc1',
+      changes: [{ path: 'a.ts', kind: { type: 'update', move_path: null }, diff: '@@ -1 +1 @@\n-hello\n+goodbye\n' }],
+      status: 'completed'
+    })
+    expect(fc).toMatchObject({ type: 'tool.updated', kind: 'edit', status: 'completed', title: 'Edit a.ts' })
+    expect((fc as { detail?: string }).detail).toContain('+goodbye')
+    const [multi] = mapCodexItem('r', 'completed', {
+      type: 'fileChange',
+      id: 'fc2',
+      changes: [
+        { path: 'a.ts', kind: { type: 'add' }, diff: 'hello\n' },
+        { path: 'b.ts', kind: { type: 'update', move_path: null }, diff: '@@ -1 +1 @@\n-x\n+y\n' }
+      ],
+      status: 'completed'
+    })
+    expect((multi as { detail?: string }).detail).toBe('--- a.ts\nhello\n\n--- b.ts\n@@ -1 +1 @@\n-x\n+y')
     expect(mapCodexItem('r', 'completed', { type: 'agentMessage', id: 'm1', text: 'hi' })).toEqual([])
     expect(mapCodexItem('r', 'started', { type: 'userMessage', id: 'u1' })).toEqual([])
     expect(mapCodexItem('r', 'completed', { type: 'reasoning', id: 'rs1', summary: [], content: [] })).toEqual([])

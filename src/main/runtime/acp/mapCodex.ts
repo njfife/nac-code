@@ -17,8 +17,7 @@ interface CodexItem {
   command?: string
   status?: string
   aggregatedOutput?: unknown
-  changes?: { path?: string }[]
-  diff?: unknown
+  changes?: { path?: string; diff?: unknown }[]
   summary?: { text?: string }[]
 }
 
@@ -37,8 +36,13 @@ export function mapCodexItem(runId: string, phase: 'started' | 'completed', raw:
       return [{ type: 'tool.updated', runId, toolCallId: item.id, title: cmd, kind: 'execute', status, detail }]
     }
     case 'fileChange': {
-      const paths = (item.changes ?? []).map((c) => c.path).filter(Boolean).join(', ')
-      const detail = s(item.diff)
+      // Live-captured shape: each entry of changes[] carries its own diff (there is no item.diff).
+      const changes = item.changes ?? []
+      const paths = changes.map((c) => c.path).filter(Boolean).join(', ')
+      const detail = changes
+        .filter((c) => s(c.diff))
+        .map((c) => `--- ${c.path ?? '(unknown)'}\n${(c.diff as string).trimEnd()}`)
+        .join('\n\n')
       return [{ type: 'tool.updated', runId, toolCallId: item.id, title: paths ? `Edit ${paths}` : 'Edit files', kind: 'edit', status, ...(detail ? { detail } : {}) }]
     }
     case 'reasoning': {
