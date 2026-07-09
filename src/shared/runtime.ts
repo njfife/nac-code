@@ -95,9 +95,10 @@ export interface DiscoveredModel {
   isDefault?: boolean
   efforts?: string[] // per-model scale (codex); absent = provider-wide scale applies
   defaultEffort?: string
-  variants?: { id: string; label: string; gated?: boolean }[] // e.g. claude sonnet[1m]
+  variants?: { id: string; label: string; gated?: boolean; contextWindowK?: number }[] // e.g. claude sonnet[1m]
   gated?: boolean // learned: this account's harness rejected the id
   note?: string // honest caveat (e.g. '9x usage', 'session-only')
+  contextWindowK?: number // context window in K tokens (live caps or static floor, else 200)
 }
 
 export interface ProviderCapabilities {

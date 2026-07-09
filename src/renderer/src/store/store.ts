@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
-import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor } from '../../../shared/capabilities'
+import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../../../shared/capabilities'
 import type { ContextItem } from '../data/context'
 import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
 
@@ -217,7 +217,8 @@ export const useApp = create<AppState>()((set, get) => ({
       // Effort scales aren't portable: reset on provider switch, and clamp to the new model's scale.
       const effort = provider !== chat.provider ? null : chat.effort && !scale.includes(chat.effort) ? null : chat.effort
       const contextLive = provider !== chat.provider ? false : chat.contextLive
-      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort, contextLive } } }
+      const windowK = windowKFor(provider, model, s.caps[provider])
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, provider, model, effort, contextLive, windowK } } }
     }),
   setAgent: (agent) =>
     set((s) => ({ chats: { ...s.chats, [s.activeChatId]: { ...s.chats[s.activeChatId], agent } } })),
@@ -294,13 +295,15 @@ export const useApp = create<AppState>()((set, get) => ({
     const wsDefaults = s.workspaces.find((w) => w.id === wsId)?.defaults
     const id = nextChatId()
     const cfg = CONFIGS_BY_ID.standard
+    const provider = wsDefaults?.provider ?? src?.provider ?? 'claude'
+    const model = wsDefaults?.model ?? src?.model ?? 'Opus 4.8'
     const chat: Chat = {
       id,
       workspaceId: wsId,
       title: 'New chat',
       time: 'now',
-      provider: wsDefaults?.provider ?? src?.provider ?? 'claude',
-      model: wsDefaults?.model ?? src?.model ?? 'Opus 4.8',
+      provider,
+      model,
       agent: wsDefaults?.agent !== undefined ? wsDefaults.agent : src?.agent ?? null,
       yolo: false,
       fast: false,
@@ -311,7 +314,7 @@ export const useApp = create<AppState>()((set, get) => ({
       compacting: false,
       compacted: false,
       contextK: 0,
-      windowK: src?.windowK ?? 200,
+      windowK: windowKFor(provider, model, s.caps[provider]),
       branchedFrom: null,
       messages: [],
       sessionId: null,

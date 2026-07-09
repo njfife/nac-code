@@ -7,9 +7,9 @@ export const STATIC_CAPABILITIES: Record<string, ProviderCapabilities> = {
     provider: 'claude',
     source: 'static',
     models: [
-      { id: 'opus', label: 'Opus 4.8' },
-      { id: 'sonnet', label: 'Sonnet 4.6', variants: [{ id: 'sonnet[1m]', label: 'Sonnet 4.6 · 1M' }] },
-      { id: 'haiku', label: 'Haiku 4.5' }
+      { id: 'opus', label: 'Opus 4.8', contextWindowK: 200 },
+      { id: 'sonnet', label: 'Sonnet 4.6', contextWindowK: 200, variants: [{ id: 'sonnet[1m]', label: 'Sonnet 4.6 · 1M', contextWindowK: 1000 }] },
+      { id: 'haiku', label: 'Haiku 4.5', contextWindowK: 200 }
     ],
     efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultracode'],
     effortNote: 'max & ultracode are session-only; per-model support varies',
@@ -63,5 +63,17 @@ export function effortScaleFor(caps: ProviderCapabilities | undefined, modelLabe
   if (m?.efforts?.length) return m.efforts
   if (caps?.efforts.length) return caps.efforts
   return ['low', 'medium', 'high']
+}
+
+/** Per-model context window in K tokens: live caps first, then the static floor, else 200 (an estimate). */
+export function windowKFor(provider: string, modelLabel: string, caps?: ProviderCapabilities): number {
+  for (const source of [caps, STATIC_CAPABILITIES[provider]]) {
+    for (const m of source?.models ?? []) {
+      if (m.label === modelLabel && m.contextWindowK) return m.contextWindowK
+      const v = m.variants?.find((x) => x.label === modelLabel)
+      if (v) return v.contextWindowK ?? m.contextWindowK ?? 200 // variants inherit the parent's window
+    }
+  }
+  return 200
 }
 

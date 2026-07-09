@@ -13,6 +13,14 @@ describe('app store — per-chat spine', () => {
     expect(useApp.getState().chats.c3.model).toBe(otherBefore) // untouched
   })
 
+  it('setModel reseeds windowK from the model table (stale denominators die)', () => {
+    const s = useApp.getState()
+    s.setModel('claude', 'Sonnet 4.6 · 1M')
+    expect(useApp.getState().chats[s.activeChatId].windowK).toBe(1000)
+    s.setModel('claude', 'Opus 4.8')
+    expect(useApp.getState().chats[s.activeChatId].windowK).toBe(200)
+  })
+
   it('toggleAttach toggles membership and marks the chat dirty (FR-5.5 / FR-6.4)', () => {
     useApp.getState().selectChat('c1')
     const had = useApp.getState().chats.c1.attachedIds.includes('sk-review')
