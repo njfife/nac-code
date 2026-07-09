@@ -8,6 +8,11 @@ import { codexTurnPolicy, mapCodexItem, mapCodexDelta, mapCodexApproval, mapCode
 // NOTIFICATION, so a watchdog guards against a lost notification; (2) approvals carry the server's
 // own availableDecisions, echoed verbatim; (3) per-turn model/effort ARE honored (no copilot
 // limitation), and real token usage streams via thread/tokenUsage/updated.
+//
+// The watchdog measures SILENCE, not turn duration: it re-arms on every activity notification
+// (item/started, item/completed, item/agentMessage/delta, thread/tokenUsage/updated) via
+// touchWatchdog(), so a long turn with steady streaming never trips it — only a genuinely stalled
+// app-server (no notification within the ceiling) does.
 
 export const TURN_WATCHDOG_MS = PROMPT_TIMEOUT_MS
 const HANDSHAKE_TIMEOUT_MS = 10_000
@@ -48,6 +53,7 @@ export class CodexSession implements TransportSession {
 
     const forRun = (fn: (runId: string) => AgentEvent[]): void => {
       if (this.replaying || !this.currentRunId) return
+      this.touchWatchdog()
       for (const e of fn(this.currentRunId)) this.onEvent(e)
     }
     this.client.onNotification('item/started', (p) => forRun((r) => mapCodexItem(r, 'started', (p as { item?: unknown } | null)?.item)))
@@ -55,6 +61,7 @@ export class CodexSession implements TransportSession {
     this.client.onNotification('item/agentMessage/delta', (p) => forRun((r) => mapCodexDelta(r, p)))
     this.client.onNotification('thread/tokenUsage/updated', (p) => {
       if (this.replaying || !this.currentRunId) return
+      this.touchWatchdog()
       const m = mapCodexUsage(this.currentRunId, p)
       if (!m) return
       this.turnInput += m.stepInput
@@ -165,6 +172,11 @@ export class CodexSession implements TransportSession {
   private disarmWatchdog(): void {
     if (this.watchdog) clearTimeout(this.watchdog)
     this.watchdog = null
+  }
+
+  /** Re-arm on activity: the watchdog measures SILENCE, not turn duration. */
+  private touchWatchdog(): void {
+    if (this.currentRunId) this.armWatchdog(this.currentRunId)
   }
 
   private handleApproval(method: string, params: unknown): Promise<unknown> {

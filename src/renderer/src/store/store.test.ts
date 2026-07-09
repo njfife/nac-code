@@ -208,6 +208,19 @@ describe('app store — per-chat spine', () => {
     expect(turn.tools?.find((t) => t.toolCallId === 'r2')?.status).toBe('completed')
   })
 
+  it('upsertTool keeps the existing title when a completion arrives with an empty one', () => {
+    // claude tool_result completions carry no title (mapClaudeToolResult sends '') — the running
+    // row's title must survive the merge.
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.pushTurn(id, { id: 'a7', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'w1', title: 'Edit /tmp/a.txt', kind: 'edit', status: 'running' })
+    s.upsertTool(id, { toolCallId: 'w1', title: '', status: 'completed', detail: 'ok' })
+    const row = useApp.getState().chats[id].messages.at(-1)!.tools![0]
+    expect(row.title).toBe('Edit /tmp/a.txt')
+    expect(row.status).toBe('completed')
+  })
+
   it('permission cards resolve in place', () => {
     const s = useApp.getState()
     const id = s.activeChatId
@@ -240,5 +253,25 @@ describe('app store — per-chat spine', () => {
     s.setLiveContext(id, 61000) // window omitted: keep the previous window
     expect(useApp.getState().chats[id].contextK).toBe(61)
     expect(useApp.getState().chats[id].windowK).toBe(272)
+  })
+
+  it('endTurn drops contextLive when the turn fell back to one-shot (fallback notice row)', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42000, 200000)
+    expect(useApp.getState().chats[id].contextLive).toBe(true)
+    s.pushTurn(id, { id: 'a20', role: 'assistant', text: '', streaming: true })
+    s.upsertTool(id, { toolCallId: 'fallback_run9', title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
+    s.endTurn(id)
+    expect(useApp.getState().chats[id].contextLive).toBe(false) // stale live numbers get the ~ back
+  })
+
+  it('endTurn keeps contextLive on a normal interactive turn', () => {
+    const s = useApp.getState()
+    const id = s.activeChatId
+    s.setLiveContext(id, 42000, 200000)
+    s.pushTurn(id, { id: 'a21', role: 'assistant', text: 'done', streaming: true })
+    s.endTurn(id)
+    expect(useApp.getState().chats[id].contextLive).toBe(true)
   })
 })

@@ -362,7 +362,10 @@ export const useApp = create<AppState>()((set, get) => ({
         text: error ? `${t.text}\n[error] ${error}` : t.text,
         tools: t.tools?.map((x) => (x.status === 'pending' || x.status === 'running' ? { ...x, status: 'failed' as const } : x))
       }))
-      return { chats: { ...s.chats, [chatId]: { ...c, messages } } }
+      // A fallback turn ran one-shot: no usage.updated arrived, so the last live context number is
+      // stale — demote it to an estimate (the ~ returns) until the transport recovers.
+      const fellBack = messages.at(-1)?.tools?.some((x) => x.toolCallId.startsWith('fallback_')) === true
+      return { chats: { ...s.chats, [chatId]: { ...c, messages, ...(fellBack ? { contextLive: false } : {}) } } }
     }),
   setSession: (chatId, sessionId, provider) =>
     set((s) => {
@@ -406,7 +409,9 @@ export const useApp = create<AppState>()((set, get) => ({
       const messages = updateLastAssistant(c.messages, (t) => {
         const tools = t.tools ? [...t.tools] : []
         const i = tools.findIndex((x) => x.toolCallId === row.toolCallId)
-        if (i >= 0) tools[i] = { ...tools[i], ...row }
+        // Completion events may carry no title (claude tool_result frames) — never let an empty
+        // title clobber the running row's.
+        if (i >= 0) tools[i] = { ...tools[i], ...row, title: row.title || tools[i].title }
         else tools.push(row)
         return { ...t, tools }
       })

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { useApp, selectActiveChat } from '../store/store'
+import { useApp, selectActiveChat, type Chat } from '../store/store'
 import { PROVIDERS, STATUS_LABEL, STATUS_COLOR } from '../data/providers'
 import { ITEMS_BY_ID, TYPE_META, type ItemType } from '../data/context'
 
@@ -68,7 +68,7 @@ export default function Inspector() {
           </Row>
           <Row>
             <span style={lbl}>Cost</span>
-            <span className="mono" style={val}>{costLabel(active.provider)}</span>
+            <span className="mono" style={val}>{costFor(active)}</span>
           </Row>
         </Panel>
 
@@ -135,8 +135,10 @@ function Row(props: { children: ReactNode }) {
   )
 }
 
-function costLabel(provider: string): string {
-  return provider === 'opencode' ? 'free · local' : '$0.42'
+function costFor(chat: Chat): string {
+  if (chat.provider === 'opencode') return 'free · local'
+  const real = Object.values(chat.usage).reduce((sum, u) => sum + (u.costUsd ?? 0), 0)
+  return real > 0 ? `$${real.toFixed(2)}` : '$0.42'
 }
 
 const eyebrow: CSSProperties = { fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }
