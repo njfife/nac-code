@@ -78,7 +78,7 @@ export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean, m
 
 export function startClaudeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean; model?: string },
+  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean; model?: string; effort?: string; fast?: boolean },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -88,7 +88,7 @@ export function startClaudeRun(
     onEvent(e)
   }
 
-  const args = claudeArgs(req.prompt, req.sessionId, req.yolo, req.model)
+  const args = claudeArgs(req.prompt, req.sessionId, req.yolo, req.model, req.effort, req.fast)
 
   let child: ChildProcess
   try {

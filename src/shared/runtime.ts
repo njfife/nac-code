@@ -8,6 +8,8 @@ export interface RunRequest {
   cwd?: string // working directory for the harness = the chat's workspace folder (agents act on real code)
   yolo?: boolean // autonomy: on = full file/command access; off (default) = restricted per harness (M0-2)
   model?: string // harness model id (e.g. opencode 'lmstudio/qwen/…'); passed as --model where supported
+  thinking?: string // universal effort level (low|medium|high); each adapter maps it to its own flag. Omitted = harness default
+  fast?: boolean // Claude fast mode (research preview) — injected per-run via --settings
 }
 
 // One-shot text summarization through a harness — provider-neutral compaction (FR-9 / M0-8).

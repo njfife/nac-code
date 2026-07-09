@@ -49,7 +49,7 @@ export function copilotArgs(prompt: string, yolo?: boolean, sessionId?: string, 
 
 export function startCopilotRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -61,7 +61,7 @@ export function startCopilotRun(
 
   // off = --allow-all-tools (tools auto-run, paths/URLs still verified); yolo = --yolo (all paths/URLs too).
   // --no-ask-user keeps it from blocking on questions; no --share so it never writes a session .md to the cwd.
-  const args = copilotArgs(req.prompt, req.yolo, req.sessionId)
+  const args = copilotArgs(req.prompt, req.yolo, req.sessionId, req.effort)
 
   let child: ChildProcess
   try {

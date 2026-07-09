@@ -68,7 +68,7 @@ export function parseOpenCodeStepUsage(line: string): { inputTokens: number; out
 
 export function startOpenCodeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; model?: string; cwd?: string; yolo?: boolean; sessionId?: string },
+  req: { prompt: string; binPath?: string; model?: string; cwd?: string; yolo?: boolean; sessionId?: string; variant?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -78,7 +78,7 @@ export function startOpenCodeRun(
     onEvent(e)
   }
 
-  const args = openCodeArgs(req.prompt, req.model, req.yolo, req.sessionId)
+  const args = openCodeArgs(req.prompt, req.model, req.yolo, req.sessionId, req.variant)
 
   let child: ChildProcess
   try {

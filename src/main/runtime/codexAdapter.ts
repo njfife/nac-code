@@ -74,7 +74,7 @@ export function codexArgs(prompt: string, yolo?: boolean, sessionId?: string, ef
 
 export function startCodexRun(
   runId: string,
-  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string },
+  req: { prompt: string; binPath?: string; cwd?: string; yolo?: boolean; sessionId?: string; effort?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -84,7 +84,7 @@ export function startCodexRun(
     onEvent(e)
   }
 
-  const args = codexArgs(req.prompt, req.yolo, req.sessionId)
+  const args = codexArgs(req.prompt, req.yolo, req.sessionId, req.effort)
 
   let child: ChildProcess
   try {

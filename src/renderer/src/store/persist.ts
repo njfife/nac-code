@@ -23,6 +23,7 @@ function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, i
     model: c.model ?? 'Opus 4.8',
     agent: c.agent ?? null,
     yolo: c.yolo ?? false,
+    fast: c.fast ?? false,
     thinking: (c.thinking as ThinkingLevel) ?? 'medium',
     activeConfig: c.activeConfig ?? null,
     attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
