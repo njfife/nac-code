@@ -44,6 +44,12 @@ describe('mapClaudeAssistant / mapClaudeToolResult', () => {
     expect(mapClaudeToolResult('r', ok)[0]).toMatchObject({ status: 'completed', detail: 'done' })
     expect(mapClaudeToolResult('r', { type: 'user', message: { content: [{ type: 'text', text: 'x' }] } })).toEqual([])
   })
+  it('degrades to [] when message.content is not an array (junk frames must not throw)', () => {
+    expect(mapClaudeAssistant('r', { type: 'assistant', message: { content: 42 } })).toEqual([])
+    expect(mapClaudeAssistant('r', { type: 'assistant', message: { content: {} } })).toEqual([])
+    expect(mapClaudeToolResult('r', { type: 'user', message: { content: 42 } })).toEqual([])
+    expect(mapClaudeToolResult('r', { type: 'user' })).toEqual([])
+  })
 })
 
 describe('mapClaudeCanUseTool', () => {

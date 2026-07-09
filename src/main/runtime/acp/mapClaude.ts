@@ -57,7 +57,8 @@ function titleAndKind(b: ToolUseBlock): { title: string; kind?: 'execute' | 'edi
 }
 
 export function mapClaudeAssistant(runId: string, frame: Record<string, unknown>): AgentEvent[] {
-  const content = (frame.message as { content?: ToolUseBlock[] } | undefined)?.content ?? []
+  const raw = (frame.message as { content?: unknown } | undefined)?.content
+  const content = Array.isArray(raw) ? (raw as ToolUseBlock[]) : []
   const out: AgentEvent[] = []
   for (const b of content) {
     if (b?.type !== 'tool_use' || !b.id) continue
@@ -68,7 +69,8 @@ export function mapClaudeAssistant(runId: string, frame: Record<string, unknown>
 }
 
 export function mapClaudeToolResult(runId: string, frame: Record<string, unknown>): AgentEvent[] {
-  const content = (frame.message as { content?: { type?: string; content?: unknown; is_error?: unknown; tool_use_id?: unknown }[] } | undefined)?.content ?? []
+  const raw = (frame.message as { content?: unknown } | undefined)?.content
+  const content = Array.isArray(raw) ? (raw as { type?: string; content?: unknown; is_error?: unknown; tool_use_id?: unknown }[]) : []
   const out: AgentEvent[] = []
   for (const b of content) {
     if (b?.type !== 'tool_result' || typeof b.tool_use_id !== 'string') continue
