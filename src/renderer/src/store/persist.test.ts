@@ -29,4 +29,9 @@ describe('normalizeChat — never restore live-looking tool/permission state', (
     expect(c.messages[0].tools?.[0].status).toBe('failed')
     expect(c.messages[0].permissions?.[0].resolvedOptionId).toBe('stale')
   })
+
+  it('never rehydrates a streaming flag', () => {
+    const raw = { fast: false, messages: [{ id: 'a', role: 'assistant', text: 'x', streaming: true }] } as never
+    expect(normalizeChat(raw, 'c_stream').messages[0].streaming).toBe(false)
+  })
 })

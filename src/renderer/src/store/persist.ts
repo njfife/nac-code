@@ -42,6 +42,7 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
       ? c.messages.map((m) => ({
           ...m,
           // never restore live-looking state (the `compacting` doctrine)
+          streaming: false,
           tools: m.tools?.map((t) => (t.status === 'pending' || t.status === 'running' ? { ...t, status: 'failed' as const } : t)),
           permissions: m.permissions?.map((p) => (p.resolvedOptionId ? p : { ...p, resolvedOptionId: 'stale' }))
         }))

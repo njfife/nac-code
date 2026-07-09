@@ -5,7 +5,7 @@ export default function PermissionCard(props: { card: CardData; onRespond: (opti
   const c = props.card
   if (c.resolvedOptionId) {
     const chosen = c.options.find((o) => o.id === c.resolvedOptionId)
-    const label = c.resolvedOptionId === 'stale' ? '· expired' : `${chosen?.kind === 'deny' ? '✗' : '✓'} ${chosen?.label ?? c.resolvedOptionId}`
+    const label = c.resolvedOptionId === 'stale' ? '· expired' : chosen ? `${chosen.kind === 'deny' ? '✗' : '✓'} ${chosen.label}` : `· ${c.resolvedOptionId}`
     return (
       <div style={{ ...resolvedLine }}>
         {label} — {c.title}

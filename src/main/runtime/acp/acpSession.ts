@@ -108,12 +108,15 @@ export class AcpSession implements TransportSession {
       .request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] }, PROMPT_TIMEOUT_MS)
       .then((res) => {
         const stop = (res as { stopReason?: string } | null)?.stopReason
+        this.expirePermissions() // resolve open cards BEFORE the terminal event unmaps the run (Critical 1: order matters)
         this.onEvent({ type: 'run.completed', runId, stopReason: stop === 'cancelled' ? 'canceled' : 'end_turn' })
       })
-      .catch((e: Error) => this.onEvent({ type: 'run.errored', runId, message: e.message }))
+      .catch((e: Error) => {
+        this.expirePermissions()
+        this.onEvent({ type: 'run.errored', runId, message: e.message })
+      })
       .finally(() => {
         this.currentRunId = null
-        this.expirePermissions()
       })
   }
 
