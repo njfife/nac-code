@@ -10,7 +10,7 @@ import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
 import { getCapabilities, invalidateCapabilities } from './capabilities'
-import { classifyModelRejection } from './capabilities/ledger'
+import { classifyModelRejection, isWorksEvidence } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
 import { promptViaTransport, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
 
@@ -69,7 +69,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
         if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
           recordOutcome(req.provider, ledgerModel, 'gated', event.message)
           invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
-        } else if (event.type === 'run.completed' && event.stopReason === 'end_turn') recordOutcome(req.provider, ledgerModel, 'works')
+        } else if (event.type === 'run.completed' && isWorksEvidence(event.stopReason, event.usage)) recordOutcome(req.provider, ledgerModel, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }

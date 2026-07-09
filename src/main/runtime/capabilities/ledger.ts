@@ -19,6 +19,14 @@ export function classifyModelRejection(message: string): boolean {
   return REJECTION_PATTERNS.some((p) => p.test(message))
 }
 
+/** Pure + exported for testing: a completion is only "works" evidence when it actually produced
+ * output. An opencode EMPTY TURN (unloaded local model) reports stopReason 'end_turn' with
+ * usage.outputTokens === 0 — that is not proof the model works. Completions without a usage object
+ * (claude one-shot, copilot, stub) carry no such signal, so they still count as before. */
+export function isWorksEvidence(stopReason: string, usage?: { outputTokens?: number }): boolean {
+  return stopReason === 'end_turn' && !(usage && usage.outputTokens === 0)
+}
+
 /** Pure + exported for testing: stamp `gated` onto caps models (and their variants) from ledger entries.
  * Model-level gating stays keyed on the model's own id; a gated variant id only stamps that variant
  * entry (the parent model's own gated flag is untouched unless the model's own id is also gated). */

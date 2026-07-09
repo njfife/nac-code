@@ -24,6 +24,8 @@ import {
 // without losing the process.
 
 export const RESUME_VERIFY_MS = 2000
+// 1000ms: cold-start headroom for a flag-rejecting older CLI (bogus --resume exits ~1.3s ⇒ resume gets 2000);
+// cost is one-time at fresh-chat connect.
 export const FRESH_VERIFY_MS = 1000
 
 /** Pure + exported for testing: only respawn when a session actually exists to `--resume` into AND
