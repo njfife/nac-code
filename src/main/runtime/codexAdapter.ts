@@ -65,9 +65,10 @@ export function parseCodexLine(runId: string, line: string): AgentEvent[] {
 }
 
 /** Pure + exported for testing: build the codex argv. yolo → workspace-write; sessionId → resume that thread. */
-export function codexArgs(prompt: string, yolo?: boolean, sessionId?: string): string[] {
+export function codexArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string): string[] {
   // exec flags must precede the `resume` subcommand: `codex exec <flags> resume <id> <prompt>`.
   const base = ['exec', '--json', '--skip-git-repo-check', '-s', yolo ? 'workspace-write' : 'read-only']
+  if (effort) base.push('-c', `model_reasoning_effort=${effort}`) // bare value: codex config parses it as a string
   return sessionId ? [...base, 'resume', sessionId, prompt] : [...base, prompt]
 }
 

@@ -40,8 +40,9 @@ export function parseCopilotLine(runId: string, line: string): AgentEvent[] {
 }
 
 /** Pure + exported for testing: build the copilot argv. yolo → --yolo; sessionId → resume that session. */
-export function copilotArgs(prompt: string, yolo?: boolean, sessionId?: string): string[] {
+export function copilotArgs(prompt: string, yolo?: boolean, sessionId?: string, effort?: string): string[] {
   const args = ['-p', prompt, '--output-format', 'json', yolo ? '--yolo' : '--allow-all-tools', '--no-ask-user', '--no-color', '--log-level', 'none']
+  if (effort) args.push('--reasoning-effort', effort)
   if (sessionId) args.push(`--resume=${sessionId}`)
   return args
 }

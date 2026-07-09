@@ -12,6 +12,11 @@ describe('copilotArgs (autonomy)', () => {
     expect(copilotArgs('hi', false, 'sid')).toContain('--resume=sid')
     expect(copilotArgs('hi')).not.toContain('--resume=undefined')
   })
+
+  it('passes reasoning effort', () => {
+    expect(copilotArgs('hi', false, undefined, 'medium')).toEqual(expect.arrayContaining(['--reasoning-effort', 'medium']))
+    expect(copilotArgs('hi')).not.toContain('--reasoning-effort')
+  })
 })
 
 // Exercised against the real `copilot -p --output-format json` event shapes.

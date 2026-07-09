@@ -11,6 +11,14 @@ describe('codexArgs (autonomy)', () => {
   it('resumes a thread with exec flags before the subcommand', () => {
     expect(codexArgs('hi', false, 'tid')).toEqual(['exec', '--json', '--skip-git-repo-check', '-s', 'read-only', 'resume', 'tid', 'hi'])
   })
+
+  it('passes reasoning effort as a config override, before the resume subcommand', () => {
+    const args = codexArgs('hi', false, undefined, 'high')
+    expect(args).toEqual(expect.arrayContaining(['-c', 'model_reasoning_effort=high']))
+    expect(codexArgs('hi')).not.toContain('-c')
+    const resumed = codexArgs('hi', false, 's1', 'low')
+    expect(resumed.indexOf('-c')).toBeLessThan(resumed.indexOf('resume'))
+  })
 })
 
 // Exercised against the real `codex exec --json` event shapes.

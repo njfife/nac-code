@@ -9,6 +9,13 @@ describe('claudeArgs (autonomy)', () => {
     expect(claudeArgs('hi')).not.toContain('--model')
     expect(claudeArgs('hi', undefined, false, 'sonnet')).toEqual(expect.arrayContaining(['--model', 'sonnet']))
   })
+
+  it('passes effort and injects fastMode via per-run settings', () => {
+    expect(claudeArgs('hi', undefined, false, 'opus', 'high')).toEqual(expect.arrayContaining(['--effort', 'high']))
+    expect(claudeArgs('hi')).not.toContain('--effort')
+    expect(claudeArgs('hi', undefined, false, 'opus', undefined, true)).toEqual(expect.arrayContaining(['--settings', '{"fastMode":true}']))
+    expect(claudeArgs('hi')).not.toContain('--settings')
+  })
 })
 
 // Exercised against the real `claude --output-format stream-json` event shapes.

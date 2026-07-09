@@ -20,9 +20,10 @@ interface OCEvent {
 }
 
 /** Pure + exported for testing: build the opencode argv. model is `provider/model`; yolo skips permissions. */
-export function openCodeArgs(prompt: string, model?: string, yolo?: boolean, sessionId?: string): string[] {
+export function openCodeArgs(prompt: string, model?: string, yolo?: boolean, sessionId?: string, variant?: string): string[] {
   const args = ['run', prompt, '--format', 'json']
   if (model) args.push('-m', model)
+  if (variant) args.push('--variant', variant) // provider-specific reasoning effort
   if (yolo) args.push('--dangerously-skip-permissions')
   if (sessionId) args.push('-s', sessionId)
   return args
