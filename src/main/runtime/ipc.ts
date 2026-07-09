@@ -77,7 +77,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       // Interactive-first: persistent ACP session; on { ok: false } fall back to the one-shot path.
       void promptViaAcp({ chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, onEvent: handler }).then(({ ok }) => {
         if (!ok) {
-          handler({ type: 'content.delta', runId, streamKind: 'assistant_text', text: '\n[interactive session unavailable — ran headless]\n' })
+          // Render-only notice (a tool.updated row), NOT content.delta: a transport diagnostic must
+          // not enter turn.text, or buildReplayPrompt would replay it to the next provider as assistant speech.
+          handler({ type: 'tool.updated', runId, toolCallId: `fallback_${runId}`, title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
           runs.set(runId, startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler))
         }
       })
