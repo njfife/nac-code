@@ -534,7 +534,9 @@ export const useApp = create<AppState>()((set, get) => ({
   removeUserItem: (id) =>
     set((s) => ({
       userItems: s.userItems.filter((i) => i.id !== id),
-      chats: Object.fromEntries(Object.entries(s.chats).map(([cid, c]) => [cid, { ...c, attachedIds: c.attachedIds.filter((a) => a !== id) }]))
+      chats: Object.fromEntries(Object.entries(s.chats).map(([cid, c]) => [cid, { ...c, attachedIds: c.attachedIds.filter((a) => a !== id) }])),
+      // Mirror the attachedIds pruning: a saved config must never keep pointing at a deleted item.
+      userConfigs: s.userConfigs.map((cfg) => (cfg.itemIds.includes(id) ? { ...cfg, itemIds: cfg.itemIds.filter((a) => a !== id) } : cfg))
     })),
   recordFileRead: (id: string, result: FileReadResult) =>
     set((s) => ({

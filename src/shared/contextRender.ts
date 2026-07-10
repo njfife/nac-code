@@ -1,5 +1,5 @@
 // Shared context renderer: produces the block format injected into every replay (M0-8).
-// Client-side (buildContextBlock) + server-side (agent harness) use the same canonical format.
+// Client-side (renderContextText) + server-side (agent harness) use the same canonical format.
 
 export interface ContextPayload {
   items: { name: string; content: string; path?: string }[]

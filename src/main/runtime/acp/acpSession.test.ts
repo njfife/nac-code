@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { homedir } from 'os'
-import { pickAutoApprove, acpCwd, shouldAutoCancelPermission, shouldEmitEmptyTurnNotice, COPILOT_PROFILE, OPENCODE_PROFILE, AcpSession, type JsonRpcClientLike } from './acpSession'
+import { pickAutoApprove, acpCwd, shouldAutoCancelPermission, shouldEmitEmptyTurnNotice, shouldRetryTextOnly, COPILOT_PROFILE, OPENCODE_PROFILE, AcpSession, type JsonRpcClientLike } from './acpSession'
 import type { AgentEvent } from '../../../shared/runtime'
 
 describe('pickAutoApprove', () => {
@@ -36,6 +36,23 @@ describe('acpCwd', () => {
     expect(acpCwd('/abs/path')).toBe('/abs/path')
     expect(acpCwd(undefined)).toBe(process.cwd())
     expect(acpCwd('')).toBe(process.cwd())
+  })
+})
+
+describe('shouldRetryTextOnly', () => {
+  it('never retries when resource blocks were not used', () => {
+    expect(shouldRetryTextOnly(false, new Error('-32602 invalid params'))).toBe(false)
+  })
+  it('retries on shape/support-looking rejections', () => {
+    expect(shouldRetryTextOnly(true, new Error('rpc error -32602'))).toBe(true)
+    expect(shouldRetryTextOnly(true, new Error('Invalid Params'))).toBe(true)
+    expect(shouldRetryTextOnly(true, new Error('invalid_request: bad shape'))).toBe(true)
+    expect(shouldRetryTextOnly(true, new Error('unsupported content block'))).toBe(true)
+    expect(shouldRetryTextOnly(true, new Error('embedded resource not accepted'))).toBe(true)
+  })
+  it('does NOT retry on an unrelated error even with resource blocks in play', () => {
+    expect(shouldRetryTextOnly(true, new Error('rpc timeout'))).toBe(false)
+    expect(shouldRetryTextOnly(true, new Error('ECONNRESET'))).toBe(false)
   })
 })
 
@@ -334,6 +351,22 @@ describe('AcpSession — structured context (embedded resource blocks)', () => {
     await tick()
 
     expect(events.at(-1)).toMatchObject({ type: 'run.completed', stopReason: 'end_turn' })
+  })
+
+  it('a non-shape error (e.g. rpc timeout) with resource blocks does NOT retry — only one session/prompt call, and it surfaces as run.errored', async () => {
+    const { session, fake, events } = makeSession(COPILOT_PROFILE, EMBEDDED_CONTEXT_INIT)
+    await session.connect(undefined, undefined)
+
+    session.prompt('r1', 'hello', { context: { items: [{ name: 'note', content: 'A' }], removed: [] } })
+    await tick()
+    expect(fake.calls.map((c) => c.method)).toEqual(['initialize', 'session/new', 'session/prompt'])
+
+    fake.rejectNext(new Error('rpc timeout'))
+    await tick()
+
+    // No retry: still exactly one session/prompt call.
+    expect(fake.calls.filter((c) => c.method === 'session/prompt')).toHaveLength(1)
+    expect(events.at(-1)).toMatchObject({ type: 'run.errored', message: 'rpc timeout' })
   })
 
   it('cancel landing between rejection and retry bails without a second session/prompt', async () => {

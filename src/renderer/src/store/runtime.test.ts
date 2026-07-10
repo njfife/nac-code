@@ -125,6 +125,19 @@ describe('sendMessage — structured context payload (Task 4)', () => {
     expect(reseeded).toEqual([seedKey(kept), seedKey(added)])
   })
 
+  it('non-native, nothing attached: context is omitted entirely, not sent as an empty payload', async () => {
+    // An empty {items:[],removed:[]} payload would still set usedResourceBlocks on an ACP transport
+    // (e.g. opencode) even though nothing was actually attached, arming the text-only retry on any
+    // unrelated error for every fresh turn. context must be undefined here, not a hollow object.
+    freshChat()
+
+    const { calls } = stubRuns()
+    await sendMessage('hello, nothing attached')
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].context).toBeUndefined()
+  })
+
   it('native + NOT pending: no context payload is sent, and the prompt is the bare message', async () => {
     const s = useApp.getState()
     const id = freshChat()

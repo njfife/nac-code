@@ -104,7 +104,11 @@ export async function initPersistence(): Promise<void> {
       const chats: Record<string, Chat> = {}
       for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds, workspaces[0]?.id ?? 'ws_default')
       const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
-      const userConfigs = Array.isArray(loaded.userConfigs) ? loaded.userConfigs : useApp.getState().userConfigs
+      // Junk entries (corrupted/partial writes) must never crash hydration or surface as a broken
+      // config in the picker — filter to well-shaped entries only.
+      const userConfigs = Array.isArray(loaded.userConfigs)
+        ? loaded.userConfigs.filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string' && Array.isArray(c.itemIds))
+        : useApp.getState().userConfigs
       useApp.setState({
         chats,
         workspaces,

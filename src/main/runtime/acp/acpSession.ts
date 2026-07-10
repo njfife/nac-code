@@ -51,6 +51,16 @@ export function shouldAutoCancelPermission(replaying: boolean, currentRunId: str
   return replaying || !currentRunId
 }
 
+/** Pure + exported for testing: the text-only retry (session/prompt rejected structured `resource`
+ *  blocks) must fire ONLY when the rejection actually looks like a shape/support problem — not on
+ *  every error (a timeout, a killed process, etc. would otherwise silently re-issue a second
+ *  session/prompt that nothing is waiting for, doubling side effects for an unrelated failure). */
+export function shouldRetryTextOnly(usedResourceBlocks: boolean, error: unknown): boolean {
+  if (!usedResourceBlocks) return false
+  const message = error instanceof Error ? error.message : String(error)
+  return /-32602|invalid params|invalid_request|unsupported|embedded/i.test(message)
+}
+
 /** Pure + exported for testing: ACP session cwd. copilot's session/new rejects a non-absolute path
  *  (`-32603 "Directory path must be absolute"`), so a stored `~/…` workspace path MUST be expanded —
  *  the same resolveCwd every one-shot adapter uses. Falls back to process cwd when unset. */
@@ -231,7 +241,7 @@ export class AcpSession implements TransportSession {
       blocks.push({
         type: 'resource',
         resource: {
-          uri: it.path ? `file://${it.path}` : `nac://context/${encodeURIComponent(it.name)}`,
+          uri: it.path ? `file://${encodeURI(it.path)}` : `nac://context/${encodeURIComponent(it.name)}`,
           text: it.content,
           mimeType: 'text/plain'
         }
@@ -277,8 +287,10 @@ export class AcpSession implements TransportSession {
         res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: blocks }, PROMPT_TIMEOUT_MS)
       } catch (e) {
         // Structured resource blocks may be rejected by an agent that lied about (or partially
-        // supports) embeddedContext — retry ONCE, text-only, before giving up on the turn entirely.
-        if (!usedResourceBlocks) throw e
+        // supports) embeddedContext — retry ONCE, text-only, but only when the rejection actually
+        // looks like a shape/support problem. Any other error (timeout, process death, etc.) should
+        // surface as-is rather than silently re-issuing a second session/prompt.
+        if (!shouldRetryTextOnly(usedResourceBlocks, e)) throw e
         if (this.interrupted) {
           // A cancel landed while the first request was in flight: the retry would start a fresh
           // turn nothing is waiting for. Bail with the cancel terminal shape instead.

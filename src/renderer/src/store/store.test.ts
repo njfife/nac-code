@@ -231,6 +231,25 @@ describe('app store — per-chat spine', () => {
     expect(useApp.getState().userConfigs.find((c) => c.id === cfg.id)).toBeUndefined()
   })
 
+  it('removeUserItem prunes the deleted id from every saved userConfig, not just attachedIds', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.addNote('n', 'c')
+    const note = useApp.getState().userItems.at(-1)!
+    s.toggleAttach(note.id)
+    s.saveConfig('Has the note')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    expect(cfg.itemIds).toContain(note.id)
+    expect(useApp.getState().chats[id].attachedIds).toContain(note.id)
+
+    s.removeUserItem(note.id)
+
+    expect(useApp.getState().userItems.find((u) => u.id === note.id)).toBeUndefined()
+    expect(useApp.getState().chats[id].attachedIds).not.toContain(note.id)
+    expect(useApp.getState().userConfigs.find((c) => c.id === cfg.id)!.itemIds).not.toContain(note.id)
+  })
+
   it('applyConfig resolves a user-saved configuration (not just the static catalog)', () => {
     const s = useApp.getState()
     s.newChat()

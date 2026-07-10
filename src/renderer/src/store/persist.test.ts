@@ -121,6 +121,27 @@ describe('initPersistence — userConfigs round-trip', () => {
     expect(useApp.getState().userConfigs).toEqual(userConfigs)
   })
 
+  it('drops malformed userConfigs entries (corrupted/partial writes) but keeps well-shaped ones', async () => {
+    const userConfigs = [
+      { id: 'u_1_1', name: 'Saved', itemIds: ['sk-tdd'] },
+      null,
+      { id: 'u_2_2', name: 'Bad itemIds', itemIds: 'not-an-array' },
+      { id: 42, name: 'Bad id', itemIds: [] },
+      { id: 'u_3_3', itemIds: [] }, // missing name
+      { id: 'u_4_4', name: 'Also Saved', itemIds: [] }
+    ]
+    const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {}, userConfigs }
+    // @ts-expect-error minimal window.nac.state stub — only what initPersistence reads
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    expect(useApp.getState().userConfigs).toEqual([
+      { id: 'u_1_1', name: 'Saved', itemIds: ['sk-tdd'] },
+      { id: 'u_4_4', name: 'Also Saved', itemIds: [] }
+    ])
+  })
+
   it('falls back to the current in-memory userConfigs when absent from disk', async () => {
     const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {} }
     useApp.setState({ userConfigs: [{ id: 'u_keep', name: 'Keep', itemIds: [] }] })
