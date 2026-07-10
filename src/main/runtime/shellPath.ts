@@ -6,14 +6,32 @@ interface ChildLike {
   on(ev: 'error' | 'close', cb: (arg: never) => void): void
   kill(): void
 }
-type SpawnLike = (cmd: string, args: string[]) => ChildLike
+interface SpawnOpts { stdio: ['ignore', 'pipe', 'ignore'] }
+type SpawnLike = (cmd: string, args: string[], opts: SpawnOpts) => ChildLike
 
 const SHELL_TIMEOUT_MS = 3000
 
-/** Interactive+login shell so rc files that set PATH are sourced; printf (no newline) is the only
- *  stdout we trust — the marker keeps the intent explicit and swallows any pre-prompt noise. */
+/** Unique delimiters bracketing the PATH in the probe's stdout. An interactive+login shell sources
+ *  rc files BEFORE our `-c` command, and anything they echo (nvm/rbenv init, `brew shellenv`) lands
+ *  on stdout ahead of the printf — so we cannot trust "the whole output" or even "the last line".
+ *  Bracketing the value lets us extract it no matter what noise surrounds it. */
+const PATH_MARKER = '__NAC_PATH__'
+
+/** Interactive+login shell so rc files that set PATH are sourced; the value is emitted between two
+ *  PATH_MARKERs so we can recover it from surrounding rc-file stdout noise (see PATH_MARKER). */
 export function shellPathArgs(): string[] {
-  return ['-ilc', 'command -v true >/dev/null 2>&1; printf "%s" "$PATH"']
+  return ['-ilc', `command -v true >/dev/null 2>&1; printf '${PATH_MARKER}%s${PATH_MARKER}' "$PATH"`]
+}
+
+/** Pull the PATH out of the probe's raw stdout: the substring between the two markers. Returns null
+ *  if the markers are absent (probe failed / never reached the printf) or the bracketed value is empty. */
+export function extractShellPath(raw: string): string | null {
+  const first = raw.indexOf(PATH_MARKER)
+  if (first < 0) return null
+  const start = first + PATH_MARKER.length
+  const second = raw.indexOf(PATH_MARKER, start)
+  if (second < 0) return null
+  return raw.slice(start, second).trim() || null
 }
 
 /** Union of the current PATH (kept first — nothing already resolvable breaks) with newly discovered
@@ -40,7 +58,8 @@ export function resolveShellPath(spawnImpl: SpawnLike = spawn as unknown as Spaw
     const finish = (v: string | null): void => { if (!done) { done = true; resolve(v) } }
     let child: ChildLike
     try {
-      child = spawnImpl(process.env.SHELL || '/bin/zsh', shellPathArgs())
+      // stderr ignored, not piped: an rc setup that floods stderr must not fill an unread pipe and hang the shell.
+      child = spawnImpl(process.env.SHELL || '/bin/zsh', shellPathArgs(), { stdio: ['ignore', 'pipe', 'ignore'] })
     } catch {
       finish(null); return
     }
@@ -49,7 +68,7 @@ export function resolveShellPath(spawnImpl: SpawnLike = spawn as unknown as Spaw
     child.on('error', () => { clearTimeout(timer); finish(null) })
     child.on('close', ((code: number) => {
       clearTimeout(timer)
-      finish(code === 0 && out.trim() ? out.trim() : null)
+      finish(code === 0 ? extractShellPath(out) : null)
     }) as never)
   })
 }
