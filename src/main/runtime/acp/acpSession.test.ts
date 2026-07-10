@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { homedir } from 'os'
-import { pickAutoApprove, acpCwd, shouldAutoCancelPermission, shouldEmitEmptyTurnNotice, shouldRetryTextOnly, COPILOT_PROFILE, OPENCODE_PROFILE, AcpSession, type JsonRpcClientLike } from './acpSession'
+import { pickAutoApprove, acpCwd, shouldAutoCancelPermission, shouldEmitEmptyTurnNotice, shouldRetryTextOnly, contextResourceUri, COPILOT_PROFILE, OPENCODE_PROFILE, AcpSession, type JsonRpcClientLike } from './acpSession'
 import type { AgentEvent } from '../../../shared/runtime'
 
 describe('pickAutoApprove', () => {
@@ -53,6 +53,16 @@ describe('shouldRetryTextOnly', () => {
   it('does NOT retry on an unrelated error even with resource blocks in play', () => {
     expect(shouldRetryTextOnly(true, new Error('rpc timeout'))).toBe(false)
     expect(shouldRetryTextOnly(true, new Error('ECONNRESET'))).toBe(false)
+  })
+})
+
+describe('contextResourceUri', () => {
+  it('encodes reserved chars (#, ?, space) in file paths that plain encodeURI leaves raw', () => {
+    expect(contextResourceUri({ path: '/tmp/a#b?c.txt', name: 'x' })).toBe('file:///tmp/a%23b%3Fc.txt')
+    expect(contextResourceUri({ path: '/tmp/has space.txt', name: 'x' })).toBe('file:///tmp/has%20space.txt')
+  })
+  it('uses the nac://context scheme (name-encoded) for path-less items', () => {
+    expect(contextResourceUri({ name: 'api rules' })).toBe('nac://context/api%20rules')
   })
 })
 

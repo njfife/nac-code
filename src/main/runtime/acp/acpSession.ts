@@ -1,8 +1,15 @@
+import { pathToFileURL } from 'url'
 import { JsonRpcClient } from '../capabilities/jsonRpc'
 import type { AgentEvent, PermissionOption } from '../../../shared/runtime'
 import { mapAcpUpdate, mapPermissionRequest, usageUpdateCost, THINKING_ROW_PREFIX } from './mapAcp'
 import { resolveCwd } from '../paths'
 import { renderContextText, type ContextPayload } from '../../../shared/contextRender'
+
+/** file:// URI for a context path. pathToFileURL fully encodes reserved chars (`#`, `?`, spaces)
+ *  that plain encodeURI leaves raw — a path with `#` would otherwise parse as a fragment. */
+export function contextResourceUri(item: { path?: string; name: string }): string {
+  return item.path ? pathToFileURL(item.path).href : `nac://context/${encodeURIComponent(item.name)}`
+}
 
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
 const HANDSHAKE_TIMEOUT_MS = 10_000
@@ -241,7 +248,7 @@ export class AcpSession implements TransportSession {
       blocks.push({
         type: 'resource',
         resource: {
-          uri: it.path ? `file://${encodeURI(it.path)}` : `nac://context/${encodeURIComponent(it.name)}`,
+          uri: contextResourceUri(it),
           text: it.content,
           mimeType: 'text/plain'
         }

@@ -74,7 +74,9 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     // Legacy seeded entries predate seed keys: a bare `u_...` id (no `@rev`) is a pre-revision user
     // item, which always carried rev 0 — normalize it to the current key format.
     seededAttachments: Array.isArray(c.seededAttachments)
-      ? c.seededAttachments.map((e) => (e.startsWith('u_') && !e.includes('@') ? `${e}@0` : e))
+      ? c.seededAttachments
+          .filter((e): e is string => typeof e === 'string') // corrupted state must never crash hydration
+          .map((e) => (e.startsWith('u_') && !e.includes('@') ? `${e}@0` : e))
       : null
   }
 }
@@ -90,9 +92,10 @@ export async function initPersistence(): Promise<void> {
     // there is no ≥1-chat special case anymore). Only skip hydration when there's no file at all.
     if (loaded?.chats) {
       // Legacy user items predate rev — notes (user-authored instructions) always started at rev 0.
-      const userItems = (Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems).map((i) =>
-        i.user && i.type === 'instruction' ? { ...i, rev: i.rev ?? 0 } : i
-      )
+      // Corrupted/partial entries (null, non-object, missing id) are dropped so hydration never throws.
+      const userItems = (Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems)
+        .filter((i): i is ContextItem => Boolean(i) && typeof i === 'object' && typeof (i as { id?: unknown }).id === 'string')
+        .map((i) => (i.user && i.type === 'instruction' ? { ...i, rev: i.rev ?? 0 } : i))
       const userItemIds = new Set(userItems.map((i) => i.id))
       const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({
         id: w.id,

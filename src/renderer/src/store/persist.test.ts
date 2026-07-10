@@ -79,6 +79,10 @@ describe('normalizeChat — tolerant hydration of corrupted/legacy shapes (PR #8
     expect(u.claude).toEqual({ turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, costKnown: false })
     expect(u.opencode).toMatchObject({ turns: 1, costUsd: 0.5, costKnown: true })
   })
+  it('non-string seededAttachments entries are dropped, not crashed on (PR #9 review)', () => {
+    const c = normalizeChat({ seededAttachments: ['sk-tdd', null, 42, 'u_9_9'], sessionId: 's', sessionProvider: 'claude' } as never, 'c_bad', new Set(['u_9_9']))
+    expect(c.seededAttachments).toEqual(['sk-tdd', 'u_9_9@0'])
+  })
 })
 
 describe('initPersistence — empty-chats gate', () => {
@@ -101,6 +105,18 @@ describe('initPersistence — empty-chats gate', () => {
     expect(s.chats.c3).toBeUndefined()
     expect(s.activeChatId).toBe('') // no chats to point at
     expect(s.workspaces).toEqual([{ id: 'ws_x', name: 'X', path: '', defaults: undefined }])
+  })
+
+  it('drops corrupted userItems entries instead of crashing hydration (PR #9 review)', async () => {
+    const loaded = { chats: {}, userItems: [null, 42, { type: 'file' }, { id: 'u_ok', type: 'file', name: 'f', user: true, path: '/x' }], workspaces: [{ id: 'ws_x', name: 'X', path: '' }], activeChatId: '', layout: 'studio', expanded: {} }
+    // @ts-expect-error minimal window.nac.state stub
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    const items = useApp.getState().userItems
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('u_ok')
   })
 })
 
