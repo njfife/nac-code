@@ -31,7 +31,7 @@ const api = {
     pickFile: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke(DIALOG_CHANNELS.pickFile)
   },
   files: {
-    read: (path: string): Promise<string> => ipcRenderer.invoke(FILES_CHANNELS.read, path)
+    read: (path: string): Promise<string | null> => ipcRenderer.invoke(FILES_CHANNELS.read, path)
   },
   registry: {
     providers: (): Promise<ProviderProbe[]> => ipcRenderer.invoke(REGISTRY_CHANNELS.providers)

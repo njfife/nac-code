@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { parseStatus, parseNumstat, parseDiff } from './changes'
+import { parseStatus, parseNumstat, parseDiff, readFileForContext } from './changes'
+
+describe('readFileForContext', () => {
+  it('returns null for a missing/unreadable file (so the renderer can flag it, not treat "" as valid)', async () => {
+    expect(await readFileForContext('/definitely/not/a/real/path/xyz-clp.txt')).toBeNull()
+  })
+})
 
 describe('parseStatus', () => {
   it('maps porcelain codes to statuses, incl. untracked + rename', () => {

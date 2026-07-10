@@ -158,5 +158,5 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     if (res.canceled || res.filePaths.length === 0) return null
     return { path: res.filePaths[0], name: basename(res.filePaths[0]) }
   })
-  ipcMain.handle(FILES_CHANNELS.read, (_e, path: string): Promise<string> => readFileForContext(path))
+  ipcMain.handle(FILES_CHANNELS.read, (_e, path: string): Promise<string | null> => readFileForContext(path))
 }

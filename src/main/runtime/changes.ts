@@ -103,7 +103,13 @@ async function readFileSafe(path: string): Promise<string> {
 }
 
 // Read a file for context injection (expands ~, caps size).
-export async function readFileForContext(rawPath: string): Promise<string> {
-  const text = await readFileSafe(resolveCwd(rawPath) ?? rawPath)
-  return text.length > 200_000 ? `${text.slice(0, 200_000)}\n…[truncated]` : text
+// Returns null when the file genuinely can't be read (missing/permission), so the renderer's
+// readFileItem can flag it 'missing' — a swallowed '' would be indistinguishable from an empty file.
+export async function readFileForContext(rawPath: string): Promise<string | null> {
+  try {
+    const text = await readFile(resolveCwd(rawPath) ?? rawPath, 'utf8')
+    return text.length > 200_000 ? `${text.slice(0, 200_000)}\n…[truncated]` : text
+  } catch {
+    return null
+  }
 }
