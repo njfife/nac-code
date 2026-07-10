@@ -10,6 +10,7 @@ import PermissionCard from './PermissionCard'
 // streamed AgentEvents land in the chat's transcript via the run controller.
 export default function ChatView() {
   const active = useApp(selectActiveChat)
+  const newChat = useApp((s) => s.newChat)
   const openModal = useApp((s) => s.openModal)
   const setView = useApp((s) => s.setView)
   const compactChat = useApp((s) => s.compactChat)
@@ -22,13 +23,13 @@ export default function ChatView() {
 
   const [prompt, setPrompt] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
-  const configLabel = active.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
-  const streaming = isStreaming(active)
-  const messages = active.messages ?? [] // defensive: tolerate stale data missing the field
-  const pending = contextPending(active)
+  const configLabel = active?.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
+  const streaming = active ? isStreaming(active) : false
+  const messages = active?.messages ?? [] // defensive: tolerate stale data missing the field, or no active chat
+  const pending = active ? contextPending(active) : false
   const bottomRef = useRef<HTMLDivElement>(null)
-  const runId = runIdForChat(active.id) // cards only appear on the streaming turn, so this is unambiguous
-  const cwd = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.path) ?? ''
+  const runId = active ? runIdForChat(active.id) : undefined // cards only appear on the streaming turn, so this is unambiguous
+  const cwd = useApp((s) => (active ? s.workspaces.find((w) => w.id === active.workspaceId)?.path : undefined)) ?? ''
   const [changed, setChanged] = useState(0)
   useEffect(() => {
     if (streaming || !cwd) return // refresh the change count when a run finishes
@@ -37,12 +38,23 @@ export default function ChatView() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [active.messages])
+  }, [active?.messages])
 
   function send(): void {
-    if (!prompt.trim() || streaming) return
+    if (!active || !prompt.trim() || streaming) return
     void sendMessage(prompt)
     setPrompt('')
+  }
+
+  if (!active) {
+    return (
+      <main style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--app-bg)' }}>
+        <div style={{ textAlign: 'center', maxWidth: 360 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14.5, marginBottom: 16 }}>No active chat yet.</p>
+          <button onClick={() => newChat()} style={heroBtn}>Start your first chat</button>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -66,6 +78,7 @@ export default function ChatView() {
               'Compact'
             )}
           </span>
+          {active.compactError && <span style={compactErrorText}>{active.compactError}</span>}
           {active.compacted && (
             <span style={headerAction} onClick={() => newFromCompacted()}>
               New from compacted
@@ -149,9 +162,6 @@ export default function ChatView() {
               <span style={toolbarItem} onClick={() => openModal('model')}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', marginRight: 6 }} />
                 {active.model}
-              </span>
-              <span style={toolbarItem} onClick={() => openModal('agent')}>
-                {active.agent ?? 'No agent'}
               </span>
               <span
                 style={toolbarItem}
@@ -251,6 +261,7 @@ function Message(props: { turn: Turn; runId?: string }) {
 
 const pill: CSSProperties = { fontSize: 11, padding: '2px 8px', borderRadius: 5, background: 'var(--accent-tint)', color: 'var(--accent-light)' }
 const headerAction: CSSProperties = { fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--text-2)', cursor: 'pointer' }
+const compactErrorText: CSSProperties = { fontSize: 11, color: 'var(--error)', alignSelf: 'center' }
 const toolbarItem: CSSProperties = { fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }
 const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '0 5px', marginLeft: 4 }
 const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }
@@ -258,3 +269,4 @@ const configPopover: CSSProperties = { position: 'absolute', top: 'calc(100% + 6
 const configRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
 const configSaveRow: CSSProperties = { padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--accent-light)', cursor: 'pointer' }
 const stopBtn: CSSProperties = { background: 'var(--card)', color: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer' }
+const heroBtn: CSSProperties = { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }

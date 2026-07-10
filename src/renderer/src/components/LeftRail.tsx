@@ -1,8 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useApp, chatsForWorkspace, type Chat } from '../store/store'
 
-const ACCOUNT = '@you'
-
 export default function LeftRail() {
   const workspaces = useApp((s) => s.workspaces)
   const chats = useApp((s) => s.chats)
@@ -82,6 +80,7 @@ export default function LeftRail() {
                   {ws.path}
                 </div>
               )}
+              {open && list.length === 0 && <div style={emptyCopy}>No chats yet</div>}
               {open &&
                 list.map((c) => (
                   <ChatRow key={c.id} chat={c} active={c.id === activeChatId} onSelect={() => selectChat(c.id)} />
@@ -89,10 +88,6 @@ export default function LeftRail() {
             </div>
           )
         })}
-      </div>
-
-      <div className="mono" style={{ padding: '10px 14px', borderTop: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
-        {ACCOUNT}
       </div>
     </aside>
   )
@@ -176,6 +171,11 @@ const wsPath: CSSProperties = {
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis'
+}
+const emptyCopy: CSSProperties = {
+  padding: '4px 10px 8px 26px',
+  fontSize: 12,
+  color: 'var(--muted)'
 }
 const countPill: CSSProperties = {
   marginLeft: 'auto',

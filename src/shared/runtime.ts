@@ -37,7 +37,7 @@ export interface PermissionOption {
 export type AgentEvent =
   | { type: 'run.started'; runId: string; sessionId?: string }
   | { type: 'content.delta'; runId: string; streamKind: 'assistant_text' | 'reasoning'; text: string }
-  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage }
+  | { type: 'run.completed'; runId: string; stopReason: 'end_turn' | 'error' | 'canceled'; usage?: TurnUsage; modelMismatch?: boolean }
   | { type: 'run.errored'; runId: string; message: string }
   | { type: 'tool.updated'; runId: string; toolCallId: string; title: string; kind?: string; status: 'pending' | 'running' | 'completed' | 'failed'; detail?: string }
   | { type: 'permission.requested'; runId: string; requestId: string; title: string; detail?: string; options: PermissionOption[] }
@@ -95,9 +95,10 @@ export interface DiscoveredModel {
   isDefault?: boolean
   efforts?: string[] // per-model scale (codex); absent = provider-wide scale applies
   defaultEffort?: string
-  variants?: { id: string; label: string; gated?: boolean }[] // e.g. claude sonnet[1m]
+  variants?: { id: string; label: string; gated?: boolean; contextWindowK?: number }[] // e.g. claude sonnet[1m]
   gated?: boolean // learned: this account's harness rejected the id
   note?: string // honest caveat (e.g. '9x usage', 'session-only')
+  contextWindowK?: number // context window in K tokens (live caps or static floor, else 200)
 }
 
 export interface ProviderCapabilities {

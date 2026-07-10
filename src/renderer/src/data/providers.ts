@@ -1,10 +1,14 @@
 // Provider catalog for the model/provider modal. "Provider" here = an agentic harness NAC Code wraps
 // (per the architecture: wrapper, never a harness). Local models appear under the OpenCode carrier.
-// Availability comes from the live CliRegistry probe (registry:providers); model/effort capability data
-// now comes from `caps` (Task 6 store + shared/capabilities.ts STATIC_CAPABILITIES) — this catalog is
-// presentation-only. `status` remains only as the Inspector's static view.
+// Availability comes from the live CliRegistry probe (registry:providers, via useProviderProbe — shared
+// by ModelModal and the Inspector's CLI Connections panel); model/effort capability data comes from
+// `caps` (Task 6 store + shared/capabilities.ts STATIC_CAPABILITIES). This catalog is presentation-only:
+// id/name/detail/dot/options. No static connection status ships here (M0-5 honesty sweep) — the only
+// real states a live probe can report are `installed` / `not installed`, plus `error` when the probe
+// itself couldn't run (e.g. no preload bridge). ConnStatus + STATUS_LABEL/STATUS_COLOR below exist for
+// the Inspector to render those real states consistently.
 
-export type ConnStatus = 'authenticated' | 'expired' | 'not-authenticated' | 'not-installed'
+export type ConnStatus = 'authenticated' | 'not-installed' | 'error'
 
 // A per-provider capability the UI can set on the active chat. `effort` binds to chat.effort
 // (provider-real scale; null = harness default); `fast` binds to chat.fast (Claude-only in v1).
@@ -20,7 +24,6 @@ export interface ProviderDef {
   name: string
   detail: string
   dot: string
-  status: ConnStatus
   options: OptionDef[]
 }
 
@@ -32,7 +35,6 @@ export const PROVIDERS: ProviderDef[] = [
     name: 'Claude Code',
     detail: 'claude · subscription',
     dot: '#d97757',
-    status: 'authenticated',
     options: [
       { ...EFFORT, note: '--effort' },
       { id: 'fast', label: 'Fast mode', kind: 'toggle', note: 'research preview · Opus' }
@@ -43,7 +45,6 @@ export const PROVIDERS: ProviderDef[] = [
     name: 'Codex',
     detail: 'codex exec · subscription',
     dot: '#10a37f',
-    status: 'authenticated',
     options: [{ ...EFFORT, note: 'model_reasoning_effort' }]
   },
   {
@@ -51,7 +52,6 @@ export const PROVIDERS: ProviderDef[] = [
     name: 'GitHub Copilot',
     detail: 'copilot · subscription',
     dot: '#8957e5',
-    status: 'authenticated',
     options: [{ ...EFFORT, note: '--reasoning-effort' }]
   },
   {
@@ -59,21 +59,18 @@ export const PROVIDERS: ProviderDef[] = [
     name: 'OpenCode (local carrier)',
     detail: 'opencode → LM Studio',
     dot: '#46cf8b',
-    status: 'authenticated',
     options: [{ ...EFFORT, note: '--variant · model-dependent' }]
   }
 ]
 
 export const STATUS_LABEL: Record<ConnStatus, string> = {
-  authenticated: 'Authenticated',
-  expired: 'Expired',
-  'not-authenticated': 'Not authenticated',
-  'not-installed': 'Not installed'
+  authenticated: 'authenticated',
+  'not-installed': 'not installed',
+  error: 'error'
 }
 
 export const STATUS_COLOR: Record<ConnStatus, string> = {
   authenticated: 'var(--success)',
-  expired: 'var(--warning)',
-  'not-authenticated': 'var(--error)',
-  'not-installed': 'var(--faint)'
+  'not-installed': 'var(--faint)',
+  error: 'var(--warning)'
 }

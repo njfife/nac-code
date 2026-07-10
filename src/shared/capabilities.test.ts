@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STATIC_CAPABILITIES, modelIdFor, effortScaleFor } from './capabilities'
+import { STATIC_CAPABILITIES, modelIdFor, effortScaleFor, windowKFor } from './capabilities'
 
 describe('STATIC_CAPABILITIES', () => {
   it('covers the four adapter-backed providers with source static', () => {
@@ -28,5 +28,21 @@ describe('effortScaleFor', () => {
     expect(effortScaleFor(caps, 'GPT-5.5')).toEqual(['low', 'medium', 'high', 'xhigh'])
     expect(effortScaleFor(caps, 'Account default')).toEqual(['low', 'medium', 'high'])
     expect(effortScaleFor(undefined, 'x')).toEqual(['low', 'medium', 'high'])
+  })
+})
+
+describe('windowKFor', () => {
+  it('resolves per-model windows from the static floor, variants included', () => {
+    expect(windowKFor('claude', 'Opus 4.8')).toBe(200)
+    expect(windowKFor('claude', 'Sonnet 4.6 · 1M')).toBe(1000)
+    expect(windowKFor('claude', 'Haiku 4.5')).toBe(200)
+  })
+  it('prefers live caps and falls back to 200 for unknown models', () => {
+    const caps = { provider: 'codex', source: 'live', fetchedAt: 1, efforts: [], models: [{ id: 'gpt-5.5', label: 'GPT-5.5', contextWindowK: 272 }] } as never
+    expect(windowKFor('codex', 'GPT-5.5', caps)).toBe(272)
+    expect(windowKFor('codex', 'Mystery Model')).toBe(200)
+  })
+  it('returns copilot documented 128K for Account default', () => {
+    expect(windowKFor('copilot', 'Account default')).toBe(128)
   })
 })

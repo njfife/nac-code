@@ -61,8 +61,21 @@ interface PendingPermission {
   denyId: string
 }
 
+/** Extracted surface AcpSession actually uses from JsonRpcClient — lets tests inject a FakeClient
+ *  (scripted responses + capturable notification/request handlers) instead of spawning a real
+ *  harness process. The default clientFactory below preserves today's real spawn. */
+export interface JsonRpcClientLike {
+  request(method: string, params?: unknown, timeoutMs?: number): Promise<unknown>
+  notify(method: string, params?: unknown): void
+  onNotification(method: string, handler: (params: unknown) => void): void
+  onRequest(method: string, handler: (params: unknown) => Promise<unknown> | unknown): void
+  onClose(handler: () => void): void
+  readonly isClosed: boolean
+  close(): void
+}
+
 export class AcpSession implements TransportSession {
-  private client: JsonRpcClient
+  private client: JsonRpcClientLike
   private sessionId: string | null = null
   private currentRunId: string | null = null
   private replaying = false // suppress session/load history replay
@@ -76,12 +89,18 @@ export class AcpSession implements TransportSession {
   private thinkingOpen = false
   private interrupted = false
   private appliedModel: string | null = null
+  private modelMismatchThisTurn = false
 
-  constructor(onEvent: (e: AgentEvent) => void, yolo: boolean, profile: AcpProfile = COPILOT_PROFILE) {
+  constructor(
+    onEvent: (e: AgentEvent) => void,
+    yolo: boolean,
+    profile: AcpProfile = COPILOT_PROFILE,
+    clientFactory: () => JsonRpcClientLike = () => new JsonRpcClient(profile.command, profile.args)
+  ) {
     this.onEvent = onEvent
     this.yolo = yolo
     this.profile = profile
-    this.client = new JsonRpcClient(profile.command, profile.args)
+    this.client = clientFactory()
     this.client.onNotification('session/update', (params) => {
       if (this.replaying || !this.currentRunId) return
       const update = (params as { update?: unknown } | null)?.update
@@ -91,7 +110,7 @@ export class AcpSession implements TransportSession {
         if (e.type === 'content.delta') {
           this.turnHadText = true
           this.closeThinkingRow()
-        } else if (e.type === 'tool.updated' && e.kind === 'reasoning') {
+        } else if (e.type === 'tool.updated' && e.toolCallId.startsWith(THINKING_ROW_PREFIX)) {
           this.thinkingOpen = true
         } else if (e.type === 'tool.updated') {
           this.closeThinkingRow()
@@ -190,6 +209,7 @@ export class AcpSession implements TransportSession {
     this.turnCost = null
     this.thinkingOpen = false
     this.interrupted = false
+    this.modelMismatchThisTurn = false
     this.onEvent({ type: 'run.started', runId, sessionId: this.sessionId })
     void this.runTurn(runId, text, opts)
   }
@@ -202,7 +222,17 @@ export class AcpSession implements TransportSession {
           this.appliedModel = opts.model
         } catch {
           // fail-open: the harness keeps its current model; the ledger records real outcomes
+          this.modelMismatchThisTurn = true
         }
+      }
+      if (this.interrupted) {
+        // Cancelled while the config-option request was in flight: never issue session/prompt —
+        // the harness would run a turn nothing is waiting for. Bail with the same terminal shape
+        // a mid-turn cancel produces.
+        this.expirePermissions()
+        this.closeThinkingRow()
+        this.onEvent({ type: 'run.completed', runId, stopReason: 'canceled' })
+        return
       }
       const res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] }, PROMPT_TIMEOUT_MS)
       const stop = (res as { stopReason?: string } | null)?.stopReason
@@ -213,10 +243,14 @@ export class AcpSession implements TransportSession {
       if (shouldEmitEmptyTurnNotice(this.profile.provider, this.turnHadText, outputTokens, this.interrupted)) {
         this.onEvent({ type: 'tool.updated', runId, toolCallId: `empty_${runId}`, title: 'model returned nothing — is the local model loaded?', kind: 'notice', status: 'failed' })
       }
-      const usage = this.profile.provider === 'opencode'
-        ? { inputTokens: typeof u?.inputTokens === 'number' ? u.inputTokens : 0, outputTokens, ...(this.turnCost !== null ? { costUsd: this.turnCost } : {}) }
-        : undefined
-      this.onEvent({ type: 'run.completed', runId, stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn', ...(usage ? { usage } : {}) })
+      const usage = { inputTokens: typeof u?.inputTokens === 'number' ? u.inputTokens : 0, outputTokens, ...(this.turnCost !== null ? { costUsd: this.turnCost } : {}) }
+      this.onEvent({
+        type: 'run.completed',
+        runId,
+        stopReason: this.interrupted || stop === 'cancelled' ? 'canceled' : 'end_turn',
+        usage,
+        ...(this.modelMismatchThisTurn ? { modelMismatch: true } : {})
+      })
     } catch (e) {
       this.expirePermissions()
       this.closeThinkingRow()

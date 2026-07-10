@@ -17,12 +17,13 @@ export default function StatsModal() {
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
 
-  const usage = active.usage ?? {}
+  const usage = active?.usage ?? {}
   const providers = Object.entries(usage)
   const totalTurns = providers.reduce((s, [, u]) => s + u.turns, 0)
   const totalIn = providers.reduce((s, [, u]) => s + u.inputTokens, 0)
   const totalOut = providers.reduce((s, [, u]) => s + u.outputTokens, 0)
   const totalCost = providers.reduce((s, [, u]) => s + u.costUsd, 0)
+  const hasAnyCostKnown = providers.some(([, u]) => u.turns > 0 && u.costKnown)
 
   return (
     <div onClick={close} style={backdrop}>
@@ -34,10 +35,10 @@ export default function StatsModal() {
         </div>
         <div style={{ overflow: 'auto', padding: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
-            <Stat label="Messages" value={`${active.messages?.length ?? 0}`} />
+            <Stat label="Messages" value={`${active?.messages?.length ?? 0}`} />
             <Stat label="Turns" value={`${totalTurns}`} />
             <Stat label="Tokens" value={fmtTok(totalIn + totalOut)} />
-            <Stat label="Cost" value={totalCost > 0 ? fmtCost(totalCost) : 'free'} accent={totalCost > 0 ? undefined : 'var(--success)'} />
+            <Stat label="Cost" value={totalCost > 0 ? fmtCost(totalCost) : hasAnyCostKnown ? '$0.00' : '—'} accent={totalCost > 0 ? undefined : (hasAnyCostKnown ? 'var(--success)' : 'var(--muted)')} />
           </div>
 
           <Section title="Per-provider usage">
@@ -59,8 +60,8 @@ export default function StatsModal() {
                         '— tokens'
                       )}
                     </span>
-                    <span className="mono" style={{ marginLeft: 'auto', fontSize: 12.5, color: u.costUsd > 0 ? 'var(--text)' : 'var(--success)' }}>
-                      {u.costUsd > 0 ? fmtCost(u.costUsd) : prov === 'opencode' ? 'local/free' : '—'}
+                    <span className="mono" style={{ marginLeft: 'auto', fontSize: 12.5, color: u.costUsd > 0 ? 'var(--text)' : (u.turns > 0 && u.costKnown) ? 'var(--success)' : 'var(--muted)' }}>
+                      {u.costUsd > 0 ? fmtCost(u.costUsd) : u.turns > 0 && u.costKnown ? '$0.00' : '—'}
                     </span>
                   </div>
                 ))
@@ -68,7 +69,7 @@ export default function StatsModal() {
           </Section>
 
           <p style={{ fontSize: 11.5, color: 'var(--muted-2)', lineHeight: 1.5, marginTop: 4 }}>
-            Metered from each harness's real completion data — Claude reports $ + tokens, Codex/OpenCode report tokens (OpenCode also $; local models are free), Copilot bills in premium requests (no token/$ breakdown via the CLI).
+            Metered from each harness's real completion data — Claude reports $ + tokens, Codex/OpenCode report tokens (OpenCode also $; local models are free), copilot: no cost signal observed via the CLI today.
           </p>
         </div>
       </div>

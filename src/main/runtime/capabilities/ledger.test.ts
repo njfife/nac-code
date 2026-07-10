@@ -9,6 +9,11 @@ describe('isWorksEvidence', () => {
     expect(isWorksEvidence('end_turn', undefined)).toBe(true)
     expect(isWorksEvidence('canceled', { outputTokens: 15 })).toBe(false)
   })
+  it('a fail-open model mismatch is never evidence the picked model works, regardless of usage', () => {
+    expect(isWorksEvidence('end_turn', { outputTokens: 5 }, true)).toBe(false)
+    expect(isWorksEvidence('end_turn', { outputTokens: 15 }, false)).toBe(true)
+    expect(isWorksEvidence('end_turn', undefined, false)).toBe(true)
+  })
 })
 
 describe('classifyModelRejection', () => {

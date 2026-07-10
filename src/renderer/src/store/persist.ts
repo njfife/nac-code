@@ -1,5 +1,5 @@
 import { useApp, type Chat, type Workspace, type Layout } from './store'
-import type { ContextItem } from '../data/context'
+import { ITEMS_BY_ID, type ContextItem } from '../data/context'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
@@ -13,15 +13,16 @@ interface PersistedState {
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
 // nac-state.json can never crash the app. Add new Chat fields here with a default when introduced.
-export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, id: string): Chat {
+// `userItemIds` are the ids of hydrated user items (notes/files, `u_`-prefixed) — attachedIds may
+// legitimately reference those even though they aren't in the static ITEMS_BY_ID catalog.
+export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null; agent?: string | null }, id: string, userItemIds: Set<string> = new Set(), fallbackWorkspaceId = 'ws_default'): Chat {
   return {
     id,
-    workspaceId: c.workspaceId ?? 'ws_nac',
+    workspaceId: c.workspaceId ?? fallbackWorkspaceId, // a chat must land in a workspace that EXISTS or it vanishes from the rail
     title: c.title ?? 'Chat',
     time: c.time ?? 'now',
     provider: c.provider ?? 'claude',
     model: c.model ?? 'Opus 4.8',
-    agent: c.agent ?? null,
     yolo: c.yolo ?? false,
     fast: c.fast === true,
     // effort (né thinking): null = harness default. Legacy: 'none' → null; pre-fast-era values were
@@ -31,7 +32,8 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
         ? ((c as { effort?: string | null }).effort ?? ((c as { thinking?: string }).thinking === 'none' ? null : (c as { thinking?: string }).thinking ?? null))
         : null,
     activeConfig: c.activeConfig ?? null,
-    attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds : [],
+    // Drop dead ids (removed catalog entries) but keep anything that hydrated as a real user item.
+    attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds.filter((aid) => ITEMS_BY_ID[aid] || userItemIds.has(aid)) : [],
     dirty: c.dirty ?? false,
     compacting: false, // never restore a stuck in-progress state
     compacted: c.compacted ?? false,
@@ -52,7 +54,21 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     sessionProvider: c.sessionProvider ?? (c.claudeSessionId ? 'claude' : null),
     summary: c.summary ?? null,
     summarizedThrough: typeof c.summarizedThrough === 'number' ? c.summarizedThrough : 0,
-    usage: c.usage ?? {},
+    // Legacy usage entries predate costKnown: treat a positive figure as known, zero as unknown.
+    // Legacy usage entries predate costKnown (positive figure = known); junk entries (null / non-
+    // object) coerce to safe zeros — corrupted state must never crash hydration.
+    usage: Object.fromEntries(
+      Object.entries(c.usage ?? {}).map(([k, raw]) => {
+        const u = raw && typeof raw === 'object' ? (raw as Partial<import('./store').ProviderUsage>) : {}
+        return [k, {
+          turns: typeof u.turns === 'number' ? u.turns : 0,
+          inputTokens: typeof u.inputTokens === 'number' ? u.inputTokens : 0,
+          outputTokens: typeof u.outputTokens === 'number' ? u.outputTokens : 0,
+          costUsd: typeof u.costUsd === 'number' ? u.costUsd : 0,
+          costKnown: u.costKnown ?? (typeof u.costUsd === 'number' && u.costUsd > 0)
+        }]
+      })
+    ),
     seededAttachments: Array.isArray(c.seededAttachments) ? c.seededAttachments : null
   }
 }
@@ -64,18 +80,28 @@ export async function initPersistence(): Promise<void> {
   if (!window.nac?.state) return // preload bridge unavailable — run in-memory
   try {
     const loaded = (await window.nac.state.load()) as PersistedState | null
-    if (loaded?.chats && Object.keys(loaded.chats).length > 0) {
+    // Hydrate whatever is on disk, including a genuinely empty chat set (fresh-install boots empty —
+    // there is no ≥1-chat special case anymore). Only skip hydration when there's no file at all.
+    if (loaded?.chats) {
+      const userItems = Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems
+      const userItemIds = new Set(userItems.map((i) => i.id))
+      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({
+        id: w.id,
+        name: w.name,
+        path: w.path ?? '',
+        // removed fields (defaults.agent) are dropped on hydrate, never re-persisted
+        defaults: w.defaults ? { ...(w.defaults.provider ? { provider: w.defaults.provider } : {}), ...(w.defaults.model ? { model: w.defaults.model } : {}) } : undefined
+      }))
       const chats: Record<string, Chat> = {}
-      for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id)
-      const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : Object.keys(chats)[0]
-      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({ id: w.id, name: w.name, path: w.path ?? '', defaults: w.defaults }))
+      for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds, workspaces[0]?.id ?? 'ws_default')
+      const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
       useApp.setState({
         chats,
         workspaces,
         activeChatId,
         layout: loaded.layout ?? useApp.getState().layout,
         expanded: loaded.expanded ?? useApp.getState().expanded,
-        userItems: Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems
+        userItems
       })
     }
   } catch {

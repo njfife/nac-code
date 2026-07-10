@@ -55,6 +55,9 @@ function stubHarnessPath(): string {
 export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void {
   app.on('will-quit', () => acpDisposeAll())
 
+  // Real app version for the status bar (was a hardcoded string) — same value electron-builder stamps.
+  ipcMain.handle('app:version', () => app.getVersion())
+
   ipcMain.handle(RUN_CHANNELS.start, (_e, req: RunRequest): { runId: string } => {
     const runId = `run_${++counter}`
     const send = (event: AgentEvent): void => getWindow()?.webContents.send(RUN_CHANNELS.event, event)
@@ -69,7 +72,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
         if (event.type === 'run.errored' && classifyModelRejection(event.message)) {
           recordOutcome(req.provider, ledgerModel, 'gated', event.message)
           invalidateCapabilities(req.provider) // next loadCaps (picker mount) re-fetches + re-merges the ledger
-        } else if (event.type === 'run.completed' && isWorksEvidence(event.stopReason, event.usage)) recordOutcome(req.provider, ledgerModel, 'works')
+        } else if (event.type === 'run.completed' && isWorksEvidence(event.stopReason, event.usage, event.modelMismatch)) recordOutcome(req.provider, ledgerModel, 'works')
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }

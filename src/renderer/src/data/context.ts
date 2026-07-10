@@ -23,32 +23,22 @@ export const TYPE_META: Record<ItemType, { label: string; color: string; letter:
   file: { label: 'File', color: 'var(--type-file)', letter: 'F' }
 }
 
+// Real items only — each carries actual `content` injected into the agent's context when attached.
+// Token counts are computed from that content, not hand-guessed.
+const est = (c: string): number => Math.ceil(c.length / 4)
+
 export const CONTEXT_ITEMS: ContextItem[] = [
-  { id: 'sk-tdd', type: 'skill', name: 'test-driven-development', description: 'Write the failing test first, then the minimal code to pass.', tokens: 1800, scope: 'global', source: 'superpowers', tags: ['testing'], content: 'Follow strict TDD: write a failing test first, then the minimal code to make it pass, then refactor. Never write implementation before its test exists.' },
-  { id: 'sk-debug', type: 'skill', name: 'systematic-debugging', description: 'Find the root cause before proposing a fix.', tokens: 1500, scope: 'global', source: 'superpowers', tags: ['debug'] },
-  { id: 'sk-brainstorm', type: 'skill', name: 'brainstorming', description: 'Explore intent and design before implementation.', tokens: 1200, scope: 'workspace', source: 'superpowers', tags: ['planning'] },
-  { id: 'sk-review', type: 'skill', name: 'requesting-code-review', description: 'Run an adversarial review pass before merging.', tokens: 1400, scope: 'global', source: 'superpowers', tags: ['review'] },
-  { id: 'ag-nac', type: 'agent', name: 'nac-code', description: 'Default general-purpose coding agent.', tokens: 900, scope: 'workspace', source: 'agents', tags: ['general'] },
-  { id: 'ag-infra', type: 'agent', name: 'infra', description: 'Infrastructure & deployment specialist.', tokens: 1100, scope: 'workspace', source: 'agents', tags: ['infra'] },
-  { id: 'ag-reviewer', type: 'agent', name: 'backend-reviewer', description: 'Reviews backend changes for correctness.', tokens: 1000, scope: 'global', source: 'agents', tags: ['review'] },
-  { id: 'ag-frontend', type: 'agent', name: 'frontend-reviewer', description: 'Reviews UI changes against the design system.', tokens: 1000, scope: 'global', source: 'agents', tags: ['review'] },
-  { id: 'in-style', type: 'instruction', name: 'code-style', description: 'Match the surrounding code conventions.', tokens: 600, scope: 'workspace', source: 'instructions', tags: ['style'], content: 'Match the surrounding code: its naming, formatting, and comment density. Do not introduce new patterns, libraries, or abstractions unless necessary.' },
-  { id: 'in-security', type: 'instruction', name: 'security-baseline', description: 'No secrets in code; least privilege; validate input.', tokens: 800, scope: 'global', source: 'instructions', tags: ['security'], content: 'Never hardcode secrets or credentials. Validate and sanitize all external input. Apply least privilege. Never log sensitive values.' },
-  { id: 'in-commit', type: 'instruction', name: 'commit-format', description: 'Conventional commits; imperative subject.', tokens: 400, scope: 'workspace', source: 'instructions', tags: ['git'] },
-  { id: 'fl-readme', type: 'file', name: 'README.md', description: 'Project overview and orientation.', tokens: 1200, scope: 'workspace', source: 'docs/', tags: ['docs'] },
-  { id: 'fl-spec', type: 'file', name: 'M0-agent-runtime-and-context.md', description: 'Agent runtime + cross-provider context spec.', tokens: 5400, scope: 'workspace', source: 'docs/specs/', tags: ['spec'] },
-  { id: 'fl-deploy', type: 'file', name: 'deploy.yml', description: 'CI/CD pipeline definition.', tokens: 2200, scope: 'workspace', source: 'infra/', tags: ['infra'] },
-  { id: 'fl-plan', type: 'file', name: 'engineering-plan.md', description: 'Master engineering plan.', tokens: 9800, scope: 'workspace', source: 'docs/plans/', tags: ['plan'] },
-  { id: 'fl-tokens', type: 'file', name: 'tokens.css', description: 'Design token definitions.', tokens: 700, scope: 'workspace', source: 'src/', tags: ['design'] }
+  { id: 'sk-tdd', type: 'skill', name: 'test-driven-development', description: 'Write the failing test first, then the minimal code to pass.', tokens: est('Follow strict TDD: write a failing test first, then the minimal code to make it pass, then refactor. Never write implementation before its test exists.'), scope: 'global', source: 'superpowers', tags: ['testing'], content: 'Follow strict TDD: write a failing test first, then the minimal code to make it pass, then refactor. Never write implementation before its test exists.' },
+  { id: 'in-style', type: 'instruction', name: 'code-style', description: 'Match the surrounding code conventions.', tokens: est('Match the surrounding code: its naming, formatting, and comment density. Do not introduce new patterns, libraries, or abstractions unless necessary.'), scope: 'workspace', source: 'instructions', tags: ['style'], content: 'Match the surrounding code: its naming, formatting, and comment density. Do not introduce new patterns, libraries, or abstractions unless necessary.' },
+  { id: 'in-security', type: 'instruction', name: 'security-baseline', description: 'No secrets in code; least privilege; validate input.', tokens: est('Never hardcode secrets or credentials. Validate and sanitize all external input. Apply least privilege. Never log sensitive values.'), scope: 'global', source: 'instructions', tags: ['security'], content: 'Never hardcode secrets or credentials. Validate and sanitize all external input. Apply least privilege. Never log sensitive values.' }
 ]
 
 export const ITEMS_BY_ID: Record<string, ContextItem> = Object.fromEntries(CONTEXT_ITEMS.map((i) => [i.id, i]))
 
-export const WINDOW_TOKENS = 128_000
-
-// Budget meter color: green → amber (>76k) → red (>108k), per the design.
-export function budgetColor(tokens: number): string {
-  if (tokens > 108_000) return 'var(--error)'
-  if (tokens > 76_000) return 'var(--warning)'
+// Budget meter color: green (<60%), amber (60-85%), red (>85%) of the active chat's context window.
+export function budgetColor(tokens: number, windowTokens: number): string {
+  const frac = windowTokens > 0 ? tokens / windowTokens : 0
+  if (frac > 0.85) return 'var(--error)'
+  if (frac > 0.6) return 'var(--warning)'
   return 'var(--success)'
 }

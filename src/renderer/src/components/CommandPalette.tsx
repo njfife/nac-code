@@ -16,6 +16,7 @@ export default function CommandPalette() {
   const setLayout = useApp((s) => s.setLayout)
   const openModal = useApp((s) => s.openModal)
   const setPalette = useApp((s) => s.setPalette)
+  const newChat = useApp((s) => s.newChat)
 
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
@@ -28,7 +29,7 @@ export default function CommandPalette() {
   }
   commands.push({ id: 'a-context', group: 'Actions', label: 'Open Context Library', run: () => { setView('context'); close() } })
   commands.push({ id: 'a-model', group: 'Actions', label: 'Model & provider…', run: () => { openModal('model'); close() } })
-  commands.push({ id: 'a-new', group: 'Actions', label: 'New chat', run: () => close() })
+  commands.push({ id: 'a-new', group: 'Actions', label: 'New chat', run: () => { newChat(); close() } })
   for (const l of ['studio', 'cockpit', 'focus'] as Layout[]) {
     commands.push({ id: `lay-${l}`, group: 'Layouts', label: `Layout: ${l[0].toUpperCase()}${l.slice(1)}`, run: () => { setLayout(l); close() } })
   }

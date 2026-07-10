@@ -13,7 +13,7 @@ const dirname = (p: string): string => {
 export default function Changes() {
   const setView = useApp((s) => s.setView)
   const active = useApp(selectActiveChat)
-  const cwd = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.path) ?? ''
+  const cwd = useApp((s) => (active ? s.workspaces.find((w) => w.id === active.workspaceId)?.path : undefined)) ?? ''
 
   const [changes, setChanges] = useState<ChangesResult | null | undefined>(undefined) // undefined = loading
   const [selected, setSelected] = useState<string | null>(null)
@@ -56,7 +56,7 @@ export default function Changes() {
   const files = changes?.files ?? []
   const adds = files.reduce((s, f) => s + f.additions, 0)
   const dels = files.reduce((s, f) => s + f.deletions, 0)
-  const wsName = useApp((s) => s.workspaces.find((w) => w.id === active.workspaceId)?.name) ?? 'workspace'
+  const wsName = useApp((s) => (active ? s.workspaces.find((w) => w.id === active.workspaceId)?.name : undefined)) ?? 'workspace'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--app-bg)', position: 'relative' }}>

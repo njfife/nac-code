@@ -1,17 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp, selectActiveChat, workspaceName, type Layout } from '../store/store'
 import LeftRail from './LeftRail'
 import ChatView from './ChatView'
 import Inspector from './Inspector'
 import ModelModal from './ModelModal'
-import AgentModal from './AgentModal'
 import StatsModal from './StatsModal'
 import WorkspaceModal from './WorkspaceModal'
 import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
-
-const ACCOUNT = '@you'
 
 // The persistent application frame: top bar (46) / body (left rail · center · inspector) / status bar (28).
 // 1180px min-width with horizontal scroll — panes never collapse (FR-1.5 / NFR-4). Focus layout hides the inspector.
@@ -60,7 +57,6 @@ export default function Shell() {
       </div>
       <StatusBar />
       {modal === 'model' && <ModelModal />}
-      {modal === 'agent' && <AgentModal />}
       {modal === 'stats' && <StatsModal />}
       {modal === 'workspace' && <WorkspaceModal />}
       {palette && <CommandPalette />}
@@ -100,6 +96,9 @@ function TopBar() {
   const active = useApp(selectActiveChat)
   const layout = useApp((s) => s.layout)
   const setLayout = useApp((s) => s.setLayout)
+  // No active chat yet (fresh install / all chats cleared): fall back to the first workspace's name
+  // rather than crashing on active.workspaceId.
+  const wsLabel = active ? workspaceName(workspaces, active.workspaceId) : workspaces[0]?.name ?? 'Workspace'
 
   return (
     <header
@@ -119,7 +118,7 @@ function TopBar() {
         ))}
       </div>
       <div style={{ flex: 1, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
-        NAC Code <span style={{ color: 'var(--faint)' }}>/ {workspaceName(workspaces, active.workspaceId)}</span>
+        NAC Code <span style={{ color: 'var(--faint)' }}>/ {wsLabel}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ display: 'flex', background: 'var(--card)', borderRadius: 8, padding: 2, border: '1px solid var(--line)' }}>
@@ -141,9 +140,6 @@ function TopBar() {
             </button>
           ))}
         </div>
-        <span className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {ACCOUNT}
-        </span>
       </div>
     </header>
   )
@@ -151,6 +147,15 @@ function TopBar() {
 
 function StatusBar() {
   const active = useApp(selectActiveChat)
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    window.nac?.app
+      ?.version()
+      .then(setVersion)
+      .catch(() => {})
+  }, [])
+
   return (
     <footer
       className="mono"
@@ -167,14 +172,10 @@ function StatusBar() {
         color: 'var(--muted)'
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }} /> {ACCOUNT}
-      </span>
-      <span>MCP not checked</span>
       <span style={{ marginLeft: 'auto' }}>
-        {active.attachedIds.length} attached · ~{active.contextK}k / {active.windowK}K tokens
+        {active ? `${active.attachedIds.length} attached · ${active.contextLive ? '' : '~'}${active.contextK}k / ${active.windowK}K tokens` : 'no active chat'}
       </span>
-      <span>Version 0.10.0</span>
+      {version && <span>Version {version}</span>}
     </footer>
   )
 }
