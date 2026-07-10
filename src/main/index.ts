@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerRuntimeIpc } from './runtime/ipc'
 import { registerPersistenceIpc } from './persistence/ipc'
+import { applyShellPath } from './runtime/shellPath'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -49,7 +50,8 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await applyShellPath()
   electronApp.setAppUserModelId('com.naccode.app')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 

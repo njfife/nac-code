@@ -1,0 +1,26 @@
+appId: com.naccode.app
+productName: NAC Code
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: scripts
+    to: scripts
+asar: true
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  identity: null
+  hardenedRuntime: false
+  icon: build/icon.png
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: build/icon.png
