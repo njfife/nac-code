@@ -15,10 +15,10 @@ interface PersistedState {
 // nac-state.json can never crash the app. Add new Chat fields here with a default when introduced.
 // `userItemIds` are the ids of hydrated user items (notes/files, `u_`-prefixed) — attachedIds may
 // legitimately reference those even though they aren't in the static ITEMS_BY_ID catalog.
-export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null; agent?: string | null }, id: string, userItemIds: Set<string> = new Set()): Chat {
+export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null; agent?: string | null }, id: string, userItemIds: Set<string> = new Set(), fallbackWorkspaceId = 'ws_default'): Chat {
   return {
     id,
-    workspaceId: c.workspaceId ?? 'ws_nac',
+    workspaceId: c.workspaceId ?? fallbackWorkspaceId, // a chat must land in a workspace that EXISTS or it vanishes from the rail
     title: c.title ?? 'Chat',
     time: c.time ?? 'now',
     provider: c.provider ?? 'claude',
@@ -55,7 +55,20 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
     summary: c.summary ?? null,
     summarizedThrough: typeof c.summarizedThrough === 'number' ? c.summarizedThrough : 0,
     // Legacy usage entries predate costKnown: treat a positive figure as known, zero as unknown.
-    usage: Object.fromEntries(Object.entries(c.usage ?? {}).map(([k, u]) => [k, { ...u, costKnown: u.costKnown ?? u.costUsd > 0 }])),
+    // Legacy usage entries predate costKnown (positive figure = known); junk entries (null / non-
+    // object) coerce to safe zeros — corrupted state must never crash hydration.
+    usage: Object.fromEntries(
+      Object.entries(c.usage ?? {}).map(([k, raw]) => {
+        const u = raw && typeof raw === 'object' ? (raw as Partial<import('./store').ProviderUsage>) : {}
+        return [k, {
+          turns: typeof u.turns === 'number' ? u.turns : 0,
+          inputTokens: typeof u.inputTokens === 'number' ? u.inputTokens : 0,
+          outputTokens: typeof u.outputTokens === 'number' ? u.outputTokens : 0,
+          costUsd: typeof u.costUsd === 'number' ? u.costUsd : 0,
+          costKnown: u.costKnown ?? (typeof u.costUsd === 'number' && u.costUsd > 0)
+        }]
+      })
+    ),
     seededAttachments: Array.isArray(c.seededAttachments) ? c.seededAttachments : null
   }
 }
@@ -72,10 +85,16 @@ export async function initPersistence(): Promise<void> {
     if (loaded?.chats) {
       const userItems = Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems
       const userItemIds = new Set(userItems.map((i) => i.id))
+      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({
+        id: w.id,
+        name: w.name,
+        path: w.path ?? '',
+        // removed fields (defaults.agent) are dropped on hydrate, never re-persisted
+        defaults: w.defaults ? { ...(w.defaults.provider ? { provider: w.defaults.provider } : {}), ...(w.defaults.model ? { model: w.defaults.model } : {}) } : undefined
+      }))
       const chats: Record<string, Chat> = {}
-      for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds)
+      for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds, workspaces[0]?.id ?? 'ws_default')
       const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
-      const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({ id: w.id, name: w.name, path: w.path ?? '', defaults: w.defaults }))
       useApp.setState({
         chats,
         workspaces,
