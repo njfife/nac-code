@@ -14,6 +14,15 @@ export interface ContextItem {
   content?: string // authored text injected when attached (notes/skills/instructions)
   path?: string // file on disk; its content is read + injected when attached
   user?: boolean // created by the user (vs a seed) — removable
+  rev?: number // bumped on every edit (updateNote) — lets contextPending detect edits to an already-attached item
+  fileState?: 'missing' | 'binary' | 'toolarge' // last-known read status for path-backed items
+}
+
+// Seed keys identify what was actually injected into a session. Static catalog items are stable by
+// id alone; user items (notes) can be edited in place, so their key carries the rev — an edit to an
+// attached note must trip contextPending even though the attached *set* didn't change.
+export function seedKey(item: Pick<ContextItem, 'id' | 'rev'>): string {
+  return item.id.startsWith('u_') ? `${item.id}@${item.rev ?? 0}` : item.id
 }
 
 export const TYPE_META: Record<ItemType, { label: string; color: string; letter: string }> = {

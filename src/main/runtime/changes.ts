@@ -103,7 +103,17 @@ async function readFileSafe(path: string): Promise<string> {
 }
 
 // Read a file for context injection (expands ~, caps size).
-export async function readFileForContext(rawPath: string): Promise<string> {
-  const text = await readFileSafe(resolveCwd(rawPath) ?? rawPath)
-  return text.length > 200_000 ? `${text.slice(0, 200_000)}\n…[truncated]` : text
+// Returns null when the file genuinely can't be read (missing/permission), so the renderer's
+// readFileItem can flag it 'missing' — a swallowed '' would be indistinguishable from an empty file.
+// The cap here (2_000_000 chars) is a defensive ceiling against pathological memory use only — it
+// sits well ABOVE the renderer's 262144-char refusal threshold (readFileItem.ts) so that any file
+// over that threshold reaches the renderer at full length and the real 'toolarge' check fires,
+// instead of arriving pre-truncated and being injected as if it were complete.
+export async function readFileForContext(rawPath: string): Promise<string | null> {
+  try {
+    const text = await readFile(resolveCwd(rawPath) ?? rawPath, 'utf8')
+    return text.length > 2_000_000 ? text.slice(0, 2_000_000) : text
+  } catch {
+    return null
+  }
 }

@@ -1,7 +1,15 @@
+import { pathToFileURL } from 'url'
 import { JsonRpcClient } from '../capabilities/jsonRpc'
 import type { AgentEvent, PermissionOption } from '../../../shared/runtime'
 import { mapAcpUpdate, mapPermissionRequest, usageUpdateCost, THINKING_ROW_PREFIX } from './mapAcp'
 import { resolveCwd } from '../paths'
+import { renderContextText, type ContextPayload } from '../../../shared/contextRender'
+
+/** file:// URI for a context path. pathToFileURL fully encodes reserved chars (`#`, `?`, spaces)
+ *  that plain encodeURI leaves raw — a path with `#` would otherwise parse as a fragment. */
+export function contextResourceUri(item: { path?: string; name: string }): string {
+  return item.path ? pathToFileURL(item.path).href : `nac://context/${encodeURIComponent(item.name)}`
+}
 
 export const PROMPT_TIMEOUT_MS = 1_800_000 // 30 min — cancellation, not timeout, is the stop lever
 const HANDSHAKE_TIMEOUT_MS = 10_000
@@ -9,6 +17,7 @@ const HANDSHAKE_TIMEOUT_MS = 10_000
 export interface PromptOpts {
   model?: string
   effort?: string
+  context?: ContextPayload
 }
 
 export interface AcpProfile {
@@ -47,6 +56,16 @@ export function pickAutoApprove(options: PermissionOption[]): PermissionOption |
  *  can never be resolved and the JSON-RPC request deadlocks the harness. */
 export function shouldAutoCancelPermission(replaying: boolean, currentRunId: string | null): boolean {
   return replaying || !currentRunId
+}
+
+/** Pure + exported for testing: the text-only retry (session/prompt rejected structured `resource`
+ *  blocks) must fire ONLY when the rejection actually looks like a shape/support problem — not on
+ *  every error (a timeout, a killed process, etc. would otherwise silently re-issue a second
+ *  session/prompt that nothing is waiting for, doubling side effects for an unrelated failure). */
+export function shouldRetryTextOnly(usedResourceBlocks: boolean, error: unknown): boolean {
+  if (!usedResourceBlocks) return false
+  const message = error instanceof Error ? error.message : String(error)
+  return /-32602|invalid params|invalid_request|unsupported|embedded/i.test(message)
 }
 
 /** Pure + exported for testing: ACP session cwd. copilot's session/new rejects a non-absolute path
@@ -90,6 +109,9 @@ export class AcpSession implements TransportSession {
   private interrupted = false
   private appliedModel: string | null = null
   private modelMismatchThisTurn = false
+  // Discovered from initialize's agentCapabilities — gates whether runTurn sends structured
+  // `resource` prompt blocks or falls back to a single rendered-text block (M0-8 Part C).
+  private supportsEmbeddedContext = false
 
   constructor(
     onEvent: (e: AgentEvent) => void,
@@ -133,10 +155,13 @@ export class AcpSession implements TransportSession {
 
   /** Resolves the ACP handshake; throws on failure so the caller can fall back. */
   async connect(cwd: string | undefined, existingSessionId: string | undefined): Promise<string> {
-    await this.client.request('initialize', {
+    const init = await this.client.request('initialize', {
       protocolVersion: 1,
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } }
     }, HANDSHAKE_TIMEOUT_MS)
+    this.supportsEmbeddedContext = Boolean(
+      (init as { agentCapabilities?: { promptCapabilities?: { embeddedContext?: boolean } } } | null)?.agentCapabilities?.promptCapabilities?.embeddedContext
+    )
     if (existingSessionId) {
       try {
         this.replaying = true // session/load re-emits history as session/update — never re-append it
@@ -214,6 +239,31 @@ export class AcpSession implements TransportSession {
     void this.runTurn(runId, text, opts)
   }
 
+  /** One `resource` block per attached context item (embeds its content directly, per the
+   *  Task 4 probe: opencode 1.17.11 accepts this and the model recalls the embedded text), plus a
+   *  trailing `text` block carrying the removal/refusal notes (if any) followed by the user's text. */
+  private buildResourceBlocks(context: ContextPayload, text: string): unknown[] {
+    const blocks: unknown[] = []
+    for (const it of context.items) {
+      blocks.push({
+        type: 'resource',
+        resource: {
+          uri: contextResourceUri(it),
+          text: it.content,
+          mimeType: 'text/plain'
+        }
+      })
+    }
+    const preamble = [
+      context.removed.length ? `The following attached context was removed — disregard it going forward: ${context.removed.join(', ')}` : '',
+      ...(context.notes ?? [])
+    ]
+      .filter(Boolean)
+      .join('\n')
+    blocks.push({ type: 'text', text: preamble ? `${preamble}\n\n${text}` : text })
+    return blocks
+  }
+
   private async runTurn(runId: string, text: string, opts?: PromptOpts): Promise<void> {
     try {
       if (this.profile.provider === 'opencode' && opts?.model && opts.model !== this.appliedModel) {
@@ -234,7 +284,30 @@ export class AcpSession implements TransportSession {
         this.onEvent({ type: 'run.completed', runId, stopReason: 'canceled' })
         return
       }
-      const res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] }, PROMPT_TIMEOUT_MS)
+      const rendered = opts?.context ? renderContextText(opts.context) : ''
+      const usedResourceBlocks = Boolean(opts?.context && this.supportsEmbeddedContext)
+      const blocks: unknown[] = usedResourceBlocks
+        ? this.buildResourceBlocks(opts!.context!, text)
+        : [{ type: 'text', text: rendered + text }]
+      let res: unknown
+      try {
+        res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: blocks }, PROMPT_TIMEOUT_MS)
+      } catch (e) {
+        // Structured resource blocks may be rejected by an agent that lied about (or partially
+        // supports) embeddedContext — retry ONCE, text-only, but only when the rejection actually
+        // looks like a shape/support problem. Any other error (timeout, process death, etc.) should
+        // surface as-is rather than silently re-issuing a second session/prompt.
+        if (!shouldRetryTextOnly(usedResourceBlocks, e)) throw e
+        if (this.interrupted) {
+          // A cancel landed while the first request was in flight: the retry would start a fresh
+          // turn nothing is waiting for. Bail with the cancel terminal shape instead.
+          this.expirePermissions()
+          this.closeThinkingRow()
+          this.onEvent({ type: 'run.completed', runId, stopReason: 'canceled' })
+          return
+        }
+        res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text: rendered + text }] }, PROMPT_TIMEOUT_MS)
+      }
       const stop = (res as { stopReason?: string } | null)?.stopReason
       const u = (res as { usage?: { inputTokens?: number; outputTokens?: number } } | null)?.usage
       this.expirePermissions() // resolve open cards BEFORE the terminal event unmaps the run (Critical 1: order matters)

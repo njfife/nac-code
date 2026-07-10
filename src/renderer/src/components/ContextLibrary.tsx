@@ -11,6 +11,7 @@ export default function ContextLibrary() {
   const toggleAttach = useApp((s) => s.toggleAttach)
   const userItems = useApp((s) => s.userItems)
   const addNote = useApp((s) => s.addNote)
+  const updateNote = useApp((s) => s.updateNote)
   const addFileItem = useApp((s) => s.addFileItem)
   const removeUserItem = useApp((s) => s.removeUserItem)
   const reseedContext = useApp((s) => s.reseedContext)
@@ -23,13 +24,13 @@ export default function ContextLibrary() {
   const [query, setQuery] = useState('')
   const [attachedOnly, setAttachedOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string>(attachedIds[0] ?? CONTEXT_ITEMS[0].id)
-  const [noteForm, setNoteForm] = useState<{ name: string; content: string } | null>(null)
+  const [noteForm, setNoteForm] = useState<{ name: string; content: string; editingId?: string } | null>(null)
 
   const attached = new Set(attachedIds)
   const attachedTokens = attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
   const windowTokens = (active?.windowK ?? 128) * 1000
   const pct = Math.min(100, Math.round((attachedTokens / windowTokens) * 100))
-  const pending = active ? contextPending(active) : false
+  const pending = active ? contextPending(active, userItems) : false
 
   const onAddFile = async (): Promise<void> => {
     const picked = await window.nac?.dialog?.pickFile()
@@ -67,7 +68,13 @@ export default function ContextLibrary() {
       {pending && (
         <div style={pendingBanner}>
           <span>⚠ Attached context changed — it applies on your next message in this chat (sessions are seeded once for speed).</span>
-          <button onClick={() => active && reseedContext(active.id)} style={pendingApply}>Apply now</button>
+          <button
+            onClick={() => active && reseedContext(active.id)}
+            title="starts a fresh harness session; in-session state is lost"
+            style={pendingApply}
+          >
+            Re-seed fresh session
+          </button>
         </div>
       )}
 
@@ -124,7 +131,14 @@ export default function ContextLibrary() {
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</div>
                   </div>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--faint)' }}>~{it.tokens}t</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {it.fileState && (
+                      <span style={{ fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: 'rgba(227,178,95,.15)', color: 'var(--warning)', fontWeight: 600 }}>
+                        {it.fileState === 'toolarge' ? 'too large' : it.fileState}
+                      </span>
+                    )}
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--faint)' }}>~{it.tokens}t</span>
+                  </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -154,7 +168,17 @@ export default function ContextLibrary() {
                 {attached.has(selected.id) ? 'Detach from chat' : 'Attach to chat'}
               </button>
               <Detail label="Type" value={TYPE_META[selected.type].label} />
-              <Detail label="Size" value={`~${selected.tokens} tokens`} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5, borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
+                <span style={{ color: 'var(--muted)' }}>Size</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {selected.fileState && (
+                    <span style={{ fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: 'rgba(227,178,95,.15)', color: 'var(--warning)', fontWeight: 600 }}>
+                      {selected.fileState === 'toolarge' ? 'too large' : selected.fileState}
+                    </span>
+                  )}
+                  <span className="mono" style={{ color: 'var(--text-2)' }}>~{selected.tokens} tokens</span>
+                </div>
+              </div>
               <Detail label="Source" value={selected.source} />
               <div style={{ fontSize: 11, color: 'var(--muted-2)', textTransform: 'uppercase', letterSpacing: 1, margin: '16px 0 6px' }}>Scope</div>
               <div style={{ display: 'flex', background: 'var(--card)', borderRadius: 8, padding: 2, border: '1px solid var(--line)' }}>
@@ -174,9 +198,22 @@ export default function ContextLibrary() {
                 {selected.content || selected.path ? '✓ Injected into the agent context when attached' : 'Display-only (no content)'}
               </div>
               {selected.user && (
-                <button onClick={() => { removeUserItem(selected.id); setSelectedId(CONTEXT_ITEMS[0].id) }} style={{ ...attachBtn, width: '100%', padding: 8, marginTop: 12, color: 'var(--error)', borderColor: 'var(--error)' }}>
-                  Delete item
-                </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  {selected.type === 'instruction' && (
+                    <button
+                      onClick={() => setNoteForm({ name: selected.name, content: selected.content ?? '', editingId: selected.id })}
+                      style={{ ...attachBtn, flex: 1, padding: 8 }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { removeUserItem(selected.id); setSelectedId(CONTEXT_ITEMS[0].id) }}
+                    style={{ ...attachBtn, flex: 1, padding: 8, color: 'var(--error)', borderColor: 'var(--error)' }}
+                  >
+                    Delete item
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -186,7 +223,7 @@ export default function ContextLibrary() {
       {noteForm && (
         <div onClick={() => setNoteForm(null)} style={noteBackdrop}>
           <div onClick={(e) => e.stopPropagation()} style={noteCard}>
-            <div style={{ fontWeight: 600, marginBottom: 10 }}>New note</div>
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>{noteForm.editingId ? 'Edit note' : 'New note'}</div>
             <input autoFocus value={noteForm.name} onChange={(e) => setNoteForm({ ...noteForm, name: e.target.value })} placeholder="Name (e.g. api-conventions)" style={noteInput} />
             <textarea value={noteForm.content} onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })} placeholder="Text injected into the agent's context when this note is attached…" rows={6} style={{ ...noteInput, resize: 'vertical', fontFamily: 'inherit' }} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
@@ -194,7 +231,8 @@ export default function ContextLibrary() {
               <button
                 onClick={() => {
                   if (noteForm.content.trim()) {
-                    addNote(noteForm.name, noteForm.content)
+                    if (noteForm.editingId) updateNote(noteForm.editingId, { name: noteForm.name, content: noteForm.content })
+                    else addNote(noteForm.name, noteForm.content)
                     setNoteForm(null)
                   }
                 }}

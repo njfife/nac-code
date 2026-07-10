@@ -1,5 +1,32 @@
-import { describe, it, expect } from 'vitest'
-import { parseStatus, parseNumstat, parseDiff } from './changes'
+import { describe, it, expect, afterEach } from 'vitest'
+import { writeFile, unlink } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { parseStatus, parseNumstat, parseDiff, readFileForContext } from './changes'
+
+describe('readFileForContext', () => {
+  it('returns null for a missing/unreadable file (so the renderer can flag it, not treat "" as valid)', async () => {
+    expect(await readFileForContext('/definitely/not/a/real/path/xyz-clp.txt')).toBeNull()
+  })
+
+  describe('oversized files', () => {
+    const bigPath = join(tmpdir(), 'clp-oversized-test.txt')
+
+    afterEach(async () => {
+      await unlink(bigPath).catch(() => {})
+    })
+
+    it('does NOT pre-truncate below the renderer refusal threshold (262144) — full text passes through so the real toolarge check fires', async () => {
+      // One char over the renderer's 262144 threshold; well under our own 2_000_000 defensive cap.
+      const text = 'x'.repeat(262_145)
+      await writeFile(bigPath, text, 'utf8')
+      const result = await readFileForContext(bigPath)
+      expect(result).not.toBeNull()
+      expect(result!.length).toBeGreaterThan(262_144)
+      expect(result).toBe(text) // returned whole, not truncated/annotated
+    })
+  })
+})
 
 describe('parseStatus', () => {
   it('maps porcelain codes to statuses, incl. untracked + rename', () => {

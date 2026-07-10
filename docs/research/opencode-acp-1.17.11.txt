@@ -20,3 +20,16 @@ from real frames. Decision: left acpSession's `this.turnCost = cost` (last-value
 per-turn as long as the harness resets/re-reports per turn) unchanged — no delta-fold bookkeeping added.
 If a paid opencode provider is later configured, re-run this probe and add the fold if amounts turn out
 to be cumulative across turns in one session.
+
+Task 4 embedded-context probe (2026-07-09): scratch ACP script (initialize -> session/new ->
+session/prompt) against `opencode acp` 1.17.11. `initialize` result carries
+`agentCapabilities.promptCapabilities.embeddedContext: true`. A `session/prompt` call with
+`prompt: [{ type: 'resource', resource: { uri: 'nac://context/rule', text: 'The codeword is durian.
+Mention it when asked.', mimeType: 'text/plain' } }, { type: 'text', text: 'What is the codeword? One
+word.' }]` was ACCEPTED (no -32602) and the model correctly recalled "durian" in its
+`agent_message_chunk` reply — the resource block's text content reaches the model as context, not
+just as an inert attachment. Decision: AcpSession.supportsEmbeddedContext gates on
+`agentCapabilities.promptCapabilities.embeddedContext` from `initialize`; when true, runTurn sends one
+`resource` block per attached context item plus a trailing `text` block, per the Task 4 brief. copilot
+was not probed this pass — today's code path is capability-gated (an absent/false flag falls back to a
+single text block with the rendered prefix), so copilot is safe either way until it's probed directly.

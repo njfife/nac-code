@@ -2,6 +2,7 @@ import type { AgentEvent } from '../../../shared/runtime'
 import { AcpSession, type TransportSession, type PromptOpts, OPENCODE_PROFILE } from './acpSession'
 import { CodexSession } from './codexSession'
 import { ClaudeSession } from './claudeSession'
+import type { ContextPayload } from '../../../shared/contextRender'
 
 // One live transport session per chat — copilot ACP, codex app-server, claude SDK, or opencode ACP.
 // Sessions are disposed on provider switch (promptViaTransport detects this when the renderer sends
@@ -52,6 +53,7 @@ export async function promptViaTransport(opts: {
   sessionId?: string
   model?: string
   effort?: string
+  context?: ContextPayload
   onEvent: (e: AgentEvent) => void
 }): Promise<{ ok: boolean }> {
   let entry = byChat.get(opts.chatId)
@@ -108,7 +110,7 @@ export async function promptViaTransport(opts: {
   }
   entry.session.setYolo(opts.yolo === true)
   runToChat.set(opts.runId, opts.chatId)
-  const promptOpts: PromptOpts = { model: opts.model, effort: opts.effort }
+  const promptOpts: PromptOpts = { model: opts.model, effort: opts.effort, context: opts.context }
   entry.session.prompt(opts.runId, opts.prompt, promptOpts)
   touch(opts.chatId)
   return { ok: true }

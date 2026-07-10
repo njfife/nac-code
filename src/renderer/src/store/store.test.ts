@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useApp, chatsForWorkspace, contextPending } from './store'
+import { seedKey } from '../data/context'
 
 // Fresh-install empty state (sweep Task 2): no demo workspaces/chats ship — the store boots with one
 // unbound workspace and zero chats. This describe runs before any other test in the file mutates the
@@ -182,11 +183,93 @@ describe('app store — per-chat spine', () => {
     const prov = useApp.getState().chats[id].provider
     useApp.getState().setSession(id, 'sess1', prov)
     useApp.getState().markSeeded(id, useApp.getState().chats[id].attachedIds)
-    expect(contextPending(useApp.getState().chats[id])).toBe(false)
+    expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(false)
     useApp.getState().toggleAttach('in-security') // changes the attached set
-    expect(contextPending(useApp.getState().chats[id])).toBe(true)
+    expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(true)
     useApp.getState().reseedContext(id) // drops the session -> applies on next send
-    expect(contextPending(useApp.getState().chats[id])).toBe(false)
+    expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(false)
+  })
+
+  it('updateNote bumps rev, recomputes tokens/description, and trips contextPending without a set change', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.addNote('conventions', 'always use tabs')
+    const note = useApp.getState().userItems.find((u) => u.tags.includes('note'))!
+    expect(note.rev).toBe(0)
+    s.toggleAttach(note.id)
+    // simulate a seeded live session
+    s.setSession(id, 'sess_1', useApp.getState().chats[id].provider)
+    s.markSeeded(
+      id,
+      useApp.getState().chats[id].attachedIds.map((a) => {
+        const it = useApp.getState().userItems.find((u) => u.id === a)
+        return it ? seedKey(it) : a
+      })
+    )
+    expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(false)
+    s.updateNote(note.id, { content: 'always use spaces, never tabs' })
+    const edited = useApp.getState().userItems.find((u) => u.id === note.id)!
+    expect(edited.rev).toBe(1)
+    expect(edited.tokens).toBe(Math.ceil('always use spaces, never tabs'.length / 4))
+    expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(true) // same set, new rev
+  })
+
+  it('saveConfig captures the active chat attachments as a named user config; removeConfig deletes it', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.addNote('n', 'c')
+    const note = useApp.getState().userItems.at(-1)!
+    s.toggleAttach(note.id)
+    s.saveConfig('My setup')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    expect(cfg.name).toBe('My setup')
+    expect(cfg.itemIds).toEqual(useApp.getState().chats[id].attachedIds)
+    expect(cfg.id.startsWith('u_')).toBe(true)
+    s.removeConfig(cfg.id)
+    expect(useApp.getState().userConfigs.find((c) => c.id === cfg.id)).toBeUndefined()
+  })
+
+  it('removeUserItem prunes the deleted id from every saved userConfig, not just attachedIds', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.addNote('n', 'c')
+    const note = useApp.getState().userItems.at(-1)!
+    s.toggleAttach(note.id)
+    s.saveConfig('Has the note')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    expect(cfg.itemIds).toContain(note.id)
+    expect(useApp.getState().chats[id].attachedIds).toContain(note.id)
+
+    s.removeUserItem(note.id)
+
+    expect(useApp.getState().userItems.find((u) => u.id === note.id)).toBeUndefined()
+    expect(useApp.getState().chats[id].attachedIds).not.toContain(note.id)
+    expect(useApp.getState().userConfigs.find((c) => c.id === cfg.id)!.itemIds).not.toContain(note.id)
+  })
+
+  it('applyConfig resolves a user-saved configuration (not just the static catalog)', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.toggleAttach('in-security')
+    s.saveConfig('User cfg')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    s.applyConfig('minimal') // switch away first so the apply below is observable
+    expect(useApp.getState().chats[id].attachedIds).toEqual(['in-style'])
+    s.applyConfig(cfg.id)
+    const c = useApp.getState().chats[id]
+    expect(c.attachedIds).toEqual(cfg.itemIds)
+    expect(c.activeConfig).toBe(cfg.id)
+    expect(c.dirty).toBe(false)
+  })
+
+  it('seedKey: user items carry @rev, static items stay bare', () => {
+    expect(seedKey({ id: 'u_1_2', rev: 3 })).toBe('u_1_2@3')
+    expect(seedKey({ id: 'u_1_2' })).toBe('u_1_2@0')
+    expect(seedKey({ id: 'sk-tdd' })).toBe('sk-tdd')
   })
 
   it('toggleFast flips fast on the active chat only', () => {
@@ -396,5 +479,39 @@ describe('app store — compaction failure (M0-5)', () => {
 
     // Verify that chat A's compactError was cleared when we switched away from it
     expect(useApp.getState().chats[chatAId].compactError).toBeUndefined() // cleared on chat switch
+  })
+
+  it('recordFileRead ok clears fileState and updates tokens', () => {
+    const s = useApp.getState()
+    const countBefore = s.userItems.length
+    s.addFileItem('test.txt', '/path/to/test.txt')
+    const fileItemId = useApp.getState().userItems[countBefore].id
+    const itemBefore = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemBefore?.tokens).toBe(0)
+    expect(itemBefore?.fileState).toBeUndefined()
+
+    s.recordFileRead(fileItemId, { ok: true, content: 'hello', tokens: 2 })
+    const itemAfter = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter?.tokens).toBe(2)
+    expect(itemAfter?.fileState).toBeUndefined()
+  })
+
+  it('recordFileRead failure sets fileState', () => {
+    const s = useApp.getState()
+    const countBefore = s.userItems.length
+    s.addFileItem('missing.txt', '/nonexistent.txt')
+    const fileItemId = useApp.getState().userItems[countBefore].id
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'missing' })
+    const itemAfter = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter?.fileState).toBe('missing')
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'binary' })
+    const itemAfter2 = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter2?.fileState).toBe('binary')
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'toolarge' })
+    const itemAfter3 = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter3?.fileState).toBe('toolarge')
   })
 })

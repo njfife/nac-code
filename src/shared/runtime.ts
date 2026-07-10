@@ -1,8 +1,12 @@
 // Minimal slice of the canonical AgentEvent model (see docs/specs/M0-agent-runtime-and-context.md, Part A).
 // Expanded incrementally; the M0-7 tracer only needs run lifecycle + content deltas.
 
+import type { ContextPayload } from './contextRender'
+
 export interface RunRequest {
   prompt: string
+  context?: ContextPayload // structured attached-context payload (M0-8 Part C) — ACP transports embed
+  // it as resource blocks when the harness supports it; everything else gets it text-rendered.
   provider?: string // harness driver id; selects the adapter (e.g. 'claude' → real, else stub)
   chatId?: string // session-affinity key for persistent transports
   sessionId?: string // native session id to resume (e.g. Claude `--resume`) — same-provider fast-path (FR-4.2)

@@ -61,6 +61,11 @@ describe('normalizeChat — drops removed agent field and dead attachedIds', () 
     const c = normalizeChat(raw, 'c2', new Set(['u_123_1']))
     expect(c.attachedIds).toEqual(['sk-tdd', 'u_123_1'])
   })
+
+  it('legacy seededAttachments entries for user items normalize to id@0', () => {
+    const c = normalizeChat({ seededAttachments: ['sk-tdd', 'u_9_9'], sessionId: 's', sessionProvider: 'claude' } as never, 'c_l', new Set(['u_9_9']))
+    expect(c.seededAttachments).toEqual(['sk-tdd', 'u_9_9@0'])
+  })
 })
 
 describe('normalizeChat — tolerant hydration of corrupted/legacy shapes (PR #8 review)', () => {
@@ -73,6 +78,10 @@ describe('normalizeChat — tolerant hydration of corrupted/legacy shapes (PR #8
     expect(u.codex).toEqual({ turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, costKnown: false })
     expect(u.claude).toEqual({ turns: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, costKnown: false })
     expect(u.opencode).toMatchObject({ turns: 1, costUsd: 0.5, costKnown: true })
+  })
+  it('non-string seededAttachments entries are dropped, not crashed on (PR #9 review)', () => {
+    const c = normalizeChat({ seededAttachments: ['sk-tdd', null, 42, 'u_9_9'], sessionId: 's', sessionProvider: 'claude' } as never, 'c_bad', new Set(['u_9_9']))
+    expect(c.seededAttachments).toEqual(['sk-tdd', 'u_9_9@0'])
   })
 })
 
@@ -96,6 +105,68 @@ describe('initPersistence — empty-chats gate', () => {
     expect(s.chats.c3).toBeUndefined()
     expect(s.activeChatId).toBe('') // no chats to point at
     expect(s.workspaces).toEqual([{ id: 'ws_x', name: 'X', path: '', defaults: undefined }])
+  })
+
+  it('drops corrupted userItems entries instead of crashing hydration (PR #9 review)', async () => {
+    const loaded = { chats: {}, userItems: [null, 42, { type: 'file' }, { id: 'u_ok', type: 'file', name: 'f', user: true, path: '/x' }], workspaces: [{ id: 'ws_x', name: 'X', path: '' }], activeChatId: '', layout: 'studio', expanded: {} }
+    // @ts-expect-error minimal window.nac.state stub
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    const items = useApp.getState().userItems
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('u_ok')
+  })
+})
+
+describe('initPersistence — userConfigs round-trip', () => {
+  afterEach(() => {
+    // @ts-expect-error test-only teardown of the minimal preload stub
+    delete globalThis.window
+  })
+
+  it('hydrates persisted userConfigs verbatim', async () => {
+    const userConfigs = [{ id: 'u_1_1', name: 'Saved', itemIds: ['sk-tdd', 'u_2_2'] }]
+    const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {}, userConfigs }
+    // @ts-expect-error minimal window.nac.state stub — only what initPersistence reads
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    expect(useApp.getState().userConfigs).toEqual(userConfigs)
+  })
+
+  it('drops malformed userConfigs entries (corrupted/partial writes) but keeps well-shaped ones', async () => {
+    const userConfigs = [
+      { id: 'u_1_1', name: 'Saved', itemIds: ['sk-tdd'] },
+      null,
+      { id: 'u_2_2', name: 'Bad itemIds', itemIds: 'not-an-array' },
+      { id: 42, name: 'Bad id', itemIds: [] },
+      { id: 'u_3_3', itemIds: [] }, // missing name
+      { id: 'u_4_4', name: 'Also Saved', itemIds: [] }
+    ]
+    const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {}, userConfigs }
+    // @ts-expect-error minimal window.nac.state stub — only what initPersistence reads
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    expect(useApp.getState().userConfigs).toEqual([
+      { id: 'u_1_1', name: 'Saved', itemIds: ['sk-tdd'] },
+      { id: 'u_4_4', name: 'Also Saved', itemIds: [] }
+    ])
+  })
+
+  it('falls back to the current in-memory userConfigs when absent from disk', async () => {
+    const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {} }
+    useApp.setState({ userConfigs: [{ id: 'u_keep', name: 'Keep', itemIds: [] }] })
+    // @ts-expect-error minimal window.nac.state stub — only what initPersistence reads
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    expect(useApp.getState().userConfigs).toEqual([{ id: 'u_keep', name: 'Keep', itemIds: [] }])
   })
 })
 

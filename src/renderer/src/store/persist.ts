@@ -1,5 +1,6 @@
 import { useApp, type Chat, type Workspace, type Layout } from './store'
 import { ITEMS_BY_ID, type ContextItem } from '../data/context'
+import type { Configuration } from '../data/configs'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
@@ -9,6 +10,7 @@ interface PersistedState {
   layout: Layout
   expanded: Record<string, boolean>
   userItems?: ContextItem[]
+  userConfigs?: Configuration[]
 }
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
@@ -69,7 +71,13 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
         }]
       })
     ),
-    seededAttachments: Array.isArray(c.seededAttachments) ? c.seededAttachments : null
+    // Legacy seeded entries predate seed keys: a bare `u_...` id (no `@rev`) is a pre-revision user
+    // item, which always carried rev 0 — normalize it to the current key format.
+    seededAttachments: Array.isArray(c.seededAttachments)
+      ? c.seededAttachments
+          .filter((e): e is string => typeof e === 'string') // corrupted state must never crash hydration
+          .map((e) => (e.startsWith('u_') && !e.includes('@') ? `${e}@0` : e))
+      : null
   }
 }
 
@@ -83,7 +91,11 @@ export async function initPersistence(): Promise<void> {
     // Hydrate whatever is on disk, including a genuinely empty chat set (fresh-install boots empty —
     // there is no ≥1-chat special case anymore). Only skip hydration when there's no file at all.
     if (loaded?.chats) {
-      const userItems = Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems
+      // Legacy user items predate rev — notes (user-authored instructions) always started at rev 0.
+      // Corrupted/partial entries (null, non-object, missing id) are dropped so hydration never throws.
+      const userItems = (Array.isArray(loaded.userItems) ? loaded.userItems : useApp.getState().userItems)
+        .filter((i): i is ContextItem => Boolean(i) && typeof i === 'object' && typeof (i as { id?: unknown }).id === 'string')
+        .map((i) => (i.user && i.type === 'instruction' ? { ...i, rev: i.rev ?? 0 } : i))
       const userItemIds = new Set(userItems.map((i) => i.id))
       const workspaces = (loaded.workspaces ?? useApp.getState().workspaces).map((w) => ({
         id: w.id,
@@ -95,13 +107,19 @@ export async function initPersistence(): Promise<void> {
       const chats: Record<string, Chat> = {}
       for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds, workspaces[0]?.id ?? 'ws_default')
       const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
+      // Junk entries (corrupted/partial writes) must never crash hydration or surface as a broken
+      // config in the picker — filter to well-shaped entries only.
+      const userConfigs = Array.isArray(loaded.userConfigs)
+        ? loaded.userConfigs.filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string' && Array.isArray(c.itemIds))
+        : useApp.getState().userConfigs
       useApp.setState({
         chats,
         workspaces,
         activeChatId,
         layout: loaded.layout ?? useApp.getState().layout,
         expanded: loaded.expanded ?? useApp.getState().expanded,
-        userItems
+        userItems,
+        userConfigs
       })
     }
   } catch {
@@ -117,7 +135,8 @@ export async function initPersistence(): Promise<void> {
         activeChatId: s.activeChatId,
         layout: s.layout,
         expanded: s.expanded,
-        userItems: s.userItems
+        userItems: s.userItems,
+        userConfigs: s.userConfigs
       }
       void window.nac.state.save(snapshot)
     }, 400)

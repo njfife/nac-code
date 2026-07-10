@@ -1,0 +1,24 @@
+import { describe, it, expect } from 'vitest'
+import { readFileItem } from './readFileItem'
+
+describe('readFileItem', () => {
+  it('ok path re-tokenizes', async () => {
+    const r = await readFileItem({ path: '/x' }, async () => 'abcd'.repeat(10))
+    expect(r).toEqual({ ok: true, content: 'abcd'.repeat(10), tokens: 10 })
+  })
+
+  it('missing / binary / toolarge map to states', async () => {
+    expect(await readFileItem({ path: '/x' }, async () => null)).toEqual({ ok: false, state: 'missing' })
+    expect(await readFileItem({ path: '/x' }, async () => { throw new Error('ENOENT') })).toEqual({ ok: false, state: 'missing' })
+    expect(await readFileItem({ path: '/x' }, async () => 'a\0b')).toEqual({ ok: false, state: 'binary' })
+    expect(await readFileItem({ path: '/x' }, async () => 'x'.repeat(262145))).toEqual({ ok: false, state: 'toolarge' })
+  })
+
+  it('boundary: exactly 262144 chars is still ok (the limit is exclusive)', async () => {
+    expect((await readFileItem({ path: '/x' }, async () => 'x'.repeat(262144))).ok).toBe(true)
+  })
+
+  it('no path → missing', async () => {
+    expect(await readFileItem({}, async () => 'x')).toEqual({ ok: false, state: 'missing' })
+  })
+})
