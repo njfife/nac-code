@@ -1,6 +1,7 @@
 import { useApp, type Chat, type Turn } from './store'
 import { modelIdFor, effortScaleFor } from '../../../shared/capabilities'
 import { ITEMS_BY_ID, seedKey, type ContextItem } from '../data/context'
+import { renderContextText, type ContextPayload } from '../../../shared/contextRender'
 
 // Renderer-side run controller: maps each run's AgentEvent stream onto the owning chat's transcript,
 // and decides native-resume vs transcript-replay per send.
@@ -60,13 +61,14 @@ export function buildReplayPrompt(summary: string | null, tail: Turn[], message:
 
 // Inject attached context items (authored notes/skills + file contents) as a leading context block (FR-5).
 export function buildContextBlock(items: ContextItem[], fileContents: Record<string, string>): string {
-  const parts: string[] = []
+  const payloadItems: ContextPayload['items'] = []
   for (const it of items) {
-    if (it.content && it.content.trim()) parts.push(`## ${it.name}\n${it.content.trim()}`)
-    else if (it.path && fileContents[it.path]) parts.push(`## ${it.name} (${it.path})\n\`\`\`\n${fileContents[it.path]}\n\`\`\``)
+    const content = it.content && it.content.trim() ? it.content.trim() : it.path ? fileContents[it.path] : undefined
+    if (content) {
+      payloadItems.push({ name: it.name, content, path: it.path })
+    }
   }
-  if (!parts.length) return ''
-  return `Attached context for this conversation:\n\n${parts.join('\n\n')}\n\n---\n\n`
+  return renderContextText({ items: payloadItems, removed: [] })
 }
 
 export async function sendMessage(text: string): Promise<void> {
