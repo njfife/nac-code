@@ -1,6 +1,7 @@
 import { StreamJsonClient } from './streamJson'
 import type { AgentEvent } from '../../../shared/runtime'
 import { acpCwd, pickAutoApprove, shouldAutoCancelPermission, PROMPT_TIMEOUT_MS, type TransportSession, type PromptOpts } from './acpSession'
+import { renderContextText } from '../../../shared/contextRender'
 import {
   claudeSessionArgs,
   mapClaudeStreamEvent,
@@ -151,7 +152,8 @@ export class ClaudeSession implements TransportSession {
     }
     this.onEvent({ type: 'run.started', runId, sessionId: this.knownSessionId ?? '' })
     this.armWatchdog(runId)
-    this.client.send({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } })
+    const rendered = opts?.context ? renderContextText(opts.context) : ''
+    this.client.send({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: rendered + text }] } })
   }
 
   /** Handlers registered here close over `this`, not the client they belong to — on respawn the OLD

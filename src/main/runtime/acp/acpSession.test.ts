@@ -141,14 +141,16 @@ function tick(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-function makeSession(profile = COPILOT_PROFILE): { session: AcpSession; fake: FakeClient; events: AgentEvent[] } {
+function makeSession(profile = COPILOT_PROFILE, initResult: unknown = {}): { session: AcpSession; fake: FakeClient; events: AgentEvent[] } {
   const events: AgentEvent[] = []
   const fake = new FakeClient()
-  fake.setImmediate('initialize', {})
+  fake.setImmediate('initialize', initResult)
   fake.setImmediate('session/new', { sessionId: 'sess_1', configOptions: [] })
   const session = new AcpSession((e) => events.push(e), false, profile, () => fake)
   return { session, fake, events }
 }
+
+const EMBEDDED_CONTEXT_INIT = { agentCapabilities: { promptCapabilities: { embeddedContext: true } } }
 
 describe('AcpSession — stateful transport suite', () => {
   it('success ordering: expire (permission.resolved) -> thinking-close -> run.completed', async () => {
@@ -255,5 +257,82 @@ describe('AcpSession — stateful transport suite', () => {
 
     const terminal = events.at(-1) as Extract<AgentEvent, { type: 'run.completed' }>
     expect(terminal.usage).toMatchObject({ inputTokens: 5, outputTokens: 7, costUsd: 0.0123 })
+  })
+})
+
+// --- Structured context threading (Task 4) --------------------------------------------------
+// Probe (docs/research/opencode-acp-1.17.11.txt) confirmed opencode 1.17.11 both advertises
+// agentCapabilities.promptCapabilities.embeddedContext AND accepts+recalls a `resource` prompt
+// block's embedded text. These tests drive AcpSession's capability capture + block construction
+// + rejection-retry entirely through the scripted FakeClient (no real harness).
+
+describe('AcpSession — structured context (embedded resource blocks)', () => {
+  it('captures supportsEmbeddedContext from initialize and sends one resource block per item + a trailing text block', async () => {
+    const { session, fake } = makeSession(COPILOT_PROFILE, EMBEDDED_CONTEXT_INIT)
+    await session.connect(undefined, undefined)
+    fake.setImmediate('session/prompt', { stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 1 } })
+
+    session.prompt('r1', 'hello', {
+      context: {
+        items: [
+          { name: 'note', content: 'A' },
+          { name: 'b.md', content: 'B', path: '/x/b.md' }
+        ],
+        removed: ['gone-thing'],
+        notes: ['attached file c could not be included (missing)']
+      }
+    })
+    await tick()
+
+    const call = fake.calls.find((c) => c.method === 'session/prompt')
+    const prompt = (call?.params as { prompt: { type: string; text?: string; resource?: { uri: string; text: string; mimeType: string } }[] }).prompt
+    expect(prompt).toHaveLength(3) // 2 resource blocks + 1 trailing text block
+    expect(prompt[0]).toEqual({ type: 'resource', resource: { uri: 'nac://context/note', text: 'A', mimeType: 'text/plain' } })
+    expect(prompt[1]).toEqual({ type: 'resource', resource: { uri: 'file:///x/b.md', text: 'B', mimeType: 'text/plain' } })
+    expect(prompt[2].type).toBe('text')
+    expect(prompt[2].text).toBe(
+      'The following attached context was removed — disregard it going forward: gone-thing\nattached file c could not be included (missing)\n\nhello'
+    )
+  })
+
+  it('without embeddedContext support, context renders as a single text block with the rendered prefix', async () => {
+    const { session, fake } = makeSession(COPILOT_PROFILE, {}) // no agentCapabilities at all
+    await session.connect(undefined, undefined)
+    fake.setImmediate('session/prompt', { stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 1 } })
+
+    session.prompt('r1', 'hello', { context: { items: [{ name: 'note', content: 'A' }], removed: [] } })
+    await tick()
+
+    const call = fake.calls.find((c) => c.method === 'session/prompt')
+    const prompt = (call?.params as { prompt: { type: string; text?: string }[] }).prompt
+    expect(prompt).toHaveLength(1)
+    expect(prompt[0].type).toBe('text')
+    expect(prompt[0].text!.startsWith('Attached context')).toBe(true)
+    expect(prompt[0].text!.endsWith('hello')).toBe(true)
+  })
+
+  it('rejection retry: resource-block session/prompt rejects, retries ONCE text-only, run completes', async () => {
+    const { session, fake, events } = makeSession(COPILOT_PROFILE, EMBEDDED_CONTEXT_INIT)
+    await session.connect(undefined, undefined)
+
+    session.prompt('r1', 'hello', { context: { items: [{ name: 'note', content: 'A' }], removed: [] } })
+    await tick()
+    expect(fake.calls.map((c) => c.method)).toEqual(['initialize', 'session/new', 'session/prompt'])
+    const firstPrompt = (fake.calls[2].params as { prompt: { type: string }[] }).prompt
+    expect(firstPrompt.some((b) => b.type === 'resource')).toBe(true)
+
+    fake.rejectNext(new Error('rpc error -32602'))
+    await tick()
+
+    expect(fake.calls.map((c) => c.method)).toEqual(['initialize', 'session/new', 'session/prompt', 'session/prompt'])
+    const secondPrompt = (fake.calls[3].params as { prompt: { type: string; text?: string }[] }).prompt
+    expect(secondPrompt).toHaveLength(1)
+    expect(secondPrompt[0].type).toBe('text')
+    expect(secondPrompt[0].text).toContain('hello')
+
+    fake.resolveNext({ stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 1 } })
+    await tick()
+
+    expect(events.at(-1)).toMatchObject({ type: 'run.completed', stopReason: 'end_turn' })
   })
 })

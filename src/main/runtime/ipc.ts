@@ -2,6 +2,7 @@ import { app, ipcMain, dialog, type BrowserWindow } from 'electron'
 import { join, basename } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { RUN_CHANNELS, DIALOG_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent } from '../../shared/runtime'
+import { renderContextText } from '../../shared/contextRender'
 import { getChanges, getFileDiff, readFileForContext } from './changes'
 import { startHarnessRun, type HarnessRun } from './harnessRunner'
 import { startClaudeRun } from './claudeAdapter'
@@ -76,21 +77,25 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
       }
       if (event.type === 'run.completed' || event.type === 'run.errored') runs.delete(runId)
     }
+    // One-shot fallback paths (fallback dispatch below + the NDJSON stub) don't get a PromptOpts.context
+    // seam like the interactive transports do — they get a single flat prompt string, so context is
+    // baked into it up front, text-rendered.
+    const bakedPrompt = req.context ? renderContextText(req.context) + req.prompt : req.prompt
     if (req.provider === 'copilot' || req.provider === 'codex' || req.provider === 'claude' || req.provider === 'opencode') {
       // Interactive-first: persistent transport session; on { ok: false } fall back to the one-shot path.
-      void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, onEvent: handler }).then(({ ok }) => {
+      void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, context: req.context, onEvent: handler }).then(({ ok }) => {
         if (!ok) {
           // Render-only notice (never content.delta — replay must stay clean).
           handler({ type: 'tool.updated', runId, toolCallId: `fallback_${runId}`, title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
           runs.set(
             runId,
             req.provider === 'codex'
-              ? startCodexRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
+              ? startCodexRun(runId, { prompt: bakedPrompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
               : req.provider === 'claude'
-                ? startClaudeRun(runId, { prompt: req.prompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
+                ? startClaudeRun(runId, { prompt: bakedPrompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
                 : req.provider === 'opencode'
-                  ? startOpenCodeRun(runId, { prompt: req.prompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
-                  : startCopilotRun(runId, { prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
+                  ? startOpenCodeRun(runId, { prompt: bakedPrompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
+                  : startCopilotRun(runId, { prompt: bakedPrompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
           )
         }
       })
@@ -101,9 +106,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const run = startHarnessRun(
       runId,
       {
-        prompt: req.prompt,
+        prompt: bakedPrompt,
         command: process.execPath,
-        args: [stubHarnessPath(), req.prompt],
+        args: [stubHarnessPath(), bakedPrompt],
         env: { ELECTRON_RUN_AS_NODE: '1' }, // run the .mjs with Electron's bundled Node
         cwd: req.cwd
       },

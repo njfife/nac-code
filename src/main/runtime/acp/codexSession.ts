@@ -2,6 +2,7 @@ import { JsonRpcClient } from '../capabilities/jsonRpc'
 import type { AgentEvent } from '../../../shared/runtime'
 import { acpCwd, pickAutoApprove, shouldAutoCancelPermission, PROMPT_TIMEOUT_MS, type TransportSession, type PromptOpts } from './acpSession'
 import { codexTurnPolicy, mapCodexItem, mapCodexDelta, mapCodexApproval, mapCodexUsage, mapCodexTurnStatus } from './mapCodex'
+import { renderContextText } from '../../../shared/contextRender'
 
 // Codex app-server transport (pillar 2). Differs from copilot ACP in three ways the code must
 // respect: (1) turn/start RESPONDS immediately (inProgress) — the turn ends on the turn/completed
@@ -124,10 +125,11 @@ export class CodexSession implements TransportSession {
     this.onEvent({ type: 'run.started', runId, sessionId: this.threadId })
     this.armWatchdog(runId)
     const policy = codexTurnPolicy(this.yolo)
+    const rendered = opts?.context ? renderContextText(opts.context) : ''
     this.client
       .request('turn/start', {
         threadId: this.threadId,
-        input: [{ type: 'text', text }],
+        input: [{ type: 'text', text: rendered + text }],
         cwd: this.cwd,
         ...policy,
         ...(opts?.model ? { model: opts.model } : {}),
