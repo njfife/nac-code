@@ -335,4 +335,20 @@ describe('AcpSession — structured context (embedded resource blocks)', () => {
 
     expect(events.at(-1)).toMatchObject({ type: 'run.completed', stopReason: 'end_turn' })
   })
+
+  it('cancel landing between rejection and retry bails without a second session/prompt', async () => {
+    const { session, fake, events } = makeSession(COPILOT_PROFILE, EMBEDDED_CONTEXT_INIT)
+    await session.connect(undefined, undefined)
+
+    session.prompt('r1', 'hello', { context: { items: [{ name: 'note', content: 'A' }], removed: [] } })
+    await tick()
+
+    session.cancel() // lands while the first (resource-block) request is in flight
+    fake.rejectNext(new Error('rpc error -32602'))
+    await tick()
+
+    // No retry was issued — the turn bails with the cancel terminal shape instead.
+    expect(fake.calls.filter((c) => c.method === 'session/prompt')).toHaveLength(1)
+    expect(events.at(-1)).toMatchObject({ type: 'run.completed', stopReason: 'canceled' })
+  })
 })

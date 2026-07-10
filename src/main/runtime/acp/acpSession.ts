@@ -279,6 +279,14 @@ export class AcpSession implements TransportSession {
         // Structured resource blocks may be rejected by an agent that lied about (or partially
         // supports) embeddedContext — retry ONCE, text-only, before giving up on the turn entirely.
         if (!usedResourceBlocks) throw e
+        if (this.interrupted) {
+          // A cancel landed while the first request was in flight: the retry would start a fresh
+          // turn nothing is waiting for. Bail with the cancel terminal shape instead.
+          this.expirePermissions()
+          this.closeThinkingRow()
+          this.onEvent({ type: 'run.completed', runId, stopReason: 'canceled' })
+          return
+        }
         res = await this.client.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text: rendered + text }] }, PROMPT_TIMEOUT_MS)
       }
       const stop = (res as { stopReason?: string } | null)?.stopReason
