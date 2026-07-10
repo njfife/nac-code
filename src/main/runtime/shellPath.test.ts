@@ -8,7 +8,7 @@ describe('shellPathArgs', () => {
   it('is a login+interactive shell that prints $PATH bracketed by markers', () => {
     expect(shellPathArgs()).toEqual([
       '-ilc',
-      `command -v true >/dev/null 2>&1; printf '${MARKER}%s${MARKER}' "$PATH"`
+      `command -v true >/dev/null 2>&1; printf '${MARKER}'; printenv PATH; printf '${MARKER}'`
     ])
   })
 })
@@ -82,7 +82,7 @@ describe('resolveShellPath', () => {
       })
       return {
         stdout: { on: (_e: string, cb: (c: Buffer) => void) => stdoutCbs.push(cb) },
-        on: (e: string, cb: (a: never) => void) => { if (e === 'close') closeCbs.push(cb as never); if (e === 'error') errCbs.push(cb as never) },
+        on: (e: string, cb: (a: Error | number) => void) => { if (e === 'close') closeCbs.push(cb); if (e === 'error') errCbs.push(cb) },
         kill: () => { killed = true }
       }
     }

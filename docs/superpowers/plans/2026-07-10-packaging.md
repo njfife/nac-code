@@ -1,10 +1,12 @@
 # Packaging (electron-builder) Implementation Plan
 
+> Note: shipped implementation evolved during review — the probe brackets PATH with `__NAC_PATH__` markers and uses `printenv PATH` (see `src/main/runtime/shellPath.ts`); electron-builder resolved to 26.15.3.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `npm run package` produces an installable, Finder-launchable macOS `.app`/DMG + Linux AppImage/deb that actually works — the packaged app resolves the four wrapped CLIs by merging the login shell's PATH at startup.
 
-**Architecture:** One new module (`shellPath.ts`) merges `$SHELL -ilc 'echo $PATH'` into `process.env.PATH` once at startup, before anything spawns — because every spawn site resolves bare names against PATH, this single correction fixes all of them. An `electron-builder.yml` + `extraResources` + a placeholder icon complete the packaging.
+**Architecture:** One new module (`shellPath.ts`) merges the login shell's PATH — probed via `$SHELL -ilc` running `printenv PATH` bracketed by `__NAC_PATH__` sentinel markers — into `process.env.PATH` once at startup, before anything spawns — because every spawn site resolves bare names against PATH, this single correction fixes all of them. An `electron-builder.yml` + `extraResources` + a placeholder icon complete the packaging.
 
 **Tech Stack:** Electron 31, electron-vite, electron-builder (new), vitest. No native modules.
 
@@ -296,7 +298,7 @@ SVG
 - Create: `electron-builder.yml`
 - Modify: `package.json` (version, scripts, devDependency), `.gitignore` (release/)
 
-- [ ] **Step 1: Add electron-builder** — `npm install --save-dev electron-builder` (installs latest 25.x, compatible with Electron 31). Confirm it lands in `devDependencies`.
+- [ ] **Step 1: Add electron-builder** — `npm install --save-dev electron-builder` (installs 26.15.3, compatible with Electron 31). Confirm it lands in `devDependencies`.
 - [ ] **Step 2: package.json** — set `"version": "0.1.0"`; add scripts:
 
 ```json

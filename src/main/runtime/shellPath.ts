@@ -3,7 +3,8 @@ import { app } from 'electron'
 
 interface ChildLike {
   stdout: { on(ev: 'data', cb: (c: Buffer) => void): void } | null
-  on(ev: 'error' | 'close', cb: (arg: never) => void): void
+  on(ev: 'error', cb: (e: Error) => void): void
+  on(ev: 'close', cb: (code: number | null) => void): void
   kill(): void
 }
 interface SpawnOpts { stdio: ['ignore', 'pipe', 'ignore'] }
@@ -18,9 +19,14 @@ const SHELL_TIMEOUT_MS = 3000
 const PATH_MARKER = '__NAC_PATH__'
 
 /** Interactive+login shell so rc files that set PATH are sourced; the value is emitted between two
- *  PATH_MARKERs so we can recover it from surrounding rc-file stdout noise (see PATH_MARKER). */
+ *  PATH_MARKERs so we can recover it from surrounding rc-file stdout noise (see PATH_MARKER).
+ *  Uses `printenv PATH` rather than shell-native `"$PATH"` expansion: in fish, a double-quoted
+ *  `"$PATH"` expands the list joined by spaces (not colons), producing one invalid entry. `printenv`
+ *  reads the exported colon-separated value the same way regardless of shell, and is present at
+ *  /usr/bin/printenv on macOS and via coreutils on Linux. All three commands here are `;`-separated
+ *  with no command substitution, so the line is valid POSIX sh/bash/zsh AND fish. */
 export function shellPathArgs(): string[] {
-  return ['-ilc', `command -v true >/dev/null 2>&1; printf '${PATH_MARKER}%s${PATH_MARKER}' "$PATH"`]
+  return ['-ilc', `command -v true >/dev/null 2>&1; printf '${PATH_MARKER}'; printenv PATH; printf '${PATH_MARKER}'`]
 }
 
 /** Pull the PATH out of the probe's raw stdout: the substring between the two markers. Returns null
@@ -59,17 +65,17 @@ export function resolveShellPath(spawnImpl: SpawnLike = spawn as unknown as Spaw
     let child: ChildLike
     try {
       // stderr ignored, not piped: an rc setup that floods stderr must not fill an unread pipe and hang the shell.
-      child = spawnImpl(process.env.SHELL || '/bin/zsh', shellPathArgs(), { stdio: ['ignore', 'pipe', 'ignore'] })
+      child = spawnImpl(process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'), shellPathArgs(), { stdio: ['ignore', 'pipe', 'ignore'] })
     } catch {
       finish(null); return
     }
     const timer = setTimeout(() => { child.kill(); finish(null) }, timeoutMs)
     child.stdout?.on('data', (c) => { out += c.toString() })
     child.on('error', () => { clearTimeout(timer); finish(null) })
-    child.on('close', ((code: number) => {
+    child.on('close', (code) => {
       clearTimeout(timer)
       finish(code === 0 ? extractShellPath(out) : null)
-    }) as never)
+    })
   })
 }
 

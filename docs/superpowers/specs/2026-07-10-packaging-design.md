@@ -21,9 +21,9 @@
 
 The load-bearing fix. Pure-where-possible, thin at the spawn boundary.
 
-- `shellPathArgs(): string[]` (pure, exported) → `['-ilc', 'command -v true >/dev/null 2>&1; printf "%s" "$PATH"']` — interactive+login shell so rc files that set PATH are sourced; the `printf` (no trailing newline) is the only stdout we trust; the `command -v true` prefix is a harmless marker keeping the intent explicit.
+- `shellPathArgs(): string[]` (pure, exported) → `['-ilc', "command -v true >/dev/null 2>&1; printf '__NAC_PATH__'; printenv PATH; printf '__NAC_PATH__'"]` — interactive+login shell so rc files that set PATH are sourced; the PATH is bracketed by `__NAC_PATH__` sentinel markers and read via `printenv PATH` (not shell-native `"$PATH"` expansion, which fish joins with spaces instead of colons) so the probe is shell-agnostic; `extractShellPath` pulls the substring between the two markers, tolerant of rc-file stdout noise (nvm/rbenv init, `brew shellenv`) on either side.
 - `mergePath(current: string | undefined, discovered: string): string` (pure, exported) → union of `current` (kept first, so nothing already resolvable breaks) then discovered entries not already present, joined by `:`. Empty/whitespace discovered → returns `current ?? ''` unchanged.
-- `async resolveShellPath(spawnImpl?, opts?): Promise<string | null>` — spawns `process.env.SHELL || '/bin/zsh'` with `shellPathArgs()`, 3000ms timeout, captures stdout; returns the trimmed PATH string, or `null` on timeout / nonzero exit / empty output / spawn error. `spawnImpl` is injectable for tests (defaults to `child_process.spawn`).
+- `async resolveShellPath(spawnImpl?, opts?): Promise<string | null>` — spawns `process.env.SHELL || (darwin ? '/bin/zsh' : '/bin/bash')` with `shellPathArgs()`, 3000ms timeout, captures stdout; returns the trimmed PATH string, or `null` on timeout / nonzero exit / empty output / spawn error. `spawnImpl` is injectable for tests (defaults to `child_process.spawn`).
 - `async applyShellPath(): Promise<void>` — the orchestrator called from `index.ts`. Guards (return early, no-op):
   - `!app.isPackaged` → dev already inherited the terminal's PATH.
   - `process.platform === 'win32'` → Windows PATH/shell semantics differ; deferred with the `PlatformServices` note.
@@ -35,7 +35,7 @@ In `app.whenReady().then(...)`, call `await applyShellPath()` FIRST — before `
 
 ### 3. electron-builder config (`electron-builder.yml` — new, + package.json)
 
-- Add `electron-builder` (latest 24.x) to `devDependencies`.
+- Add `electron-builder` (26.x, 26.15.3 verified against Electron 31) to `devDependencies`.
 - `package.json` version `0.0.0` → `0.1.0`; new scripts:
   - `"package": "electron-vite build && electron-builder"`
   - `"package:dir": "electron-vite build && electron-builder --dir"` (unpacked, fast iteration)
@@ -60,7 +60,7 @@ In `app.whenReady().then(...)`, call `await applyShellPath()` FIRST — before `
     category: public.app-category.developer-tools
     identity: null            # ad-hoc/self-signed for a local build; notarization is a later pass
     hardenedRuntime: false    # OFF so an unsigned build can spawn subprocesses locally
-    icon: build/icon.icns
+    icon: build/icon.png
   linux:
     target:
       - AppImage
