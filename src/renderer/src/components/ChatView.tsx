@@ -20,13 +20,14 @@ export default function ChatView() {
   const setEffort = useApp((s) => s.setEffort)
   const caps = useApp((s) => s.caps)
   const reseedContext = useApp((s) => s.reseedContext)
+  const userItems = useApp((s) => s.userItems)
 
   const [prompt, setPrompt] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
   const configLabel = active?.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
   const streaming = active ? isStreaming(active) : false
   const messages = active?.messages ?? [] // defensive: tolerate stale data missing the field, or no active chat
-  const pending = active ? contextPending(active) : false
+  const pending = active ? contextPending(active, userItems) : false
   const bottomRef = useRef<HTMLDivElement>(null)
   const runId = active ? runIdForChat(active.id) : undefined // cards only appear on the streaming turn, so this is unambiguous
   const cwd = useApp((s) => (active ? s.workspaces.find((w) => w.id === active.workspaceId)?.path : undefined)) ?? ''

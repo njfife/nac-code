@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { CONFIGS_BY_ID } from '../data/configs'
 import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../../../shared/capabilities'
 import type { ContextItem } from '../data/context'
+import { seedKey } from '../data/context'
 import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/attached/config/transcript.
@@ -138,6 +139,7 @@ interface AppState {
   // user-authored context library items (notes + files), persisted
   userItems: ContextItem[]
   addNote: (name: string, content: string) => void
+  updateNote: (id: string, patch: { name?: string; content?: string }) => void
   addFileItem: (name: string, path: string) => void
   removeUserItem: (id: string) => void
   markSeeded: (chatId: string, attachedIds: string[]) => void
@@ -501,7 +503,22 @@ export const useApp = create<AppState>()((set, get) => ({
     }),
   addNote: (name, content) =>
     set((s) => ({
-      userItems: [...s.userItems, { id: `u_${Date.now()}_${++chatSeq}`, type: 'instruction', name: name.trim() || 'note', description: content.trim().slice(0, 80), tokens: Math.ceil(content.length / 4), scope: 'workspace', source: 'user', tags: ['note'], content, user: true }]
+      userItems: [...s.userItems, { id: `u_${Date.now()}_${++chatSeq}`, type: 'instruction', name: name.trim() || 'note', description: content.trim().slice(0, 80), tokens: Math.ceil(content.length / 4), scope: 'workspace', source: 'user', tags: ['note'], content, user: true, rev: 0 }]
+    })),
+  updateNote: (id, patch) =>
+    set((s) => ({
+      userItems: s.userItems.map((i) => {
+        if (i.id !== id || !i.user || i.type !== 'instruction') return i
+        const content = patch.content ?? i.content ?? ''
+        return {
+          ...i,
+          name: (patch.name ?? i.name).trim() || i.name,
+          content,
+          description: content.trim().slice(0, 80),
+          tokens: Math.ceil(content.length / 4),
+          rev: (i.rev ?? 0) + 1
+        }
+      })
     })),
   addFileItem: (name, path) =>
     set((s) => ({
@@ -529,11 +546,17 @@ export const useApp = create<AppState>()((set, get) => ({
 
 // --- selectors / helpers ---
 export const selectActiveChat = (s: AppState): Chat | undefined => s.chats[s.activeChatId]
-// True when attachments changed since the live session was seeded — they apply on the next re-seed (FR-5).
-export function contextPending(chat: Chat): boolean {
+// True when attachments changed (added/removed/edited) since the live session was seeded — they
+// apply on the next re-seed (FR-5). Compares seed keys, not bare ids, so editing an already-attached
+// note (which bumps its rev) trips pending even though the attached *set* is unchanged.
+export function contextPending(chat: Chat, userItems: ContextItem[]): boolean {
   if (!chat.sessionId || chat.sessionProvider !== chat.provider || chat.seededAttachments === null) return false
+  const currentKeys = chat.attachedIds.map((id) => {
+    const u = userItems.find((i) => i.id === id)
+    return u ? seedKey(u) : id
+  })
   const seeded = new Set(chat.seededAttachments)
-  return chat.attachedIds.length !== seeded.size || chat.attachedIds.some((id) => !seeded.has(id))
+  return currentKeys.length !== seeded.size || currentKeys.some((k) => !seeded.has(k))
 }
 export const chatsForWorkspace = (chats: Record<string, Chat>, wsId: string): Chat[] =>
   Object.values(chats)

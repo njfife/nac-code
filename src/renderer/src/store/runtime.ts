@@ -1,6 +1,6 @@
 import { useApp, type Chat, type Turn } from './store'
 import { modelIdFor, effortScaleFor } from '../../../shared/capabilities'
-import { ITEMS_BY_ID, type ContextItem } from '../data/context'
+import { ITEMS_BY_ID, seedKey, type ContextItem } from '../data/context'
 
 // Renderer-side run controller: maps each run's AgentEvent stream onto the owning chat's transcript,
 // and decides native-resume vs transcript-replay per send.
@@ -99,7 +99,13 @@ export async function sendMessage(text: string): Promise<void> {
         }
       }
       contextBlock = buildContextBlock(attachedItems, fileContents)
-      s.markSeeded(chatId, chat.attachedIds) // record what's now seeded into the (fresh) session
+      // Record seed KEYS, not bare ids — a user item's key carries its rev, so a later edit to an
+      // already-seeded note trips contextPending even though the attached id set hasn't changed.
+      const seedKeys = chat.attachedIds.map((id) => {
+        const u = s.userItems.find((i) => i.id === id)
+        return u ? seedKey(u) : id
+      })
+      s.markSeeded(chatId, seedKeys) // record what's now seeded into the (fresh) session
     }
     // Send-time effort validation: a stale/invalid effort (e.g. carried over from a model switch
     // whose scale doesn't include it) is treated as null rather than sent to the harness.

@@ -29,7 +29,7 @@ export default function ContextLibrary() {
   const attachedTokens = attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
   const windowTokens = (active?.windowK ?? 128) * 1000
   const pct = Math.min(100, Math.round((attachedTokens / windowTokens) * 100))
-  const pending = active ? contextPending(active) : false
+  const pending = active ? contextPending(active, userItems) : false
 
   const onAddFile = async (): Promise<void> => {
     const picked = await window.nac?.dialog?.pickFile()

@@ -61,6 +61,11 @@ describe('normalizeChat — drops removed agent field and dead attachedIds', () 
     const c = normalizeChat(raw, 'c2', new Set(['u_123_1']))
     expect(c.attachedIds).toEqual(['sk-tdd', 'u_123_1'])
   })
+
+  it('legacy seededAttachments entries for user items normalize to id@0', () => {
+    const c = normalizeChat({ seededAttachments: ['sk-tdd', 'u_9_9'], sessionId: 's', sessionProvider: 'claude' } as never, 'c_l', new Set(['u_9_9']))
+    expect(c.seededAttachments).toEqual(['sk-tdd', 'u_9_9@0'])
+  })
 })
 
 describe('normalizeChat — tolerant hydration of corrupted/legacy shapes (PR #8 review)', () => {
