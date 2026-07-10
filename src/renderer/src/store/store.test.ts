@@ -215,6 +215,38 @@ describe('app store — per-chat spine', () => {
     expect(contextPending(useApp.getState().chats[id], useApp.getState().userItems)).toBe(true) // same set, new rev
   })
 
+  it('saveConfig captures the active chat attachments as a named user config; removeConfig deletes it', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.addNote('n', 'c')
+    const note = useApp.getState().userItems.at(-1)!
+    s.toggleAttach(note.id)
+    s.saveConfig('My setup')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    expect(cfg.name).toBe('My setup')
+    expect(cfg.itemIds).toEqual(useApp.getState().chats[id].attachedIds)
+    expect(cfg.id.startsWith('u_')).toBe(true)
+    s.removeConfig(cfg.id)
+    expect(useApp.getState().userConfigs.find((c) => c.id === cfg.id)).toBeUndefined()
+  })
+
+  it('applyConfig resolves a user-saved configuration (not just the static catalog)', () => {
+    const s = useApp.getState()
+    s.newChat()
+    const id = useApp.getState().activeChatId
+    s.toggleAttach('in-security')
+    s.saveConfig('User cfg')
+    const cfg = useApp.getState().userConfigs.at(-1)!
+    s.applyConfig('minimal') // switch away first so the apply below is observable
+    expect(useApp.getState().chats[id].attachedIds).toEqual(['in-style'])
+    s.applyConfig(cfg.id)
+    const c = useApp.getState().chats[id]
+    expect(c.attachedIds).toEqual(cfg.itemIds)
+    expect(c.activeConfig).toBe(cfg.id)
+    expect(c.dirty).toBe(false)
+  })
+
   it('seedKey: user items carry @rev, static items stay bare', () => {
     expect(seedKey({ id: 'u_1_2', rev: 3 })).toBe('u_1_2@3')
     expect(seedKey({ id: 'u_1_2' })).toBe('u_1_2@0')

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { CONFIGS_BY_ID } from '../data/configs'
+import { CONFIGS_BY_ID, type Configuration } from '../data/configs'
 import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../../../shared/capabilities'
 import type { ContextItem } from '../data/context'
 import { seedKey } from '../data/context'
@@ -146,6 +146,10 @@ interface AppState {
   recordFileRead: (id: string, result: FileReadResult) => void
   markSeeded: (chatId: string, attachedIds: string[]) => void
   reseedContext: (chatId: string) => void
+  // user-saved configurations (FR-6.1 real save), persisted
+  userConfigs: Configuration[]
+  saveConfig: (name: string) => void
+  removeConfig: (id: string) => void
 }
 
 // Fresh installs boot empty: one unbound workspace, no chats — nothing on screen that isn't real
@@ -188,6 +192,7 @@ export const useApp = create<AppState>()((set, get) => ({
   palette: false,
   caps: { ...STATIC_CAPABILITIES },
   userItems: [],
+  userConfigs: [],
 
   selectChat: (id) =>
     set((s) => {
@@ -251,7 +256,7 @@ export const useApp = create<AppState>()((set, get) => ({
     }),
   applyConfig: (configId) =>
     set((s) => {
-      const cfg = CONFIGS_BY_ID[configId]
+      const cfg = CONFIGS_BY_ID[configId] ?? s.userConfigs.find((c) => c.id === configId)
       const chat = s.chats[s.activeChatId]
       if (!cfg || !chat) return {}
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, attachedIds: [...cfg.itemIds], activeConfig: configId, dirty: false } } }
@@ -557,7 +562,15 @@ export const useApp = create<AppState>()((set, get) => ({
       if (!c) return {}
       // Drop the native session so the next send replays with the current attachments (re-seeds context).
       return { chats: { ...s.chats, [chatId]: { ...c, sessionId: null, sessionProvider: null } } }
-    })
+    }),
+  saveConfig: (name) =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      const cfg: Configuration = { id: `u_${Date.now()}_${++chatSeq}`, name: name.trim() || 'Untitled', itemIds: [...chat.attachedIds] }
+      return { userConfigs: [...s.userConfigs, cfg] }
+    }),
+  removeConfig: (id) => set((s) => ({ userConfigs: s.userConfigs.filter((c) => c.id !== id) }))
 }))
 
 // --- selectors / helpers ---

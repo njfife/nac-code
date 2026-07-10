@@ -16,15 +16,20 @@ export default function ChatView() {
   const compactChat = useApp((s) => s.compactChat)
   const newFromCompacted = useApp((s) => s.newFromCompacted)
   const applyConfig = useApp((s) => s.applyConfig)
+  const userConfigs = useApp((s) => s.userConfigs)
+  const saveConfig = useApp((s) => s.saveConfig)
+  const removeConfig = useApp((s) => s.removeConfig)
   const toggleYolo = useApp((s) => s.toggleYolo)
   const setEffort = useApp((s) => s.setEffort)
   const caps = useApp((s) => s.caps)
-  const reseedContext = useApp((s) => s.reseedContext)
   const userItems = useApp((s) => s.userItems)
 
   const [prompt, setPrompt] = useState('')
   const [configOpen, setConfigOpen] = useState(false)
-  const configLabel = active?.activeConfig ? CONFIGS_BY_ID[active.activeConfig]?.name ?? 'Custom' : 'Custom'
+  const [configName, setConfigName] = useState('')
+  const configLabel = active?.activeConfig
+    ? (CONFIGS_BY_ID[active.activeConfig]?.name ?? userConfigs.find((c) => c.id === active.activeConfig)?.name ?? 'Custom')
+    : 'Custom'
   const streaming = active ? isStreaming(active) : false
   const messages = active?.messages ?? [] // defensive: tolerate stale data missing the field, or no active chat
   const pending = active ? contextPending(active, userItems) : false
@@ -92,7 +97,7 @@ export default function ChatView() {
             </span>
             {configOpen && (
               <div style={configPopover}>
-                {CONFIGURATIONS.map((cfg) => (
+                {[...CONFIGURATIONS, ...userConfigs].map((cfg) => (
                   <div
                     key={cfg.id}
                     onClick={() => {
@@ -103,11 +108,42 @@ export default function ChatView() {
                   >
                     <span style={{ color: 'var(--text)' }}>{cfg.name}</span>
                     <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--faint)' }}>
-                      {cfg.itemIds.length} · ~{(configTokens(cfg) / 1000).toFixed(1)}k
+                      {cfg.itemIds.length} · ~{(configTokens(cfg, userItems) / 1000).toFixed(1)}k
                     </span>
+                    {userConfigs.some((u) => u.id === cfg.id) && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeConfig(cfg.id)
+                        }}
+                        style={configDeleteX}
+                      >
+                        ×
+                      </span>
+                    )}
                   </div>
                 ))}
-                <div style={configSaveRow}>Save current as configuration…</div>
+                <div style={configSaveRow}>
+                  <input
+                    value={configName}
+                    onChange={(e) => setConfigName(e.target.value)}
+                    placeholder="Save current as…"
+                    style={configSaveInput}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    onClick={() => {
+                      if (configName.trim()) {
+                        saveConfig(configName.trim())
+                        setConfigName('')
+                        setConfigOpen(false)
+                      }
+                    }}
+                    style={configSaveBtn}
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -136,9 +172,8 @@ export default function ChatView() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px', fontSize: 12, color: 'var(--muted)' }}>
               <span style={pill}>Context: {configLabel}</span>
               {pending && (
-                <span style={{ ...pill, background: 'rgba(227,178,95,.14)', color: 'var(--warning)' }} title="Attached context changed since this session started — it applies on your next message.">
-                  ⚠ context changed ·{' '}
-                  <span onClick={() => reseedContext(active.id)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>apply now</span>
+                <span style={{ ...pill, background: 'rgba(227,178,95,.14)', color: 'var(--warning)' }}>
+                  ⚠ context changes with your next message
                 </span>
               )}
               <span onClick={() => setView('context')} style={{ marginLeft: 'auto', color: 'var(--accent-light)', cursor: 'pointer' }}>
@@ -268,6 +303,9 @@ const badge: CSSProperties = { fontSize: 10, background: 'var(--accent)', color:
 const spinner: CSSProperties = { display: 'inline-block', width: 10, height: 10, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin .9s linear infinite', verticalAlign: 'middle', marginRight: 4 }
 const configPopover: CSSProperties = { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 250, background: 'var(--panel)', border: '1px solid var(--line-2)', borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.55)', padding: 6, zIndex: 50 }
 const configRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
-const configSaveRow: CSSProperties = { padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--accent-light)', cursor: 'pointer' }
+const configDeleteX: CSSProperties = { fontSize: 14, color: 'var(--muted)', cursor: 'pointer', padding: '0 4px', lineHeight: 1 }
+const configSaveRow: CSSProperties = { display: 'flex', gap: 6, padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--line)' }
+const configSaveInput: CSSProperties = { flex: 1, minWidth: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 8px', color: 'var(--text)', fontSize: 12.5 }
+const configSaveBtn: CSSProperties = { background: 'var(--accent-tint-3)', color: 'var(--accent-light)', border: '1px solid var(--accent)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }
 const stopBtn: CSSProperties = { background: 'var(--card)', color: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer' }
 const heroBtn: CSSProperties = { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }

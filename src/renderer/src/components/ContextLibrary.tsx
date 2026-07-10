@@ -11,6 +11,7 @@ export default function ContextLibrary() {
   const toggleAttach = useApp((s) => s.toggleAttach)
   const userItems = useApp((s) => s.userItems)
   const addNote = useApp((s) => s.addNote)
+  const updateNote = useApp((s) => s.updateNote)
   const addFileItem = useApp((s) => s.addFileItem)
   const removeUserItem = useApp((s) => s.removeUserItem)
   const reseedContext = useApp((s) => s.reseedContext)
@@ -23,7 +24,7 @@ export default function ContextLibrary() {
   const [query, setQuery] = useState('')
   const [attachedOnly, setAttachedOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string>(attachedIds[0] ?? CONTEXT_ITEMS[0].id)
-  const [noteForm, setNoteForm] = useState<{ name: string; content: string } | null>(null)
+  const [noteForm, setNoteForm] = useState<{ name: string; content: string; editingId?: string } | null>(null)
 
   const attached = new Set(attachedIds)
   const attachedTokens = attachedIds.reduce((sum, id) => sum + (byId(id)?.tokens ?? 0), 0)
@@ -67,7 +68,13 @@ export default function ContextLibrary() {
       {pending && (
         <div style={pendingBanner}>
           <span>⚠ Attached context changed — it applies on your next message in this chat (sessions are seeded once for speed).</span>
-          <button onClick={() => active && reseedContext(active.id)} style={pendingApply}>Apply now</button>
+          <button
+            onClick={() => active && reseedContext(active.id)}
+            title="starts a fresh harness session; in-session state is lost"
+            style={pendingApply}
+          >
+            Re-seed fresh session
+          </button>
         </div>
       )}
 
@@ -191,9 +198,22 @@ export default function ContextLibrary() {
                 {selected.content || selected.path ? '✓ Injected into the agent context when attached' : 'Display-only (no content)'}
               </div>
               {selected.user && (
-                <button onClick={() => { removeUserItem(selected.id); setSelectedId(CONTEXT_ITEMS[0].id) }} style={{ ...attachBtn, width: '100%', padding: 8, marginTop: 12, color: 'var(--error)', borderColor: 'var(--error)' }}>
-                  Delete item
-                </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  {selected.type === 'instruction' && (
+                    <button
+                      onClick={() => setNoteForm({ name: selected.name, content: selected.content ?? '', editingId: selected.id })}
+                      style={{ ...attachBtn, flex: 1, padding: 8 }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { removeUserItem(selected.id); setSelectedId(CONTEXT_ITEMS[0].id) }}
+                    style={{ ...attachBtn, flex: 1, padding: 8, color: 'var(--error)', borderColor: 'var(--error)' }}
+                  >
+                    Delete item
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -203,7 +223,7 @@ export default function ContextLibrary() {
       {noteForm && (
         <div onClick={() => setNoteForm(null)} style={noteBackdrop}>
           <div onClick={(e) => e.stopPropagation()} style={noteCard}>
-            <div style={{ fontWeight: 600, marginBottom: 10 }}>New note</div>
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>{noteForm.editingId ? 'Edit note' : 'New note'}</div>
             <input autoFocus value={noteForm.name} onChange={(e) => setNoteForm({ ...noteForm, name: e.target.value })} placeholder="Name (e.g. api-conventions)" style={noteInput} />
             <textarea value={noteForm.content} onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })} placeholder="Text injected into the agent's context when this note is attached…" rows={6} style={{ ...noteInput, resize: 'vertical', fontFamily: 'inherit' }} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
@@ -211,7 +231,8 @@ export default function ContextLibrary() {
               <button
                 onClick={() => {
                   if (noteForm.content.trim()) {
-                    addNote(noteForm.name, noteForm.content)
+                    if (noteForm.editingId) updateNote(noteForm.editingId, { name: noteForm.name, content: noteForm.content })
+                    else addNote(noteForm.name, noteForm.content)
                     setNoteForm(null)
                   }
                 }}

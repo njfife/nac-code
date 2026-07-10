@@ -1,5 +1,6 @@
 import { useApp, type Chat, type Workspace, type Layout } from './store'
 import { ITEMS_BY_ID, type ContextItem } from '../data/context'
+import type { Configuration } from '../data/configs'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
@@ -9,6 +10,7 @@ interface PersistedState {
   layout: Layout
   expanded: Record<string, boolean>
   userItems?: ContextItem[]
+  userConfigs?: Configuration[]
 }
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
@@ -102,13 +104,15 @@ export async function initPersistence(): Promise<void> {
       const chats: Record<string, Chat> = {}
       for (const [id, raw] of Object.entries(loaded.chats)) chats[id] = normalizeChat(raw ?? {}, id, userItemIds, workspaces[0]?.id ?? 'ws_default')
       const activeChatId = loaded.activeChatId in chats ? loaded.activeChatId : (Object.keys(chats)[0] ?? '')
+      const userConfigs = Array.isArray(loaded.userConfigs) ? loaded.userConfigs : useApp.getState().userConfigs
       useApp.setState({
         chats,
         workspaces,
         activeChatId,
         layout: loaded.layout ?? useApp.getState().layout,
         expanded: loaded.expanded ?? useApp.getState().expanded,
-        userItems
+        userItems,
+        userConfigs
       })
     }
   } catch {
@@ -124,7 +128,8 @@ export async function initPersistence(): Promise<void> {
         activeChatId: s.activeChatId,
         layout: s.layout,
         expanded: s.expanded,
-        userItems: s.userItems
+        userItems: s.userItems,
+        userConfigs: s.userConfigs
       }
       void window.nac.state.save(snapshot)
     }, 400)
