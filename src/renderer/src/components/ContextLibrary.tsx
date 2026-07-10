@@ -124,7 +124,14 @@ export default function ContextLibrary() {
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</div>
                   </div>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--faint)' }}>~{it.tokens}t</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {it.fileState && (
+                      <span style={{ fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: 'rgba(227,178,95,.15)', color: 'var(--warning)', fontWeight: 600 }}>
+                        {it.fileState === 'toolarge' ? 'too large' : it.fileState}
+                      </span>
+                    )}
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--faint)' }}>~{it.tokens}t</span>
+                  </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -154,7 +161,17 @@ export default function ContextLibrary() {
                 {attached.has(selected.id) ? 'Detach from chat' : 'Attach to chat'}
               </button>
               <Detail label="Type" value={TYPE_META[selected.type].label} />
-              <Detail label="Size" value={`~${selected.tokens} tokens`} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5, borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
+                <span style={{ color: 'var(--muted)' }}>Size</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {selected.fileState && (
+                    <span style={{ fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: 'rgba(227,178,95,.15)', color: 'var(--warning)', fontWeight: 600 }}>
+                      {selected.fileState === 'toolarge' ? 'too large' : selected.fileState}
+                    </span>
+                  )}
+                  <span className="mono" style={{ color: 'var(--text-2)' }}>~{selected.tokens} tokens</span>
+                </div>
+              </div>
               <Detail label="Source" value={selected.source} />
               <div style={{ fontSize: 11, color: 'var(--muted-2)', textTransform: 'uppercase', letterSpacing: 1, margin: '16px 0 6px' }}>Scope</div>
               <div style={{ display: 'flex', background: 'var(--card)', borderRadius: 8, padding: 2, border: '1px solid var(--line)' }}>

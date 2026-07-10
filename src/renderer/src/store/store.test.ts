@@ -429,4 +429,38 @@ describe('app store — compaction failure (M0-5)', () => {
     // Verify that chat A's compactError was cleared when we switched away from it
     expect(useApp.getState().chats[chatAId].compactError).toBeUndefined() // cleared on chat switch
   })
+
+  it('recordFileRead ok clears fileState and updates tokens', () => {
+    const s = useApp.getState()
+    const countBefore = s.userItems.length
+    s.addFileItem('test.txt', '/path/to/test.txt')
+    const fileItemId = useApp.getState().userItems[countBefore].id
+    const itemBefore = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemBefore?.tokens).toBe(0)
+    expect(itemBefore?.fileState).toBeUndefined()
+
+    s.recordFileRead(fileItemId, { ok: true, content: 'hello', tokens: 2 })
+    const itemAfter = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter?.tokens).toBe(2)
+    expect(itemAfter?.fileState).toBeUndefined()
+  })
+
+  it('recordFileRead failure sets fileState', () => {
+    const s = useApp.getState()
+    const countBefore = s.userItems.length
+    s.addFileItem('missing.txt', '/nonexistent.txt')
+    const fileItemId = useApp.getState().userItems[countBefore].id
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'missing' })
+    const itemAfter = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter?.fileState).toBe('missing')
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'binary' })
+    const itemAfter2 = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter2?.fileState).toBe('binary')
+
+    s.recordFileRead(fileItemId, { ok: false, state: 'toolarge' })
+    const itemAfter3 = useApp.getState().userItems.find((i) => i.id === fileItemId)
+    expect(itemAfter3?.fileState).toBe('toolarge')
+  })
 })

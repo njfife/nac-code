@@ -4,6 +4,7 @@ import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../
 import type { ContextItem } from '../data/context'
 import { seedKey } from '../data/context'
 import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
+import type { FileReadResult } from './readFileItem'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/attached/config/transcript.
 // Mutations target a specific chat — nothing is global. Switching chats is lossless (FR-4.2).
@@ -142,6 +143,7 @@ interface AppState {
   updateNote: (id: string, patch: { name?: string; content?: string }) => void
   addFileItem: (name: string, path: string) => void
   removeUserItem: (id: string) => void
+  recordFileRead: (id: string, result: FileReadResult) => void
   markSeeded: (chatId: string, attachedIds: string[]) => void
   reseedContext: (chatId: string) => void
 }
@@ -528,6 +530,20 @@ export const useApp = create<AppState>()((set, get) => ({
     set((s) => ({
       userItems: s.userItems.filter((i) => i.id !== id),
       chats: Object.fromEntries(Object.entries(s.chats).map(([cid, c]) => [cid, { ...c, attachedIds: c.attachedIds.filter((a) => a !== id) }]))
+    })),
+  recordFileRead: (id: string, result: FileReadResult) =>
+    set((s) => ({
+      userItems: s.userItems.map((i) => {
+        if (i.id !== id) return i
+        if (result.ok) {
+          // Success: clear fileState, update tokens
+          const { fileState: _, ...rest } = i
+          return { ...rest, tokens: result.tokens }
+        } else {
+          // Failure: set fileState
+          return { ...i, fileState: result.state }
+        }
+      })
     })),
   markSeeded: (chatId, ids) =>
     set((s) => {
