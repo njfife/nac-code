@@ -192,7 +192,7 @@ describe('computeContextDelta', () => {
 - Test: `src/renderer/src/store/readFileItem.test.ts`, store tests
 
 **Interfaces:**
-- Produces: `readFileItem(item: { path?: string }, read: (p: string) => Promise<string | null | undefined>): Promise<{ ok: true; content: string; tokens: number } | { ok: false; state: 'missing' | 'binary' | 'toolarge' }>` — pure-ish (injected reader): null/undefined/throw → missing; `content.length > 262144` → toolarge; null byte (` `) in the first 8192 chars → binary; else ok + `tokens = Math.ceil(content.length / 4)`.
+- Produces: `readFileItem(item: { path?: string }, read: (p: string) => Promise<string | null | undefined>): Promise<{ ok: true; content: string; tokens: number } | { ok: false; state: 'missing' | 'binary' | 'toolarge' }>` — pure-ish (injected reader): null/undefined/throw → missing; `content.length > 262144` → toolarge; null byte (`\u0000`) in the first 8192 chars → binary; else ok + `tokens = Math.ceil(content.length / 4)`.
 - Store: `recordFileRead(id: string, result: <the union above>): void` — ok → clears `fileState`, sets `tokens`; not-ok → sets `fileState`.
 
 - [ ] **Step 1: Failing tests**
@@ -210,7 +210,7 @@ describe('readFileItem', () => {
   it('missing / binary / toolarge map to states', async () => {
     expect(await readFileItem({ path: '/x' }, async () => null)).toEqual({ ok: false, state: 'missing' })
     expect(await readFileItem({ path: '/x' }, async () => { throw new Error('ENOENT') })).toEqual({ ok: false, state: 'missing' })
-    expect(await readFileItem({ path: '/x' }, async () => 'a b')).toEqual({ ok: false, state: 'binary' })
+    expect(await readFileItem({ path: '/x' }, async () => 'a\u0000b')).toEqual({ ok: false, state: 'binary' })
     expect(await readFileItem({ path: '/x' }, async () => 'x'.repeat(262145))).toEqual({ ok: false, state: 'toolarge' })
   })
   it('no path → missing', async () => {
