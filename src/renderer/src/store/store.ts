@@ -4,6 +4,7 @@ import { STATIC_CAPABILITIES, effortScaleFor, modelIdFor, windowKFor } from '../
 import type { ContextItem } from '../data/context'
 import { seedKey } from '../data/context'
 import type { TurnUsage, ProviderCapabilities, PermissionOption } from '../../../shared/runtime'
+import type { ProviderAgents, NacAgent, SyncReportEntry } from '../../../shared/agents'
 import type { FileReadResult } from './readFileItem'
 
 // The per-chat state spine (FR-4.1): every chat owns its own provider/model/attached/config/transcript.
@@ -68,6 +69,7 @@ export interface Chat {
   yolo: boolean
   fast: boolean // Claude fast mode (research preview); injected per-run via --settings
   effort: string | null // reasoning depth; null = harness default. Values come from discovered capabilities
+  agent: string | null // harness-native agent id (claude --agent / opencode mode); null = harness default
   activeConfig: string | null
   attachedIds: string[]
   dirty: boolean
@@ -89,7 +91,7 @@ export interface Chat {
 
 export type View = 'chat' | 'context' | 'changes'
 export type Layout = 'studio' | 'cockpit' | 'focus'
-export type ModalKind = 'model' | 'stats' | 'workspace' | null
+export type ModalKind = 'model' | 'stats' | 'workspace' | 'agent' | null
 
 interface AppState {
   workspaces: Workspace[]
@@ -102,6 +104,9 @@ interface AppState {
   wsModalId: string | null // workspace targeted by the 'workspace' defaults modal
   palette: boolean
   caps: Record<string, ProviderCapabilities>
+  agents: Record<string, ProviderAgents> // discovery results per provider (session cache; not persisted)
+  nacAgents: NacAgent[] // NAC-authored agents (persisted; synced to harness dirs via agents:sync)
+  lastSyncReport: SyncReportEntry[] | null
 
   selectChat: (id: string) => void
   toggleWorkspace: (wsId: string) => void
@@ -126,7 +131,11 @@ interface AppState {
   toggleYolo: () => void
   toggleFast: () => void
   setEffort: (e: string | null) => void
+  setAgent: (name: string | null) => void
   loadCaps: (provider: string, refresh?: boolean) => Promise<void>
+  loadAgents: (provider: string, refresh?: boolean) => Promise<void>
+  saveNacAgent: (a: NacAgent) => Promise<void>
+  deleteNacAgent: (id: string) => Promise<void>
   // transcript / run lifecycle (driven by AgentEvents) — by chatId so background runs route correctly
   pushTurn: (chatId: string, turn: Turn) => void
   appendDelta: (chatId: string, text: string) => void
@@ -191,6 +200,9 @@ export const useApp = create<AppState>()((set, get) => ({
   wsModalId: null,
   palette: false,
   caps: { ...STATIC_CAPABILITIES },
+  agents: {},
+  nacAgents: [],
+  lastSyncReport: null,
   userItems: [],
   userConfigs: [],
 
@@ -348,6 +360,7 @@ export const useApp = create<AppState>()((set, get) => ({
       yolo: false,
       fast: false,
       effort: null,
+      agent: null,
       activeConfig: 'standard',
       attachedIds: [...(cfg?.itemIds ?? [])],
       dirty: false,
@@ -393,6 +406,34 @@ export const useApp = create<AppState>()((set, get) => ({
       if (!chat) return {}
       return { chats: { ...s.chats, [s.activeChatId]: { ...chat, effort: e } } }
     }),
+  setAgent: (name) =>
+    set((s) => {
+      const chat = s.chats[s.activeChatId]
+      if (!chat) return {}
+      return { chats: { ...s.chats, [s.activeChatId]: { ...chat, agent: name } } }
+    }),
+  loadAgents: async (provider, refresh) => {
+    const ws = get().workspaces.find((w) => w.id === get().chats[get().activeChatId]?.workspaceId)
+    const r = await window.nac.agents.get(provider, ws?.path || undefined, refresh)
+    set((s) => ({ agents: { ...s.agents, [provider]: r } }))
+  },
+  saveNacAgent: async (a) => {
+    const existing = get().nacAgents.find((x) => x.id === a.id)
+    const next = existing
+      ? get().nacAgents.map((x) => (x.id === a.id ? { ...a, rev: x.rev + 1 } : x))
+      : [...get().nacAgents, { ...a, rev: 1 }]
+    set({ nacAgents: next })
+    const report = await window.nac.agents.sync(next)
+    set({ lastSyncReport: report })
+    void get().loadAgents(get().chats[get().activeChatId]?.provider ?? 'claude', true)
+  },
+  deleteNacAgent: async (id) => {
+    const next = get().nacAgents.filter((x) => x.id !== id)
+    set({ nacAgents: next })
+    const report = await window.nac.agents.sync(next) // sync prunes the marker files
+    set({ lastSyncReport: report })
+    void get().loadAgents(get().chats[get().activeChatId]?.provider ?? 'claude', true)
+  },
   loadCaps: async (provider, refresh) => {
     if (!window.nac?.capabilities) return
     try {

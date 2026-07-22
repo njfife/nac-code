@@ -209,6 +209,9 @@ export default function ChatView() {
               >
                 Effort: {active.effort ?? 'default'}
               </span>
+              <span style={toolbarItem} onClick={() => openModal('agent')}>
+                Agent: {active.agent ?? 'none'}
+              </span>
               <span onClick={() => toggleYolo()} style={{ ...toolbarItem, color: active.yolo ? 'var(--warning)' : 'var(--muted)', fontWeight: active.yolo ? 600 : 400 }}>
                 YOLO{active.yolo ? ' ●' : ''}
               </span>

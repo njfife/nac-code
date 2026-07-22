@@ -6,6 +6,7 @@ import Inspector from './Inspector'
 import ModelModal from './ModelModal'
 import StatsModal from './StatsModal'
 import WorkspaceModal from './WorkspaceModal'
+import AgentModal from './AgentModal'
 import ContextLibrary from './ContextLibrary'
 import Changes from './Changes'
 import CommandPalette from './CommandPalette'
@@ -59,6 +60,7 @@ export default function Shell() {
       {modal === 'model' && <ModelModal />}
       {modal === 'stats' && <StatsModal />}
       {modal === 'workspace' && <WorkspaceModal />}
+      {modal === 'agent' && <AgentModal />}
       {palette && <CommandPalette />}
     </div>
   )

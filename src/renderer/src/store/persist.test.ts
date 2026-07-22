@@ -45,14 +45,14 @@ describe('normalizeChat — never restore live-looking tool/permission state', (
 // Fresh-install sweep (Task 2): the old "≥1 chat or ignore the file" gate is gone — initPersistence
 // must hydrate whatever's on disk, including a genuinely empty chats object, rather than falling back
 // to (now nonexistent) demo chats.
-// Sweep (Task 3): `agent` is gone from Chat, and the fake catalog entries (ag-*, fl-*, content-less
-// skills) are gone from ITEMS_BY_ID — dead attachedIds referencing them must not survive hydration,
-// while ids that belong to hydrated user items (notes/files, `u_` prefix) are real and must survive.
-describe('normalizeChat — drops removed agent field and dead attachedIds', () => {
-  it('drops the removed agent field and dead attachedIds on hydrate', () => {
+// Sweep (Task 3): the fake catalog entries (ag-*, fl-*, content-less skills) are gone from
+// ITEMS_BY_ID — dead attachedIds referencing them must not survive hydration, while ids that belong
+// to hydrated user items (notes/files, `u_` prefix) are real and must survive. (`agent` now hydrates
+// as a real per-chat field — agent picker — with send-path validation neutralizing stale values.)
+describe('normalizeChat — drops dead attachedIds', () => {
+  it('drops dead attachedIds on hydrate', () => {
     const raw = { agent: 'ag-nac', attachedIds: ['sk-tdd', 'ag-nac', 'fl-readme'] } as never
     const c = normalizeChat(raw, 'c1')
-    expect(c).not.toHaveProperty('agent')
     expect(c.attachedIds).toEqual(['sk-tdd'])
   })
 
@@ -167,6 +167,34 @@ describe('initPersistence — userConfigs round-trip', () => {
     await initPersistence()
 
     expect(useApp.getState().userConfigs).toEqual([{ id: 'u_keep', name: 'Keep', itemIds: [] }])
+  })
+})
+
+describe('agent picker persistence', () => {
+  afterEach(() => {
+    // @ts-expect-error test-only teardown of the minimal preload stub
+    delete globalThis.window
+  })
+
+  it('hydrates a string Chat.agent and null default; junk becomes null', () => {
+    expect(normalizeChat({ agent: 'reviewer' } as never, 'c1').agent).toBe('reviewer')
+    expect(normalizeChat({} as never, 'c2').agent).toBeNull()
+    expect(normalizeChat({ agent: 42 as unknown as string } as never, 'c3').agent).toBeNull()
+  })
+
+  it('round-trips nacAgents and drops malformed entries', async () => {
+    const nacAgents = [
+      { id: 'u_ag_1_1', name: 'A', description: 'd', prompt: 'p', rev: 1 },
+      null,
+      { id: 'u_ag_2_2', name: 'B' } // missing prompt/rev
+    ]
+    const loaded = { chats: {}, workspaces: [{ id: 'ws_default', name: 'W', path: '' }], activeChatId: '', layout: 'studio', expanded: {}, nacAgents }
+    // @ts-expect-error minimal window.nac.state stub
+    globalThis.window = { nac: { state: { load: async () => loaded, save: async () => {} } } }
+
+    await initPersistence()
+
+    expect(useApp.getState().nacAgents).toEqual([{ id: 'u_ag_1_1', name: 'A', description: 'd', prompt: 'p', rev: 1 }])
   })
 })
 

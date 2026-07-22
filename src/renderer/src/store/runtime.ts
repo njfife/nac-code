@@ -139,6 +139,14 @@ export async function sendMessage(text: string): Promise<void> {
     // Send-time effort validation: a stale/invalid effort (e.g. carried over from a model switch
     // whose scale doesn't include it) is treated as null rather than sent to the harness.
     const scale = effortScaleFor(s.caps[chat.provider], chat.model)
+    // Send-time agent validation (mirrors effort): only claude/opencode take an agent, and if the
+    // discovery slice for the provider is loaded, the value must name a selectable discovered agent —
+    // a stale/legacy value is omitted rather than sent to the harness.
+    const providerAgents = s.agents[chat.provider]
+    const agentOk =
+      (chat.provider === 'claude' || chat.provider === 'opencode') &&
+      chat.agent &&
+      (!providerAgents || providerAgents.agents.some((a) => a.id === chat.agent && a.selectable))
     // Omit context entirely when it carries nothing (no items, no removals, no notes) — an empty
     // payload ({items:[],removed:[]}) would still set usedResourceBlocks on ACP sessions, arming the
     // text-only-retry path on a fresh turn that never actually attached anything.
@@ -153,6 +161,7 @@ export async function sendMessage(text: string): Promise<void> {
       model: modelIdFor(chat.provider, chat.model, s.caps[chat.provider]),
       effort: chat.effort && scale.includes(chat.effort) ? chat.effort : undefined,
       fast: chat.fast || undefined,
+      agent: agentOk ? chat.agent! : undefined,
       context
     })
     runToChat[runId] = chatId

@@ -1,6 +1,7 @@
 import { useApp, type Chat, type Workspace, type Layout } from './store'
 import { ITEMS_BY_ID, type ContextItem } from '../data/context'
 import type { Configuration } from '../data/configs'
+import type { NacAgent } from '../../../shared/agents'
 
 // Only the durable slice is persisted (not transient UI like modal/palette/view).
 interface PersistedState {
@@ -11,13 +12,14 @@ interface PersistedState {
   expanded: Record<string, boolean>
   userItems?: ContextItem[]
   userConfigs?: Configuration[]
+  nacAgents?: NacAgent[]
 }
 
 // Tolerant hydration: fill any fields missing from older persisted data (schema drift) so a stale
 // nac-state.json can never crash the app. Add new Chat fields here with a default when introduced.
 // `userItemIds` are the ids of hydrated user items (notes/files, `u_`-prefixed) — attachedIds may
 // legitimately reference those even though they aren't in the static ITEMS_BY_ID catalog.
-export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null; agent?: string | null }, id: string, userItemIds: Set<string> = new Set(), fallbackWorkspaceId = 'ws_default'): Chat {
+export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | null }, id: string, userItemIds: Set<string> = new Set(), fallbackWorkspaceId = 'ws_default'): Chat {
   return {
     id,
     workspaceId: c.workspaceId ?? fallbackWorkspaceId, // a chat must land in a workspace that EXISTS or it vanishes from the rail
@@ -33,6 +35,9 @@ export function normalizeChat(c: Partial<Chat> & { claudeSessionId?: string | nu
       typeof c.fast === 'boolean'
         ? ((c as { effort?: string | null }).effort ?? ((c as { thinking?: string }).thinking === 'none' ? null : (c as { thinking?: string }).thinking ?? null))
         : null,
+    // Legacy pre-NFP fake agent values may resurface as strings — the send-path validation makes
+    // them harmless (omitted from the run unless they name a discovered, selectable agent).
+    agent: typeof c.agent === 'string' ? c.agent : null,
     activeConfig: c.activeConfig ?? null,
     // Drop dead ids (removed catalog entries) but keep anything that hydrated as a real user item.
     attachedIds: Array.isArray(c.attachedIds) ? c.attachedIds.filter((aid) => ITEMS_BY_ID[aid] || userItemIds.has(aid)) : [],
@@ -112,6 +117,9 @@ export async function initPersistence(): Promise<void> {
       const userConfigs = Array.isArray(loaded.userConfigs)
         ? loaded.userConfigs.filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string' && Array.isArray(c.itemIds))
         : useApp.getState().userConfigs
+      const nacAgents = Array.isArray(loaded.nacAgents)
+        ? loaded.nacAgents.filter((a) => a && typeof a.id === 'string' && typeof a.name === 'string' && typeof a.prompt === 'string' && typeof a.rev === 'number')
+        : useApp.getState().nacAgents
       useApp.setState({
         chats,
         workspaces,
@@ -119,7 +127,8 @@ export async function initPersistence(): Promise<void> {
         layout: loaded.layout ?? useApp.getState().layout,
         expanded: loaded.expanded ?? useApp.getState().expanded,
         userItems,
-        userConfigs
+        userConfigs,
+        nacAgents
       })
     }
   } catch {
@@ -136,7 +145,8 @@ export async function initPersistence(): Promise<void> {
         layout: s.layout,
         expanded: s.expanded,
         userItems: s.userItems,
-        userConfigs: s.userConfigs
+        userConfigs: s.userConfigs,
+        nacAgents: s.nacAgents
       }
       void window.nac.state.save(snapshot)
     }, 400)
