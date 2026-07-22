@@ -12,7 +12,8 @@ import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
 import { getCapabilities, invalidateCapabilities } from './capabilities'
 import { getAgents } from './agents'
-import { AGENTS_CHANNELS } from '../../shared/agents'
+import { syncAgents } from './agents/sync'
+import { AGENTS_CHANNELS, type NacAgent } from '../../shared/agents'
 import { classifyModelRejection, isWorksEvidence } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
 import { promptViaTransport, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
@@ -150,6 +151,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Harness-native agent discovery (agent picker): per-provider scan/exec with a static floor.
   ipcMain.handle(AGENTS_CHANNELS.get, (_e, provider: string, cwd?: string, refresh?: boolean) => getAgents(provider, cwd, refresh === true))
+  ipcMain.handle(AGENTS_CHANNELS.sync, (_e, nacAgents: NacAgent[]) => syncAgents(Array.isArray(nacAgents) ? nacAgents : []))
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))

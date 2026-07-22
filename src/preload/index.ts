@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { RUN_CHANNELS, STATE_CHANNELS, DIALOG_CHANNELS, CHANGES_CHANNELS, FILES_CHANNELS, REGISTRY_CHANNELS, CAPABILITIES_CHANNELS, type RunRequest, type SummarizeRequest, type AgentEvent, type ChangesResult, type FileDiffResult, type ProviderProbe, type ProviderCapabilities } from '../shared/runtime'
-import { AGENTS_CHANNELS, type ProviderAgents } from '../shared/agents'
+import { AGENTS_CHANNELS, type ProviderAgents, type NacAgent, type SyncReportEntry } from '../shared/agents'
 
 // The ONLY surface the renderer can reach. Privileged capabilities are added here as typed,
 // allowlisted IPC channels — never raw Node access in the renderer.
@@ -45,7 +45,8 @@ const api = {
     get: (provider: string, refresh?: boolean): Promise<ProviderCapabilities> => ipcRenderer.invoke(CAPABILITIES_CHANNELS.get, provider, refresh)
   },
   agents: {
-    get: (provider: string, cwd?: string, refresh?: boolean): Promise<ProviderAgents> => ipcRenderer.invoke(AGENTS_CHANNELS.get, provider, cwd, refresh)
+    get: (provider: string, cwd?: string, refresh?: boolean): Promise<ProviderAgents> => ipcRenderer.invoke(AGENTS_CHANNELS.get, provider, cwd, refresh),
+    sync: (nacAgents: NacAgent[]): Promise<SyncReportEntry[]> => ipcRenderer.invoke(AGENTS_CHANNELS.sync, nacAgents)
   }
 }
 
