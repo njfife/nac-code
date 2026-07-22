@@ -11,6 +11,8 @@ import { startCopilotRun } from './copilotAdapter'
 import { startOpenCodeRun } from './openCodeAdapter'
 import { probeProviders } from './registry'
 import { getCapabilities, invalidateCapabilities } from './capabilities'
+import { getAgents } from './agents'
+import { AGENTS_CHANNELS } from '../../shared/agents'
 import { classifyModelRejection, isWorksEvidence } from './capabilities/ledger'
 import { recordOutcome } from './capabilities/ledgerStore'
 import { promptViaTransport, respondPermission as acpRespondPermission, cancelRun as acpCancelRun, disposeAll as acpDisposeAll } from './acp/sessionManager'
@@ -145,6 +147,9 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
 
   // Per-account capability discovery (M4): live model/effort data with a static floor.
   ipcMain.handle(CAPABILITIES_CHANNELS.get, (_e, provider: string, refresh?: boolean) => getCapabilities(provider, refresh === true))
+
+  // Harness-native agent discovery (agent picker): per-provider scan/exec with a static floor.
+  ipcMain.handle(AGENTS_CHANNELS.get, (_e, provider: string, cwd?: string, refresh?: boolean) => getAgents(provider, cwd, refresh === true))
 
   // Real working-tree changes (git) for a workspace.
   ipcMain.handle(CHANGES_CHANNELS.get, (_e, cwd: string) => getChanges(cwd))
