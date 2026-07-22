@@ -72,10 +72,11 @@ export function parseClaudeLine(runId: string, line: string): AgentEvent[] {
 }
 
 /** Pure + exported for testing: build the claude argv. model = alias (opus/sonnet/haiku, opt. [1m]); yolo → skip prompts. */
-export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean, model?: string, effort?: string, fast?: boolean): string[] {
+export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean, model?: string, effort?: string, fast?: boolean, agent?: string): string[] {
   const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose']
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
+  if (agent) args.push('--agent', agent) // harness-native agent identity (agent picker)
   if (fast) args.push('--settings', '{"fastMode":true}') // no --fast flag exists; per-run settings injection (verified 2026-07-08)
   if (yolo) args.push('--dangerously-skip-permissions')
   if (sessionId) args.push('--resume', sessionId) // continue the prior turn's session (FR-4.2)
@@ -84,7 +85,7 @@ export function claudeArgs(prompt: string, sessionId?: string, yolo?: boolean, m
 
 export function startClaudeRun(
   runId: string,
-  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean; model?: string; effort?: string; fast?: boolean },
+  req: { prompt: string; binPath?: string; sessionId?: string; cwd?: string; yolo?: boolean; model?: string; effort?: string; fast?: boolean; agent?: string },
   onEvent: (e: AgentEvent) => void
 ): HarnessRun {
   let settled = false
@@ -94,7 +95,7 @@ export function startClaudeRun(
     onEvent(e)
   }
 
-  const args = claudeArgs(req.prompt, req.sessionId, req.yolo, req.model, req.effort, req.fast)
+  const args = claudeArgs(req.prompt, req.sessionId, req.yolo, req.model, req.effort, req.fast, req.agent)
 
   let child: ChildProcess
   try {

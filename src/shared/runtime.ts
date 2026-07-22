@@ -15,6 +15,7 @@ export interface RunRequest {
   model?: string // harness model id (e.g. opencode 'lmstudio/qwen/…'); passed as --model where supported
   effort?: string // reasoning depth; omitted = harness default. Adapter maps to its flag
   fast?: boolean // Claude fast mode (research preview) — injected per-run via --settings
+  agent?: string // harness-native agent (claude --agent / opencode ACP mode); omitted = harness default
 }
 
 // One-shot text summarization through a harness — provider-neutral compaction (FR-9 / M0-8).

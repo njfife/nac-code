@@ -5,13 +5,14 @@ import type { AgentEvent, PermissionOption } from '../../../shared/runtime'
 
 export const THINKING_ROW_ID = 'thinking_'
 
-export function claudeSessionArgs(o: { yolo: boolean; model?: string; effort?: string; sessionId?: string }): string[] {
+export function claudeSessionArgs(o: { yolo: boolean; model?: string; effort?: string; agent?: string; sessionId?: string }): string[] {
   const args = [
     '--print', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--allow-dangerously-skip-permissions'
   ]
   if (o.model) args.push('--model', o.model)
   if (o.effort) args.push('--effort', o.effort)
+  if (o.agent) args.push('--agent', o.agent) // spawn-time agent identity (probe: global flag, stream-json-safe)
   if (o.sessionId) args.push('--resume', o.sessionId)
   return args
 }

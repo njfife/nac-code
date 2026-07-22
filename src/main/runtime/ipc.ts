@@ -86,7 +86,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
     const bakedPrompt = req.context ? renderContextText(req.context) + req.prompt : req.prompt
     if (req.provider === 'copilot' || req.provider === 'codex' || req.provider === 'claude' || req.provider === 'opencode') {
       // Interactive-first: persistent transport session; on { ok: false } fall back to the one-shot path.
-      void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, context: req.context, onEvent: handler }).then(({ ok }) => {
+      void promptViaTransport({ provider: req.provider, chatId: req.chatId ?? runId, runId, prompt: req.prompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, model: req.model, effort: req.effort, agent: req.agent, context: req.context, onEvent: handler }).then(({ ok }) => {
         if (!ok) {
           // Render-only notice (never content.delta — replay must stay clean).
           handler({ type: 'tool.updated', runId, toolCallId: `fallback_${runId}`, title: 'interactive session unavailable — ran headless', kind: 'notice', status: 'failed' })
@@ -95,7 +95,7 @@ export function registerRuntimeIpc(getWindow: () => BrowserWindow | null): void 
             req.provider === 'codex'
               ? startCodexRun(runId, { prompt: bakedPrompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)
               : req.provider === 'claude'
-                ? startClaudeRun(runId, { prompt: bakedPrompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast }, handler)
+                ? startClaudeRun(runId, { prompt: bakedPrompt, sessionId: req.sessionId, cwd: req.cwd, yolo: req.yolo, model: req.model, effort: req.effort, fast: req.fast, agent: req.agent }, handler)
                 : req.provider === 'opencode'
                   ? startOpenCodeRun(runId, { prompt: bakedPrompt, model: req.model, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, variant: req.effort }, handler)
                   : startCopilotRun(runId, { prompt: bakedPrompt, cwd: req.cwd, yolo: req.yolo, sessionId: req.sessionId, effort: req.effort, model: req.model }, handler)

@@ -20,6 +20,11 @@ describe('ClaudeSession constants + respawn predicate', () => {
     expect(needsRespawn({}, {}, 'sid')).toBe(false)
     expect(needsRespawn({ effort: 'high' }, {}, 'sid')).toBe(false) // requested field undefined = no preference
   })
+  it('needsRespawn fires on agent change like model/effort, and not on undefined', () => {
+    expect(needsRespawn({ agent: 'a' }, { agent: 'b' }, 'sid')).toBe(true)
+    expect(needsRespawn({ agent: 'a' }, {}, 'sid')).toBe(false)
+    expect(needsRespawn({ agent: 'a' }, { agent: 'b' }, null)).toBe(false)
+  })
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reaching into private fields is the

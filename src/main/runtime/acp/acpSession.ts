@@ -17,6 +17,7 @@ const HANDSHAKE_TIMEOUT_MS = 10_000
 export interface PromptOpts {
   model?: string
   effort?: string
+  agent?: string // opencode: applied as the `mode` configOption (probe 2026-07-10); claude: spawn-arg (see claudeSession)
   context?: ContextPayload
 }
 
@@ -108,6 +109,7 @@ export class AcpSession implements TransportSession {
   private thinkingOpen = false
   private interrupted = false
   private appliedModel: string | null = null
+  private appliedMode: string | null = null
   private modelMismatchThisTurn = false
   // Discovered from initialize's agentCapabilities — gates whether runTurn sends structured
   // `resource` prompt blocks or falls back to a single rendered-text block (M0-8 Part C).
@@ -272,6 +274,16 @@ export class AcpSession implements TransportSession {
           this.appliedModel = opts.model
         } catch {
           // fail-open: the harness keeps its current model; the ledger records real outcomes
+          this.modelMismatchThisTurn = true
+        }
+      }
+      if (this.profile.provider === 'opencode' && opts?.agent && opts.agent !== this.appliedMode) {
+        try {
+          await this.client.request('session/set_config_option', { sessionId: this.sessionId, configId: 'mode', value: opts.agent }, HANDSHAKE_TIMEOUT_MS)
+          this.appliedMode = opts.agent
+        } catch {
+          // fail-open, same doctrine as model: the harness keeps its current mode; reuse the single
+          // "requested config wasn't honored" completion marker.
           this.modelMismatchThisTurn = true
         }
       }

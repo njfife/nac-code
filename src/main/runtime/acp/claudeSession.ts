@@ -18,7 +18,7 @@ import {
 // ways the code must respect: (1) there is NO handshake — the child is a one-shot `--print` process
 // per spawn, so `connect()` itself spawns (never the constructor) and a resumed session must be
 // VERIFIED (a bogus/expired --resume id exits in ~1.3s; a real one just sits there streaming
-// nothing until prompted); (2) model/effort are baked into argv at spawn time, so changing them
+// nothing until prompted); (2) model/effort/agent are baked into argv at spawn time, so changing them
 // mid-conversation means killing the child and respawning with `--resume`; (3) YOLO is not a spawn
 // flag — the child is always spawned non-bypass and bypassPermissions is toggled live via a
 // `set_permission_mode` control_request, so flipping the switch takes effect on the NEXT prompt
@@ -36,7 +36,8 @@ export function needsRespawn(spawned: PromptOpts, requested: PromptOpts, session
   if (sessionId === null) return false
   const modelChanged = requested.model !== undefined && requested.model !== spawned.model
   const effortChanged = requested.effort !== undefined && requested.effort !== spawned.effort
-  return modelChanged || effortChanged
+  const agentChanged = requested.agent !== undefined && requested.agent !== spawned.agent
+  return modelChanged || effortChanged || agentChanged
 }
 
 interface PendingApproval {
@@ -67,7 +68,7 @@ export class ClaudeSession implements TransportSession {
   constructor(onEvent: (e: AgentEvent) => void, yolo: boolean, opts?: PromptOpts) {
     this.onEvent = onEvent
     this.yolo = yolo
-    this.spawned = { model: opts?.model, effort: opts?.effort }
+    this.spawned = { model: opts?.model, effort: opts?.effort, agent: opts?.agent }
   }
 
   setYolo(y: boolean): void {
@@ -83,7 +84,7 @@ export class ClaudeSession implements TransportSession {
   }
 
   private newClient(sessionId: string | undefined): StreamJsonClient {
-    const args = claudeSessionArgs({ yolo: false, model: this.spawned.model, effort: this.spawned.effort, sessionId })
+    const args = claudeSessionArgs({ yolo: false, model: this.spawned.model, effort: this.spawned.effort, agent: this.spawned.agent, sessionId })
     const client = new StreamJsonClient('claude', args, this.cwd)
     this.attach(client)
     return client
@@ -133,7 +134,8 @@ export class ClaudeSession implements TransportSession {
       this.client.close()
       this.spawned = {
         model: requested.model !== undefined ? requested.model : this.spawned.model,
-        effort: requested.effort !== undefined ? requested.effort : this.spawned.effort
+        effort: requested.effort !== undefined ? requested.effort : this.spawned.effort,
+        agent: requested.agent !== undefined ? requested.agent : this.spawned.agent
       }
       this.client = this.newClient(this.knownSessionId ?? undefined)
       this.appliedYolo = false // fresh child is always spawned non-bypass — re-sync on the next check below

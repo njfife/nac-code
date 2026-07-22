@@ -53,6 +53,7 @@ export async function promptViaTransport(opts: {
   sessionId?: string
   model?: string
   effort?: string
+  agent?: string
   context?: ContextPayload
   onEvent: (e: AgentEvent) => void
 }): Promise<{ ok: boolean }> {
@@ -93,7 +94,7 @@ export async function promptViaTransport(opts: {
       opts.provider === 'codex'
         ? new CodexSession(sink, opts.yolo === true)
         : opts.provider === 'claude'
-          ? new ClaudeSession(sink, opts.yolo === true, { model: opts.model, effort: opts.effort })
+          ? new ClaudeSession(sink, opts.yolo === true, { model: opts.model, effort: opts.effort, agent: opts.agent })
           : opts.provider === 'opencode'
             ? new AcpSession(sink, opts.yolo === true, OPENCODE_PROFILE)
             : new AcpSession(sink, opts.yolo === true)
@@ -110,7 +111,7 @@ export async function promptViaTransport(opts: {
   }
   entry.session.setYolo(opts.yolo === true)
   runToChat.set(opts.runId, opts.chatId)
-  const promptOpts: PromptOpts = { model: opts.model, effort: opts.effort, context: opts.context }
+  const promptOpts: PromptOpts = { model: opts.model, effort: opts.effort, agent: opts.agent, context: opts.context }
   entry.session.prompt(opts.runId, opts.prompt, promptOpts)
   touch(opts.chatId)
   return { ok: true }

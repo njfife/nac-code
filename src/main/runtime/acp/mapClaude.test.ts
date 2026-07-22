@@ -13,6 +13,12 @@ describe('claudeSessionArgs', () => {
       '--model', 'claude-opus-4-8', '--effort', 'high', '--resume', 'sid1'
     ])
   })
+  it('appends --agent when provided', () => {
+    const args = claudeSessionArgs({ yolo: false, agent: 'reviewer' })
+    expect(args).toContain('--agent')
+    expect(args[args.indexOf('--agent') + 1]).toBe('reviewer')
+    expect(claudeSessionArgs({ yolo: false })).not.toContain('--agent')
+  })
 })
 
 describe('mapClaudeStreamEvent', () => {

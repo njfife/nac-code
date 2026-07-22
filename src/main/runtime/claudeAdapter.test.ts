@@ -16,6 +16,13 @@ describe('claudeArgs (autonomy)', () => {
     expect(claudeArgs('hi', undefined, false, 'opus', undefined, true)).toEqual(expect.arrayContaining(['--settings', '{"fastMode":true}']))
     expect(claudeArgs('hi')).not.toContain('--settings')
   })
+
+  it('appends --agent as the trailing optional', () => {
+    const args = claudeArgs('p', undefined, false, undefined, undefined, undefined, 'reviewer')
+    expect(args).toContain('--agent')
+    expect(args[args.indexOf('--agent') + 1]).toBe('reviewer')
+    expect(claudeArgs('p')).not.toContain('--agent')
+  })
 })
 
 // Exercised against the real `claude --output-format stream-json` event shapes.
